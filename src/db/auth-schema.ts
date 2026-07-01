@@ -1,4 +1,10 @@
-import { boolean, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -10,6 +16,11 @@ export const user = pgTable("user", {
   image: text("image"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  // Populated by the better-auth-usos plugin on USOS login.
+  studentNumber: integer("student_number"),
+  usosId: text("usos_id"),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
 });
 
 export const session = pgTable("session", {

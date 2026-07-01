@@ -33,4 +33,11 @@ export default solvro(
       "import/no-default-export": "off",
     },
   },
+  {
+    files: ["src/db/seed.ts"],
+    rules: {
+      "no-console": "off",
+      "unicorn/no-process-exit": "off",
+    },
+  },
 );

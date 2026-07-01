@@ -8,6 +8,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
+    "db:seed": "tsx --env-file=.env src/db/seed.ts",
     "db:studio": "drizzle-kit studio",
     "dev": "next dev",
     "format": "prettier --write .",
@@ -23,10 +24,15 @@
   },
   "prettier": "@solvro/config/prettier",
   "dependencies": {
+    "@hookform/resolvers": "^5.4.0",
+    "@octokit/auth-app": "^8.2.0",
+    "@octokit/rest": "^22.0.1",
     "@t3-oss/env-nextjs": "^0.13.11",
     "better-auth": "^1.6.23",
+    "better-auth-usos": "^1.1.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.22.0",
     "next": "16.2.9",
@@ -34,6 +40,7 @@
     "radix-ui": "^1.6.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "react-hook-form": "^7.80.0",
     "recharts": "3.8.0",
     "shadcn": "^4.12.0",
     "tailwind-merge": "^3.6.0",
@@ -43,6 +50,7 @@
   "devDependencies": {
     "@commitlint/cli": "^20.5.3",
     "@next/eslint-plugin-next": "^16.2.9",
+    "@octokit/webhooks-types": "^7.6.1",
     "@solvro/config": "3.0.0-beta.10",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
@@ -55,6 +63,7 @@
     "lint-staged": "^17.0.8",
     "prettier": "^3.9.3",
     "tailwindcss": "^4",
+    "tsx": "^4.22.4",
     "typescript": "^5"
   }
 }

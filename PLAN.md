@@ -1,64 +1,181 @@
-# HRownik
+# HRownik — plan implementacji
 
-## Features
+Źródło wymagań: [FEATURES.md](./FEATURES.md). Ten dokument rozbija je na fazy, ze szczegółowym planem dla Fazy 1 (MVP) i backlogiem wysokopoziomowym dla reszty.
 
-### lifecycle członków
+## Założenia i decyzje
 
-1. rekrutacja
+- **Stack**: Next.js 16 (App Router — uwaga: ma breaking changes względem danych treningowych, przed pisaniem kodu sprawdzać `node_modules/next/dist/docs/`), TypeScript, Tailwind v4, shadcn/ui, Drizzle ORM + Postgres (`docker-compose.yml`), better-auth, `@solvro/config`.
+- **Formularze**: zawsze shadcn + react-hook-form + zod, zgodnie z `AGENTS.md` (`Field`/`FieldLabel`/`FieldError` + `Controller`).
+- **Integracje** (GitHub, Discord, Solvro Auth/Keycloak) — dostępy są gotowe po stronie organizacji, ale plan zakłada **generyczne nazwy zmiennych środowiskowych** jako placeholdery do uzupełnienia w `.env` (patrz sekcja Konfiguracja).
+- **Eventownik (import zgłoszeń rekrutacyjnych)** — świadomie odłożone na backlog, nie wchodzi w zakres MVP.
+- **„Grupka"** (auto-dodawanie do grupy mailingowej w onboardingu) — cel nieokreślony, w MVP zostaje jako jawne TODO/no-op hook w pipeline onboardingu, bez konkretnej integracji.
+- **USOS** — logowanie przez plugin [`better-auth-usos`](https://www.npmjs.com/package/better-auth-usos). Przed użyciem w Fazie 1 zweryfikować aktualne API pluginu (nazwy opcji, callbacki) w jego dokumentacji/README, bo nie sprawdzałem jego źródeł.
+- Plan pisany pod model danych, który da się rozbudowywać — ale **bez budowania na zapas** rzeczy spoza Fazy 1 (np. tabel pod Eventownik czy ranking aktywności trafiają dopiero do Fazy 2/3, gdzie faktycznie są potrzebne).
 
-- pobieranie zgłoszeń z eventownika
+**Struktura plików**: server actions w `src/actions/<domena>.ts` (siostrzany katalog `src/app/`), komponenty (formularze, dialogi, panele) w `src/components/<domena>/`, zod schematy w `src/lib/schemas/<domena>.ts`. Foldery tras pod `src/app/` zawierają tylko `page.tsx`/`layout.tsx`. Szczegóły w `AGENTS.md`.
 
-2. onboarding - zbieranie danych: imie+nazwisko, discord, facebook, github, indeks (jeśli jest studentem), adres(y) email (do powiadomien lub do logowania, np. przez Solvro Auth), dane studiów, sekcje (wiele), role (wiele), komentarz/bio (np. wiceprezes ds. technologii)
-   automatyczne zapraszanie do discorda, githuba, grupki
+---
 
-3. każdy członek ma własną stronę/profil: githubowy timeline z aktywnością na wszystkich repozytoriach Solvro, z rozgraniczeniem na poszczególne projekty (zobacz poniżej). na stronie jest też timeline/historia ról członka: np jak na linkedinie widać progres kariery z członka, do techleada, do przewodniczącego sekcji itp., z rozpisanymi datami objęcia danego stanowiska. Role wyświetlają też powiązane zasoby, do których można przejść linkiem: patrz poniżej.
+## Faza 0 — Fundamenty ✅ zrobione
 
-### Role członków
+1. **Konfiguracja środowiska** — rozszerzyć `src/env.ts` o zmienne (placeholdery, bez realnych wartości):
+   - `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_ORG` (dostęp do org Solvro: tworzenie repo, teamów, issues)
+   - `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID` (zaproszenia, role)
+   - `OIDC_ISSUER_URL`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` (Solvro Auth / self-hosted Keycloak)
+   - `USOS_CONSUMER_KEY`, `USOS_CONSUMER_SECRET`, `USOS_BASE_URL` (better-auth-usos)
+   - Zaktualizować `.env.example` (jeśli nie istnieje — utworzyć).
+2. **Auth — rozszerzenie `src/lib/auth.ts`**:
+   - dodać `genericOAuth`/OIDC plugin better-auth wskazujący na Solvro Auth (Keycloak),
+   - dodać plugin `better-auth-usos` (po weryfikacji API),
+   - zostawić `emailAndPassword` jako fallback do kont bootstrapowych zarządu (do potwierdzenia czy zostaje na stałe, czy tylko na czas wdrożenia).
+3. **Struktura schematu DB** — rozbić `src/db/schema.ts` na katalog `src/db/schema/` z osobnymi plikami (`members.ts`, `sections.ts`, `roles.ts`, `projects.ts`, `github.ts`), `schema.ts` jako barrel re-eksportujący wszystko (zachowując `auth-schema.ts` bez zmian).
+4. Dodać brakujące komponenty shadcn potrzebne w Fazie 1: `table`, `dialog`, `dropdown-menu`, `badge`, `tabs`, `avatar`, `command`, `popover`, `combobox` (multi-select sekcji/ról przez `command` + `popover` + `badge`, bo shadcn nie ma natywnego multi-selecta).
 
-Rola jest powiązana do jednej z poniższych.
+---
 
-a. sekcja - np. przewodniczący, wiceprzewodniczący, członek
-b. projekt - np. techlead, PM, PO, programista, UI/UX designer
-c. zarząd - np. prezes, wiceprezes, sekretarz
+## Faza 1 — MVP (członkowie, role, projekty, uprawnienia) ✅ zrobione
 
-#### uprawnienia
+### Model danych
 
-członkowie w zarządzie mają dostęp do HRownika w całości - mogą tworzyć i zarządzać projektami, członkami i ich powiązaniami.
-kierownicy projektu (techlead, PM, PO) mają dostęp do HRownika tylko dla projektów, których są kierownikami - mogą zarządzać członkami i zespołami w projekcie.
-członkowie pozostali mogą się logować do HRownika i zarządzać własnymi danymi (w ograniczonym stopniu - np tylko zmiana sociali i danych studiów, czyli kierunek, indeks, rok i semestr studiów) lub wyświetlać wszystkie pozostałe dane.
+```
+member (src/db/schema/members.ts)
+  id, user_id -> user.id (nullable, unique; powiązany dopiero po pierwszym logowaniu)
+  full_name, github_username, discord_id, facebook_url
+  student_index (nullable), study_field, study_year, study_semester
+  bio
+  status: enum('active','inactive','alumni')
+  created_at, updated_at
 
-logowanie do hrownika odbywa się przez zaufane platformy autoryzacyjne, np. USOS przez better auth usos plugin, lub przez Solvro Auth (nasz własny selfhostowany keycloak). jeśli przez USOS, to członek jest ustalany przez indeks (USOS udostępnia indeks oraz adres email studencki zawierający indeks), a jeśli prez Solvro Auth to przez powiązanie do emaili członka.
+member_email (src/db/schema/members.ts)
+  id, member_id -> member.id
+  email, kind: enum('login','notification')
+  verified_at (nullable)
 
-### lifecycle projektu
+section (src/db/schema/sections.ts)
+  id, name, description
 
-projekt ma atrybuty: status (np. aktywny, zakończony, zawieszony); publiczność (np. wewnętrzne, publiczne); linki produkcyjne dostepu do aplikacji
+member_section (src/db/schema/sections.ts)
+  member_id, section_id, joined_at, left_at (nullable)
 
-ma być pole do wklejenia link do foldera na google drive wraz z kartą projektu
+role_definition (src/db/schema/roles.ts)
+  id, scope: enum('section','project','board')
+  name (np. "przewodniczący", "techlead", "prezes")
+  permission_level: enum('board','project_lead','member')
+  github_team_slug (nullable), discord_role_id (nullable)
 
-#### repozytoria
+role_assignment (src/db/schema/roles.ts)
+  id, member_id -> member.id
+  role_definition_id -> role_definition.id
+  section_id (nullable, fk -> section.id), project_id (nullable, fk -> project.id)
+  -- dokładnie jedno z (section_id, project_id) ustawione, oba null dla scope='board';
+  -- realne FK zamiast polimorficznego target_type/target_id (odrzucony pomysł z wcześniejszej
+  -- wersji planu), plus CHECK pilnujący że nie oba naraz są ustawione
+  started_at, ended_at (nullable = aktualna rola)
+  -- to jest źródło timeline'u ról na profilu i podstawa systemu uprawnień
 
-projekt ma relacje do 1 lub wielu repozytoriów.
+project (src/db/schema/projects.ts)
+  id, name, slug, status: enum('active','completed','suspended')
+  visibility: enum('internal','public')
+  production_url (nullable)
+  drive_folder_url (nullable)
+  report_drive_url (nullable, uzupełniane przy zakończeniu)
+  ended_at (nullable)
+  created_at, updated_at
 
-projekt ma możliwość połaczenia z projektem na GitHubie poprzez wybranie z listy projektów GitHubowych w dropdownie.
+project_repository (src/db/schema/github.ts)
+  id, project_id -> project.id
+  github_repo_full_name, github_repo_id
+  added_at
 
-na stronie projektu jest ala githubowy timeline z agregowaną aktywnością na wszystkich repozytoriach danego projektu.
+team (src/db/schema/projects.ts)
+  id, project_id -> project.id
+  name (frontend/backend/devops/...)
+  github_team_slug (nullable), discord_role_id (nullable)
 
-ranking członków żeby było widać kto najwięcej w projekcie pracuje - np top 5 w ostatnim tygodniu lub miesiącu.
+team_member (src/db/schema/projects.ts)
+  team_id -> team.id, member_id -> member.id
+  joined_at, left_at (nullable)
+```
 
-wyklucz botów typu dependabot, github actions itp.
+Uwagi:
 
-na stronie repozytorium jest podgląd issues i PR danego repo. wszystkie linki kierują do odpowiednich zasobów na GitHubie. są też opcje przypisywania członkom nowych tasków/issues, które linkują do projektu na GitHubie z prefillowaną akcją: czyli dodanie nowego issue w danym repo z określonym assignee.
+- Role „zarząd"/„sekcja"/„projekt" to **jeden** mechanizm (`role_assignment` + `role_definition`), nie trzy osobne tabele — to bezpośrednio realizuje wymóg timeline'u kariery członka i jest jedynym źródłem prawdy dla uprawnień.
+- `permission_level` na `role_definition` to bezpośrednie powiązanie roli z poziomem dostępu opisanym w FEATURES.md (zarząd = pełny dostęp, kierownik projektu = scoped, reszta = self-service).
 
-#### szablony projektów
+### Uprawnienia (autoryzacja)
 
-tworzenie nowego projektu: wybierasz istniejące lub nowe repozytoria. dla nowych repo można wybrać tech stack i po zatwierdzeniu wygenerują się repozytoria w organizacji Solvro z templatowanym projektem, najlepiej używając już solvro configa.
+- Funkcja pomocnicza `getMemberPermissions(userId)` (`src/lib/permissions.ts`):
+  - zwraca `{ isBoard: boolean, leadProjectIds: number[], memberId: number }` na podstawie aktywnych (`ended_at IS NULL`) `role_assignment` z odpowiednim `permission_level`.
+  - używana w server actions / route handlers do bramkowania zapisu (board → wszystko, project_lead → tylko swoje projekty/zespoły, member → tylko własny rekord `member` i tylko pola sociali + dane studiów).
+- Middleware/`auth()` helper sprawdzający sesję better-auth i mapujący `user.id` → `member` (po `member.user_id`, a przy braku powiązania — po dopasowaniu e-maila/indeksu przy pierwszym logowaniu).
 
-#### zespoły
+### Strony / trasy (App Router)
 
-projekt posiada zespoły: np. frontend, backend, devops
+- `/login` — logowanie (Solvro Auth OIDC + USOS; email/password jako fallback do potwierdzenia).
+- `/members` — lista członków (filtrowanie po sekcji/roli/statusie).
+- `/members/new` — formularz onboardingu (RHF+zod+shadcn), dostępny dla zarządu.
+- `/members/[id]` — profil: dane, timeline ról (karty posortowane po `started_at`, linkujące do sekcji/projektu), miejsce na przyszły GitHub timeline (Faza 2).
+- `/members/[id]/edit` — edycja: pełna dla zarządu/lead, ograniczona (sociale + dane studiów) dla właściciela profilu.
+- `/sections`, `/sections/[id]` — lista i widok sekcji z członkami.
+- `/projects`, `/projects/[id]` — lista i widok projektu: atrybuty, repozytoria (linkowanie istniejących repo z dropdownu GitHub — bez generowania nowych, to Faza 2), zespoły, członkowie.
+- `/projects/new` — utworzenie projektu z wyborem istniejących repozytoriów (lista z GitHub API danej organizacji).
+- `/projects/[id]/repos/[repoId]` — placeholder na podgląd issues/PR (pełna integracja w Fazie 2), na razie link do repo na GitHubie.
 
-każdy zespół zawiera członków. w momencie zmiany w członkach zespołu, członkom przyznawane są przynależności do teamu na GitHubie i nadawane są odpowiednie role na Discordzie. W momencie usunięcia członka - proces odwrotny.
+### Automatyzacje onboardingu (Faza 1, zakres ograniczony)
 
-#### zakończenie projektu
+Po zapisaniu nowego członka:
 
-w momencie zmiany statusu projektu na zakończony, wkracza procedura kończąca projekt. Dodane jest pole 'sprawozdanie projektu', które ma być linkiem do dokumentu na Google drive. kierownicy projektów są przypisani do nowego taska w ogólnym projekcie GitHubowym 'KN Solvro': "wypełnij sprawozdanie projektu". są cztery kroki: utwórz dokument w katalogu projektu na google drive, wklej link do dokumentu w HRowniku, uzupełnij sprawozdanie, przekaż sprawozdanie do akceptajci przez Zarząd.
+1. Zaproszenie do GitHub org (GitHub API, wymaga `GITHUB_APP_ID`/PAT z uprawnieniem `members:write`).
+2. Nadanie roli/zaproszenie na Discordzie (Discord API, wymaga bota na serwerze z uprawnieniem `Manage Roles`/`Create Instant Invite`).
+3. **TODO jawne, no-op**: dodanie do „grupki" — zostawić wywołanie funkcji `inviteToGroup(member)` w `src/lib/onboarding.ts` jako pusty stub z komentarzem, do podpięcia gdy ustalony zostanie cel integracji.
+
+Sync zespołów (zmiana składu `team_member`):
+
+- przy dodaniu członka do zespołu → nadanie GitHub team membership + roli Discord zespołu,
+- przy usunięciu → odwrotnie (revoke).
+- Zaimplementować jako funkcje w `src/lib/integrations/github.ts` i `discord.ts`, wywoływane z server actions zarządzających `team_member`.
+
+### Zakres celowo wyłączony z Fazy 1 (mimo że opisany w FEATURES.md)
+
+- Import zgłoszeń z Eventownika (rekrutacja) — brak integracji, na razie ręczne tworzenie członków.
+- Generowanie nowych repozytoriów z szablonów tech-stacków.
+- GitHub activity timeline (per profil i per projekt) + ranking top-5 kontrybutorów.
+- Pełny podgląd issues/PR repozytorium w HRowniku + prefillowane akcje tworzenia issue.
+- Workflow zakończenia projektu (auto-task w GitHub „KN Solvro" + 4-krokowy checklist sprawozdania).
+- Integracja „grupki".
+
+---
+
+## Faza 2 — GitHub: aktywność, repozytoria, ranking ✅ zrobione
+
+Ostatecznie **webhooki zamiast pollingu w cronie** (zmiana względem pierwszej wersji tego planu):
+
+- Tabela `github_activity_event` (`project_repository_id`, `project_id` zdenormalizowane, `member_id` nullable, `github_login`, `type`: commit/pull_request/issue, `external_id` do dedupe, `occurred_at`, `url`), unique na `(project_repository_id, type, external_id)`.
+- `POST /api/webhooks/github` — odbiornik zdarzeń GitHub App (`push`, `pull_request` action=opened, `issues` action=opened), weryfikacja podpisu HMAC SHA-256 (`GITHUB_WEBHOOK_SECRET`, ta sama wartość co "Webhook secret" w ustawieniach apki). To główne, bieżące źródło danych.
+- REST-owy backfill (`src/lib/integrations/github-activity.ts: syncRepositories`) — nie jako cron, tylko: (a) automatycznie raz przy podpięciu repo do projektu (`createProject`, uruchamiane w tle przez `after()` żeby nie blokować redirecta), (b) na żądanie przez przycisk „Synchronizuj aktywność" na stronie projektu (zarząd/liderzy) — pokrywa initial data collection i ręczne doganianie historii.
+- Filtrowanie botów: `isBotLogin` — login kończący się na `[bot]`.
+- Timeline na profilu członka (segmentowany per projekt) i timeline zagregowany na stronie projektu.
+- Ranking top 5 kontrybutorów (tydzień/miesiąc) per projekt — `getContributorRanking`, agregacja po `github_activity_event`.
+- Podgląd issues/PR na stronie repozytorium (live z GitHub API, nie cache'owane) + `AssignIssuePicker` — wybór członka z listy → link `github.com/.../issues/new?assignees=...`.
+
+## Faza 3 — Szablony projektów i generowanie repo
+
+- Wybór tech-stacku przy `/projects/new` → tworzenie repo w organizacji Solvro z template repo (GitHub API `generateRepository` z template), wstępnie skonfigurowanego `@solvro/config`.
+- Wymaga katalogu znanych template-repo per stack (do ustalenia z zarządem, jakie stacki/szablony istnieją).
+
+## Faza 4 — Zakończenie projektu
+
+- Po zmianie statusu projektu na `completed`: utworzenie issue w repo „KN Solvro" przypisanego do liderów projektu („wypełnij sprawozdanie projektu"), z checklistą 4 kroków śledzoną w HRowniku (`project.report_drive_url` + status checklisty).
+
+## Faza 5 — Rekrutacja przez Eventownik
+
+- Integracja API Eventownika (do ustalenia: dostępność/dokumentacja API) — import zgłoszeń jako kandydatury, konwersja zaakceptowanej kandydatury na onboarding członka.
+
+---
+
+## Otwarte pytania (do ustalenia przed odpowiednią fazą, nie blokują Fazy 1)
+
+- Czy `emailAndPassword` w better-auth zostaje na stałe (np. dla kont serwisowych) czy docelowo tylko OIDC + USOS?
+- Jaki jest faktyczny cel „grupki" w onboardingu?
+- Jakie tech-stacki/template-repo mają być dostępne przy tworzeniu nowego projektu (Faza 3)?
+- Dostępność i kształt API Eventownika (Faza 5).
