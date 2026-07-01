@@ -34,7 +34,7 @@ export default async function RolesSettingsPage() {
         <h1 className="text-2xl font-semibold">Role i uprawnienia</h1>
         <p className="text-muted-foreground text-sm">
           Role to same nazwy — o tym, co dana rola pozwala robić, decydują grupy
-          uprawnień, do których należy.
+          uprawnień, do których należą.
         </p>
       </div>
       <RolesPermissionsTabs

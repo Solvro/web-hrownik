@@ -1,4 +1,10 @@
-import { FolderKanban, Settings, Shapes, Users } from "lucide-react";
+import {
+  FolderKanban,
+  KeyRound,
+  Shapes,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
 
 import type { PermissionResourceKey } from "@/lib/permissions/catalog";
 
@@ -13,8 +19,14 @@ export const appNavItems: {
   { href: "/projects", label: "Projekty", icon: FolderKanban },
   {
     href: "/settings/roles",
-    label: "Ustawienia",
-    icon: Settings,
+    label: "Role i uprawnienia",
+    icon: ShieldCheck,
+    requiredGrant: { resource: "roles", action: "write" },
+  },
+  {
+    href: "/settings/api-keys",
+    label: "Klucze API",
+    icon: KeyRound,
     requiredGrant: { resource: "roles", action: "write" },
   },
 ];

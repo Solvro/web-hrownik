@@ -78,6 +78,20 @@
       "when": 1782929518331,
       "tag": "0010_add_member_socials_and_photo",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1782930825737,
+      "tag": "0011_demonic_raider",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1782931778925,
+      "tag": "0012_tearful_mandroid",
+      "breakpoints": true
     }
   ]
 }
