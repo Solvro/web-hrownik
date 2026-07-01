@@ -9,7 +9,6 @@ import { db } from "@/db";
 import { projectRepository, teamRepository } from "@/db/schema/github";
 import { member } from "@/db/schema/members";
 import { project, team, teamMember } from "@/db/schema/projects";
-import { roleAssignment, roleDefinition } from "@/db/schema/roles";
 import { getCurrentMember } from "@/lib/current-member";
 import { listOrgRepos } from "@/lib/integrations/github";
 import { syncRepositories } from "@/lib/integrations/github-activity";
@@ -86,7 +85,11 @@ export async function createTeam(projectId: string, name: string) {
   revalidatePath(`/projects/${projectId}`);
 }
 
-export async function addTeamMember(teamId: string, memberId: string) {
+export async function addTeamMember(
+  teamId: string,
+  memberId: string,
+  role: string,
+) {
   const teamRow = await db.query.team.findFirst({ where: eq(team.id, teamId) });
   if (teamRow === undefined) {
     throw new Error("Nie znaleziono zespołu.");
@@ -100,9 +103,51 @@ export async function addTeamMember(teamId: string, memberId: string) {
     throw new Error("Nie znaleziono członka.");
   }
 
-  await db.insert(teamMember).values({ teamId, memberId });
+  await db.insert(teamMember).values({
+    teamId,
+    memberId,
+    role: role.trim() === "" ? "członek zespołu" : role.trim(),
+  });
   await grantTeamAccess(teamRow, memberRow);
   revalidatePath(`/projects/${teamRow.projectId}`);
+}
+
+export async function updateTeamMemberDetails(
+  teamMemberId: string,
+  input: { role: string; joinedAt: string; leftAt: string },
+) {
+  const membership = await db.query.teamMember.findFirst({
+    where: eq(teamMember.id, teamMemberId),
+    with: { team: true, member: true },
+  });
+  if (membership === undefined) {
+    throw new Error("Nie znaleziono członkostwa w zespole.");
+  }
+  await assertCanManageProject(membership.team.projectId);
+
+  const joinedAt = parseDate(input.joinedAt);
+  if (joinedAt === null) {
+    throw new Error("Podaj datę dołączenia do zespołu.");
+  }
+  const leftAt = parseDate(input.leftAt);
+
+  await db
+    .update(teamMember)
+    .set({
+      role: input.role.trim() === "" ? "członek zespołu" : input.role.trim(),
+      joinedAt,
+      leftAt,
+    })
+    .where(eq(teamMember.id, teamMemberId));
+
+  if (membership.leftAt === null && leftAt !== null) {
+    await revokeTeamAccess(membership.team, membership.member);
+  }
+  if (membership.leftAt !== null && leftAt === null) {
+    await grantTeamAccess(membership.team, membership.member);
+  }
+
+  revalidatePath(`/projects/${membership.team.projectId}`);
 }
 
 export async function removeTeamMember(teamMemberId: string) {
@@ -115,7 +160,10 @@ export async function removeTeamMember(teamMemberId: string) {
   }
   await assertCanManageProject(membership.team.projectId);
 
-  await db.delete(teamMember).where(eq(teamMember.id, teamMemberId));
+  await db
+    .update(teamMember)
+    .set({ leftAt: new Date() })
+    .where(eq(teamMember.id, teamMemberId));
   await revokeTeamAccess(membership.team, membership.member);
   revalidatePath(`/projects/${membership.team.projectId}`);
 }
@@ -150,30 +198,6 @@ export async function updateTeamRepositories(
   revalidatePath(`/projects/${teamRow.projectId}`);
 }
 
-export async function assignProjectRole(
-  projectId: string,
-  memberId: string,
-  roleName: "PM" | "PO",
-) {
-  await assertCanManageProject(projectId);
-  const definition = await db.query.roleDefinition.findFirst({
-    where: and(
-      eq(roleDefinition.scope, "project"),
-      eq(roleDefinition.name, roleName),
-    ),
-  });
-  if (definition === undefined) {
-    throw new Error(`Nie znaleziono roli ${roleName}.`);
-  }
-
-  await db.insert(roleAssignment).values({
-    memberId,
-    projectId,
-    roleDefinitionId: definition.id,
-  });
-  revalidatePath(`/projects/${projectId}`);
-}
-
 /** Manual "Synchronizuj aktywność" button — initial data collection or a
  * one-off catch-up, on top of the ongoing webhook-driven sync. */
 export async function syncProjectActivity(
@@ -202,4 +226,11 @@ async function assertCanManageProject(projectId: string) {
 
 function emptyToNull(value: string | undefined): string | null {
   return value === undefined || value === "" ? null : value;
+}
+
+function parseDate(value: string | undefined): Date | null {
+  if (value === undefined || value === "") {
+    return null;
+  }
+  return new Date(`${value}T00:00:00`);
 }

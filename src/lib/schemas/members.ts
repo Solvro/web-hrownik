@@ -13,16 +13,35 @@ export const roleAssignmentFieldSchema = z.object({
   endedAt: z.string().trim().optional(),
 });
 
+export const studyYearOptions = [
+  "I inżynierski",
+  "II inżynierski",
+  "III inżynierski",
+  "IV inżynierski",
+  "I magisterski",
+  "II magisterski",
+  "doktorat",
+] as const;
+
+export const memberStatusOptions = [
+  "new",
+  "active",
+  "inactive",
+  "honorary",
+] as const;
+
 export const memberFormSchema = z.object({
   fullName: z.string().trim().min(2, "Podaj imię i nazwisko").max(120),
   githubUsername: z.string().trim().max(64).optional().or(z.literal("")),
   discordId: z.string().trim().max(32).optional().or(z.literal("")),
   facebookUrl: z.url("Podaj poprawny adres URL").optional().or(z.literal("")),
   studentIndex: z.string().trim().max(32).optional().or(z.literal("")),
+  studyDepartment: z.string().trim().max(160).optional().or(z.literal("")),
   studyField: z.string().trim().max(120).optional().or(z.literal("")),
-  studyYear: z.coerce.number().int().min(1).max(8).optional(),
-  studySemester: z.coerce.number().int().min(1).max(16).optional(),
+  studyYear: z.enum(studyYearOptions).optional().or(z.literal("")),
   bio: z.string().trim().max(2000).optional().or(z.literal("")),
+  hrNotes: z.string().trim().max(5000).optional().or(z.literal("")),
+  status: z.enum(memberStatusOptions),
   emails: z.array(emailSchema).min(1, "Podaj co najmniej jeden adres e-mail"),
   sectionIds: z.array(z.string().trim()),
   // Create-mode only: initial role assignments, and whether to skip

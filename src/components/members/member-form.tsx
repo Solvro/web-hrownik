@@ -27,30 +27,42 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import type { MemberFormInput, MemberFormValues } from "@/lib/schemas/members";
-import { memberFormSchema } from "@/lib/schemas/members";
+import {
+  memberFormSchema,
+  memberStatusOptions,
+  studyYearOptions,
+} from "@/lib/schemas/members";
 
-function toInputValue(value: unknown): string {
-  return typeof value === "number" || typeof value === "string"
-    ? String(value)
-    : "";
-}
+const emptySelectValue = "__empty";
+
+const memberStatusLabels: Record<(typeof memberStatusOptions)[number], string> =
+  {
+    new: "nowy",
+    active: "aktywny",
+    inactive: "nieaktywny",
+    honorary: "honorowy",
+  };
 
 export function MemberForm({
   mode,
   memberId,
   fullAccess,
   sections,
-  projects,
   roleDefinitions,
+  universityInfoOptions,
   defaultValues,
 }: {
   mode: "create" | "edit";
   memberId?: string;
   fullAccess: boolean;
   sections: { id: string; name: string }[];
-  projects: { id: string; name: string }[];
   roleDefinitions: RoleDefinitionOption[];
+  universityInfoOptions: {
+    departments: { value: string; label: string }[];
+    fieldsOfStudy: { value: string; label: string; department: string }[];
+  };
   defaultValues: MemberFormInput;
 }) {
   const router = useRouter();
@@ -65,6 +77,13 @@ export function MemberForm({
     control: form.control,
     name: "roleAssignments",
   });
+  const selectedDepartment = form.watch("studyDepartment");
+  const fieldOptions = universityInfoOptions.fieldsOfStudy.filter(
+    (field) =>
+      selectedDepartment === undefined ||
+      selectedDepartment === "" ||
+      field.department === selectedDepartment,
+  );
 
   async function onSubmit(values: MemberFormValues) {
     setSubmitError(null);
@@ -100,23 +119,53 @@ export function MemberForm({
     >
       <FieldGroup>
         {fullAccess ? (
-          <Controller
-            name="fullName"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor={field.name}>Imię i nazwisko</FieldLabel>
-                <Input
-                  {...field}
-                  id={field.name}
-                  aria-invalid={fieldState.invalid}
-                />
-                {fieldState.invalid ? (
-                  <FieldError errors={[fieldState.error]} />
-                ) : null}
-              </Field>
-            )}
-          />
+          <>
+            <Controller
+              name="fullName"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Imię i nazwisko</FieldLabel>
+                  <Input
+                    {...field}
+                    id={field.name}
+                    aria-invalid={fieldState.invalid}
+                  />
+                  {fieldState.invalid ? (
+                    <FieldError errors={[fieldState.error]} />
+                  ) : null}
+                </Field>
+              )}
+            />
+
+            <Controller
+              name="status"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Status</FieldLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger
+                      id={field.name}
+                      aria-invalid={fieldState.invalid}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {memberStatusOptions.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {memberStatusLabels[status]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {fieldState.invalid ? (
+                    <FieldError errors={[fieldState.error]} />
+                  ) : null}
+                </Field>
+              )}
+            />
+          </>
         ) : null}
 
         <Controller
@@ -241,16 +290,37 @@ export function MemberForm({
         />
 
         <Controller
-          name="studyField"
+          name="studyDepartment"
           control={form.control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor={field.name}>Kierunek studiów</FieldLabel>
-              <Input
-                {...field}
-                id={field.name}
-                aria-invalid={fieldState.invalid}
-              />
+              <FieldLabel htmlFor={field.name}>Wydział</FieldLabel>
+              <Select
+                value={
+                  field.value === undefined || field.value === ""
+                    ? emptySelectValue
+                    : field.value
+                }
+                onValueChange={(value) => {
+                  field.onChange(value === emptySelectValue ? "" : value);
+                  form.setValue("studyField", "");
+                }}
+              >
+                <SelectTrigger
+                  id={field.name}
+                  aria-invalid={fieldState.invalid}
+                >
+                  <SelectValue placeholder="Wybierz wydział" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={emptySelectValue}>Brak</SelectItem>
+                  {universityInfoOptions.departments.map((department) => (
+                    <SelectItem key={department.value} value={department.value}>
+                      {department.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {fieldState.invalid ? (
                 <FieldError errors={[fieldState.error]} />
               ) : null}
@@ -258,46 +328,84 @@ export function MemberForm({
           )}
         />
 
-        <div className="grid grid-cols-2 gap-4">
-          <Controller
-            name="studyYear"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor={field.name}>Rok studiów</FieldLabel>
-                <Input
-                  {...field}
-                  value={toInputValue(field.value)}
+        <Controller
+          name="studyField"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor={field.name}>Kierunek studiów</FieldLabel>
+              <Select
+                value={
+                  field.value === undefined || field.value === ""
+                    ? emptySelectValue
+                    : field.value
+                }
+                onValueChange={(value) => {
+                  field.onChange(value === emptySelectValue ? "" : value);
+                }}
+              >
+                <SelectTrigger
                   id={field.name}
-                  type="number"
                   aria-invalid={fieldState.invalid}
-                />
-                {fieldState.invalid ? (
-                  <FieldError errors={[fieldState.error]} />
-                ) : null}
-              </Field>
-            )}
-          />
-          <Controller
-            name="studySemester"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor={field.name}>Semestr</FieldLabel>
-                <Input
-                  {...field}
-                  value={toInputValue(field.value)}
+                >
+                  <SelectValue placeholder="Wybierz kierunek" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={emptySelectValue}>Brak</SelectItem>
+                  {fieldOptions.map((studyField) => (
+                    <SelectItem
+                      key={`${studyField.department}:${studyField.value}`}
+                      value={studyField.value}
+                    >
+                      {studyField.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {fieldState.invalid ? (
+                <FieldError errors={[fieldState.error]} />
+              ) : null}
+            </Field>
+          )}
+        />
+
+        <Controller
+          name="studyYear"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor={field.name}>Rok studiów</FieldLabel>
+              <Select
+                value={
+                  field.value === undefined || field.value === ""
+                    ? emptySelectValue
+                    : field.value
+                }
+                onValueChange={(value) => {
+                  field.onChange(value === emptySelectValue ? "" : value);
+                }}
+              >
+                <SelectTrigger
                   id={field.name}
-                  type="number"
                   aria-invalid={fieldState.invalid}
-                />
-                {fieldState.invalid ? (
-                  <FieldError errors={[fieldState.error]} />
-                ) : null}
-              </Field>
-            )}
-          />
-        </div>
+                >
+                  <SelectValue placeholder="Wybierz rok" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={emptySelectValue}>Brak</SelectItem>
+                  {studyYearOptions.map((year) => (
+                    <SelectItem key={year} value={year}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {fieldState.invalid ? (
+                <FieldError errors={[fieldState.error]} />
+              ) : null}
+            </Field>
+          )}
+        />
 
         {fullAccess ? (
           <>
@@ -313,6 +421,28 @@ export function MemberForm({
                     placeholder="np. wiceprezes ds. technologii"
                     aria-invalid={fieldState.invalid}
                   />
+                  {fieldState.invalid ? (
+                    <FieldError errors={[fieldState.error]} />
+                  ) : null}
+                </Field>
+              )}
+            />
+
+            <Controller
+              name="hrNotes"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Notatki HR</FieldLabel>
+                  <Textarea
+                    {...field}
+                    id={field.name}
+                    placeholder="Doświadczenie zawodowe, hackathony, rozmowy, preferencje..."
+                    aria-invalid={fieldState.invalid}
+                  />
+                  <FieldDescription>
+                    Widoczne tylko dla zarządu.
+                  </FieldDescription>
                   {fieldState.invalid ? (
                     <FieldError errors={[fieldState.error]} />
                   ) : null}
@@ -351,7 +481,6 @@ export function MemberForm({
                         <RolePickerFields
                           roleDefinitions={roleDefinitions}
                           sections={sections}
-                          projects={projects}
                           value={field.value}
                           onChange={field.onChange}
                         />

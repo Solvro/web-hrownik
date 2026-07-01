@@ -35,14 +35,17 @@ export async function assignRole(memberId: string, input: RoleAssignmentDraft) {
     throw new Error("Ta rola wymaga wskazania sekcji.");
   }
   if (role.scope === "project" && values.projectId === undefined) {
-    throw new Error("Ta rola wymaga wskazania projektu.");
+    throw new Error("Role projektowe są zarządzane w zespołach projektu.");
+  }
+  if (role.scope === "project") {
+    throw new Error("Role projektowe są zarządzane w zespołach projektu.");
   }
 
   await db.insert(roleAssignment).values({
     memberId,
     roleDefinitionId: values.roleDefinitionId,
     sectionId: role.scope === "section" ? (values.sectionId ?? null) : null,
-    projectId: role.scope === "project" ? (values.projectId ?? null) : null,
+    projectId: null,
     startedAt: parseDate(values.startedAt) ?? new Date(),
     endedAt: parseDate(values.endedAt),
   });

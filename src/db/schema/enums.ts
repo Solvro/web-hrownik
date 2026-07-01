@@ -1,9 +1,10 @@
 import { pgEnum } from "drizzle-orm/pg-core";
 
 export const memberStatusEnum = pgEnum("member_status", [
+  "new",
   "active",
   "inactive",
-  "alumni",
+  "honorary",
 ]);
 
 export const emailKindEnum = pgEnum("email_kind", ["login", "notification"]);

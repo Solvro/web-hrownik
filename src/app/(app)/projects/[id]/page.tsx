@@ -5,7 +5,6 @@ import { notFound } from "next/navigation";
 import { ActivityTimeline } from "@/components/activity-timeline";
 import { ContributionHeatmap } from "@/components/contribution-heatmap";
 import { NewTeamForm } from "@/components/projects/new-team-form";
-import { ProjectRoleAssignmentForm } from "@/components/projects/project-role-assignment-form";
 import { SyncActivityButton } from "@/components/projects/sync-activity-button";
 import { TeamPanel } from "@/components/projects/team-panel";
 import { Badge } from "@/components/ui/badge";
@@ -45,7 +44,6 @@ export default async function ProjectPage({
           repositories: { with: { projectRepository: true } },
         },
       },
-      roleAssignments: { with: { member: true, roleDefinition: true } },
     },
   });
   if (projectRow === undefined) {
@@ -59,22 +57,6 @@ export default async function ProjectPage({
       : await getMemberPermissions(currentMember.id);
   const canManage = permissions !== null && canManageProject(permissions, id);
   const canAddMembers = permissions !== null && canManageMembers(permissions);
-  const projectRolesByMemberId = new Map<string, string[]>();
-  const projectLeads = projectRow.roleAssignments.filter(
-    (assignment) => assignment.endedAt === null,
-  );
-  for (const assignment of projectLeads) {
-    const roles = projectRolesByMemberId.get(assignment.memberId) ?? [];
-    roles.push(assignment.roleDefinition.name);
-    projectRolesByMemberId.set(assignment.memberId, roles);
-  }
-  const pmAssignments = projectLeads.filter(
-    (assignment) => assignment.roleDefinition.name === "PM",
-  );
-  const poAssignments = projectLeads.filter(
-    (assignment) => assignment.roleDefinition.name === "PO",
-  );
-
   const allMembers = canManage
     ? await db.query.member.findMany({ orderBy: asc(member.fullName) })
     : [];
@@ -125,24 +107,6 @@ export default async function ProjectPage({
             />
           )}
         </dl>
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="font-medium">Prowadzenie projektu</h2>
-        <ProjectRoleRow
-          label="PM"
-          assignments={pmAssignments}
-          canManage={canManage}
-          projectId={id}
-          allMembers={allMembers}
-        />
-        <ProjectRoleRow
-          label="PO"
-          assignments={poAssignments}
-          canManage={canManage}
-          projectId={id}
-          allMembers={allMembers}
-        />
       </section>
 
       <section className="space-y-2">
@@ -241,8 +205,9 @@ export default async function ProjectPage({
                 teamMemberId: teamMembership.id,
                 memberId: teamMembership.memberId,
                 fullName: teamMembership.member.fullName,
-                projectRoles:
-                  projectRolesByMemberId.get(teamMembership.memberId) ?? [],
+                role: teamMembership.role,
+                joinedAt: teamMembership.joinedAt,
+                leftAt: teamMembership.leftAt,
               }))}
               repositories={projectRow.repositories.map((repo) => ({
                 id: repo.id,
@@ -257,7 +222,8 @@ export default async function ProjectPage({
                       (memberRow) =>
                         !teamRow.members.some(
                           (teamMembership) =>
-                            teamMembership.memberId === memberRow.id,
+                            teamMembership.memberId === memberRow.id &&
+                            teamMembership.leftAt === null,
                         ),
                     )
                   : []
@@ -267,54 +233,6 @@ export default async function ProjectPage({
         ))}
         {canManage ? <NewTeamForm projectId={id} /> : null}
       </section>
-    </div>
-  );
-}
-
-function ProjectRoleRow({
-  label,
-  assignments,
-  canManage,
-  projectId,
-  allMembers,
-}: {
-  label: "PM" | "PO";
-  assignments: {
-    member: { id: string; fullName: string };
-  }[];
-  canManage: boolean;
-  projectId: string;
-  allMembers: { id: string; fullName: string }[];
-}) {
-  return (
-    <div className="rounded-md border p-3 text-sm">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="text-muted-foreground text-xs">{label}</div>
-          {assignments.length === 0 ? (
-            <p className="text-muted-foreground">Nie przypisano</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {assignments.map((assignment) => (
-                <Link
-                  key={assignment.member.id}
-                  href={`/members/${assignment.member.id}`}
-                  className="hover:underline"
-                >
-                  {assignment.member.fullName}
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-        {canManage && assignments.length === 0 ? (
-          <ProjectRoleAssignmentForm
-            projectId={projectId}
-            roleName={label}
-            members={allMembers}
-          />
-        ) : null}
-      </div>
     </div>
   );
 }

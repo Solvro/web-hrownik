@@ -1,4 +1,4 @@
-import { integer, pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
 
 import { user } from "@/db/auth-schema";
 
@@ -15,10 +15,11 @@ export const member = pgTable("member", {
   discordId: text("discord_id"),
   facebookUrl: text("facebook_url"),
   studentIndex: text("student_index"),
+  studyDepartment: text("study_department"),
   studyField: text("study_field"),
-  studyYear: integer("study_year"),
-  studySemester: integer("study_semester"),
+  studyYear: text("study_year"),
   bio: text("bio"),
+  hrNotes: text("hr_notes"),
   status: memberStatusEnum("status").notNull().default("active"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
