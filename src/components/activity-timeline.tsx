@@ -1,5 +1,7 @@
+import { UserPlus } from "lucide-react";
 import Link from "next/link";
 
+import { AssignActivityMemberToTeam } from "@/components/projects/assign-activity-member-to-team";
 import { Button } from "@/components/ui/button";
 import { formatRelativeTime } from "@/lib/relative-time";
 import { cn } from "@/lib/utils";
@@ -13,6 +15,11 @@ export interface ActivityTimelineItem {
   actorName?: string;
   actorHref?: string;
   addMemberHref?: string;
+  assignToTeam?: {
+    projectId: string;
+    memberId: string;
+    teams: { id: string; name: string }[];
+  };
   occurredAt: Date;
 }
 
@@ -67,8 +74,14 @@ export function ActivityTimeline({ items }: { items: ActivityTimelineItem[] }) {
                   size="sm"
                   className="h-6 shrink-0 px-2"
                 >
-                  <Link href={item.addMemberHref}>Dodaj członka</Link>
+                  <Link href={item.addMemberHref}>
+                    <UserPlus />
+                    Dodaj członka
+                  </Link>
                 </Button>
+              )}
+              {item.assignToTeam === undefined ? null : (
+                <AssignActivityMemberToTeam {...item.assignToTeam} />
               )}
             </div>
           </div>

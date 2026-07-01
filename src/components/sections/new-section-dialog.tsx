@@ -1,5 +1,6 @@
 "use client";
 
+import { Plus } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,10 @@ export function NewSectionDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Dodaj sekcję</Button>
+        <Button>
+          <Plus />
+          Dodaj sekcję
+        </Button>
       </DialogTrigger>
       <SectionForm
         onCreated={() => {

@@ -1,10 +1,9 @@
 import { eq, isNull } from "drizzle-orm";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { deleteSection } from "@/actions/sections";
 import { DeleteButton } from "@/components/delete-button";
-import { Badge } from "@/components/ui/badge";
+import { SectionMembersBrowser } from "@/components/sections/section-members-browser";
 import { db } from "@/db";
 import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
@@ -19,7 +18,21 @@ export default async function SectionPage({
 
   const sectionRow = await db.query.section.findFirst({
     where: eq(section.id, id),
-    with: { members: { with: { member: true } } },
+    with: {
+      members: {
+        with: {
+          member: {
+            with: {
+              teamMemberships: {
+                where: (teamMember, operators) =>
+                  operators.isNull(teamMember.leftAt),
+                with: { team: { with: { project: true } } },
+              },
+            },
+          },
+        },
+      },
+    },
   });
   if (sectionRow === undefined) {
     notFound();
@@ -45,7 +58,7 @@ export default async function SectionPage({
   const canManage = permissions !== null && canManageMembers(permissions);
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-5xl space-y-6">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-semibold">{sectionRow.name}</h1>
@@ -63,28 +76,24 @@ export default async function SectionPage({
         ) : null}
       </div>
 
-      <section className="space-y-2">
+      <section className="space-y-3">
         <h2 className="font-medium">Członkowie</h2>
-        <ul className="divide-y rounded-md border">
-          {sectionRow.members.map((membership) => (
-            <li
-              key={membership.id}
-              className="flex items-center justify-between p-3"
-            >
-              <Link
-                href={`/members/${membership.member.id}`}
-                className="hover:underline"
-              >
-                {membership.member.fullName}
-              </Link>
-              {roleByMemberId.has(membership.memberId) ? (
-                <Badge variant="outline">
-                  {roleByMemberId.get(membership.memberId)}
-                </Badge>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+        <SectionMembersBrowser
+          members={sectionRow.members.map((membership) => ({
+            id: membership.member.id,
+            fullName: membership.member.fullName,
+            githubUsername: membership.member.githubUsername,
+            status: membership.member.status,
+            joinedAt: membership.joinedAt,
+            role: roleByMemberId.get(membership.memberId) ?? null,
+            projectBadges: membership.member.teamMemberships.map(
+              (teamMembership) => ({
+                id: teamMembership.team.project.id,
+                name: teamMembership.team.project.name,
+              }),
+            ),
+          }))}
+        />
       </section>
     </div>
   );

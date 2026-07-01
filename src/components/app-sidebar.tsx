@@ -1,9 +1,24 @@
 "use client";
 
-import { FolderKanban, LogOut, Shapes, Users } from "lucide-react";
+import {
+  ChevronsUpDown,
+  FolderKanban,
+  LogOut,
+  Shapes,
+  User,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -15,6 +30,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
 } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
 
@@ -26,16 +42,29 @@ const navItems = [
   { href: "/projects", label: "Projekty", icon: FolderKanban },
 ];
 
-export function AppSidebar({ memberName }: { memberName: string }) {
+export function AppSidebar({
+  memberId,
+  memberName,
+}: {
+  memberId: string;
+  memberName: string;
+}) {
   const pathname = usePathname();
   const router = useRouter();
 
   return (
-    <Sidebar>
+    <Sidebar collapsible="icon">
       <SidebarHeader>
-        <Link href="/" className="px-2 py-1.5 text-lg font-semibold">
-          HRownik
-        </Link>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild tooltip="HRownik">
+              <Link href="/">
+                <Shapes />
+                <span className="text-lg font-semibold">HRownik</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -47,6 +76,7 @@ export function AppSidebar({ memberName }: { memberName: string }) {
                   <SidebarMenuButton
                     asChild
                     isActive={pathname.startsWith(item.href)}
+                    tooltip={item.label}
                   >
                     <Link href={item.href}>
                       <item.icon />
@@ -65,19 +95,39 @@ export function AppSidebar({ memberName }: { memberName: string }) {
             <ModeToggle sidebar />
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={() => {
-                void authClient.signOut().then(() => {
-                  router.push("/login");
-                });
-              }}
-            >
-              <LogOut />
-              <span>Wyloguj ({memberName})</span>
-            </SidebarMenuButton>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton tooltip={memberName}>
+                  <User />
+                  <span>{memberName}</span>
+                  <ChevronsUpDown className="ml-auto" />
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="right" align="end">
+                <DropdownMenuLabel>{memberName}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href={`/members/${memberId}`}>
+                    <User />
+                    Dane członka
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    void authClient.signOut().then(() => {
+                      router.push("/login");
+                    });
+                  }}
+                >
+                  <LogOut />
+                  Wyloguj
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   );
 }

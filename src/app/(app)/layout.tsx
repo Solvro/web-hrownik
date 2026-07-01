@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { signOutAction } from "@/actions/auth";
@@ -82,9 +83,13 @@ export default async function AppLayout({
     );
   }
 
+  const cookieStore = await cookies();
+  const sidebarDefaultOpen =
+    cookieStore.get("sidebar_state")?.value !== "false";
+
   return (
-    <SidebarProvider>
-      <AppSidebar memberName={member.fullName} />
+    <SidebarProvider defaultOpen={sidebarDefaultOpen}>
+      <AppSidebar memberId={member.id} memberName={member.fullName} />
       <SidebarInset>
         <header className="flex h-12 items-center border-b px-4">
           <SidebarTrigger />
