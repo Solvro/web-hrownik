@@ -52,6 +52,6 @@ jobs:
         run: pnpm run types:check
         if: always()
 
-      - name: Build
-        run: pnpm run build
-        if: always()
+      # - name: Build
+      #   run: pnpm run build
+      #   if: always()

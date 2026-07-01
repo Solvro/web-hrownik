@@ -8,6 +8,7 @@ import { member, memberEmail } from "@/db/schema/members";
 import { roleAssignment, roleDefinition } from "@/db/schema/roles";
 import { memberSection } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
+import { reattributeActivityForMember } from "@/lib/integrations/github-activity";
 import { runOnboardingAutomations } from "@/lib/onboarding";
 import {
   canEditOwnProfile,
@@ -90,6 +91,10 @@ export async function createMember(input: MemberFormValues) {
         };
       }),
     );
+  }
+
+  if (created.githubUsername !== null) {
+    await reattributeActivityForMember(created.id, created.githubUsername);
   }
 
   const automationResult = await runOnboardingAutomations({
@@ -187,6 +192,13 @@ export async function updateMember(
         .values(
           values.sectionIds.map((sectionId) => ({ memberId, sectionId })),
         );
+    }
+  }
+
+  if (values.githubUsername !== undefined) {
+    const githubUsername = emptyToNull(values.githubUsername);
+    if (githubUsername !== null) {
+      await reattributeActivityForMember(memberId, githubUsername);
     }
   }
 

@@ -64,6 +64,7 @@ async function handlePush(payload: PushEvent) {
       externalId: commit.id,
       occurredAt: new Date(commit.timestamp),
       url: commit.url,
+      title: commit.message.split("\n")[0] ?? commit.message,
     });
   }
 
@@ -97,6 +98,7 @@ async function handlePullRequest(payload: PullRequestEvent) {
       externalId: String(payload.pull_request.number),
       occurredAt: new Date(payload.pull_request.created_at),
       url: payload.pull_request.html_url,
+      title: payload.pull_request.title,
     })
     .onConflictDoNothing();
 }
@@ -126,6 +128,7 @@ async function handleIssue(payload: IssuesEvent) {
       externalId: String(payload.issue.number),
       occurredAt: new Date(payload.issue.created_at),
       url: payload.issue.html_url,
+      title: payload.issue.title,
     })
     .onConflictDoNothing();
 }

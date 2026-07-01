@@ -1,0 +1,1 @@
+ALTER TABLE "github_activity_event" ADD COLUMN "title" text;

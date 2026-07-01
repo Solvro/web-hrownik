@@ -1,19 +1,19 @@
-import { CircleDot, GitCommitHorizontal, GitPullRequest } from "lucide-react";
-import type { ReactNode } from "react";
+import { formatRelativeTime } from "@/lib/relative-time";
+import { cn } from "@/lib/utils";
 
 export interface ActivityTimelineItem {
   id: string;
   type: "commit" | "pull_request" | "issue";
   url: string;
+  title: string;
+  subtitle: string;
   occurredAt: Date;
-  githubLogin: string;
-  trailing?: ReactNode;
 }
 
-const typeIcon = {
-  commit: GitCommitHorizontal,
-  pull_request: GitPullRequest,
-  issue: CircleDot,
+const TYPE_DOT_CLASS = {
+  commit: "bg-sky-500",
+  pull_request: "bg-violet-500",
+  issue: "bg-emerald-500",
 } as const;
 
 export function ActivityTimeline({ items }: { items: ActivityTimelineItem[] }) {
@@ -22,27 +22,33 @@ export function ActivityTimeline({ items }: { items: ActivityTimelineItem[] }) {
   }
 
   return (
-    <ul className="space-y-1.5">
-      {items.map((item) => {
-        const Icon = typeIcon[item.type];
-        return (
-          <li key={item.id} className="flex items-center gap-2 text-sm">
-            <Icon className="text-muted-foreground size-4 shrink-0" />
+    <ul className="divide-y">
+      {items.map((item) => (
+        <li key={item.id} className="flex items-start gap-3 py-2.5">
+          <span
+            className={cn(
+              "mt-1.5 size-2 shrink-0 rounded-full",
+              TYPE_DOT_CLASS[item.type],
+            )}
+          />
+          <div className="min-w-0 flex-1">
             <a
               href={item.url}
               target="_blank"
               rel="noreferrer"
-              className="truncate hover:underline"
+              className="block truncate text-sm hover:underline"
             >
-              {item.githubLogin}
+              {item.title}
             </a>
-            {item.trailing}
-            <span className="text-muted-foreground ml-auto shrink-0 text-xs">
-              {item.occurredAt.toLocaleDateString("pl-PL")}
-            </span>
-          </li>
-        );
-      })}
+            <p className="text-muted-foreground truncate text-xs">
+              {item.subtitle}
+            </p>
+          </div>
+          <span className="text-muted-foreground shrink-0 text-xs">
+            {formatRelativeTime(item.occurredAt)}
+          </span>
+        </li>
+      ))}
     </ul>
   );
 }

@@ -1,5 +1,5 @@
 import type { Octokit } from "@octokit/rest";
-import { and, desc, eq, gte, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, isNotNull, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { githubActivityEvent } from "@/db/schema/github";
@@ -11,6 +11,27 @@ const DEFAULT_LOOKBACK_DAYS = 90;
 
 export function isBotLogin(login: string): boolean {
   return login.toLowerCase().endsWith("[bot]");
+}
+
+/**
+ * Rows written before the `title` column existed have no stored commit
+ * message / PR / issue title — fall back to a generic label for those.
+ */
+export function fallbackActivityTitle(event: {
+  type: "commit" | "pull_request" | "issue";
+  externalId: string;
+}): string {
+  switch (event.type) {
+    case "commit": {
+      return `Commit ${event.externalId.slice(0, 7)}`;
+    }
+    case "pull_request": {
+      return `Pull request #${event.externalId}`;
+    }
+    case "issue": {
+      return `Issue #${event.externalId}`;
+    }
+  }
 }
 
 interface RepoRef {
@@ -28,6 +49,7 @@ interface NewActivityEvent {
   externalId: string;
   occurredAt: Date;
   url: string;
+  title: string;
 }
 
 async function getMemberIdByGithubLogin(): Promise<Map<string, string>> {
@@ -43,6 +65,30 @@ async function getMemberIdByGithubLogin(): Promise<Map<string, string>> {
       )
       .map((row) => [row.githubUsername.toLowerCase(), row.id]),
   );
+}
+
+/**
+ * Activity events are attributed to a member at insert time only (sync /
+ * webhook). If a member's GitHub username is added or changed after their
+ * events were already recorded — e.g. their profile is created well after
+ * the initial project backfill — those existing rows are stuck with
+ * memberId = null forever unless explicitly re-attributed here.
+ */
+export async function reattributeActivityForMember(
+  memberId: string,
+  githubUsername: string,
+): Promise<number> {
+  const updated = await db
+    .update(githubActivityEvent)
+    .set({ memberId })
+    .where(
+      and(
+        isNull(githubActivityEvent.memberId),
+        ilike(githubActivityEvent.githubLogin, githubUsername),
+      ),
+    )
+    .returning({ id: githubActivityEvent.id });
+  return updated.length;
 }
 
 async function getSinceDate(repoId: string): Promise<Date> {
@@ -88,6 +134,7 @@ export async function syncProjectRepositoryActivity(
       externalId: commit.sha,
       occurredAt: occurredAt === undefined ? new Date() : new Date(occurredAt),
       url: commit.html_url,
+      title: commit.commit.message.split("\n")[0] ?? commit.commit.message,
     });
   }
 
@@ -114,6 +161,7 @@ export async function syncProjectRepositoryActivity(
       externalId: String(item.number),
       occurredAt: new Date(item.created_at),
       url: item.html_url,
+      title: item.title,
     });
   }
 
@@ -184,6 +232,49 @@ export async function syncRepositories(
     }
   }
   return results;
+}
+
+export interface DailyActivityCount {
+  date: string;
+  count: number;
+}
+
+export async function getProjectDailyActivity(
+  projectId: string,
+  since: Date,
+): Promise<DailyActivityCount[]> {
+  return db
+    .select({
+      date: sql<string>`to_char(${githubActivityEvent.occurredAt}, 'YYYY-MM-DD')`,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(githubActivityEvent)
+    .where(
+      and(
+        eq(githubActivityEvent.projectId, projectId),
+        gte(githubActivityEvent.occurredAt, since),
+      ),
+    )
+    .groupBy(sql`to_char(${githubActivityEvent.occurredAt}, 'YYYY-MM-DD')`);
+}
+
+export async function getMemberDailyActivity(
+  memberId: string,
+  since: Date,
+): Promise<DailyActivityCount[]> {
+  return db
+    .select({
+      date: sql<string>`to_char(${githubActivityEvent.occurredAt}, 'YYYY-MM-DD')`,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(githubActivityEvent)
+    .where(
+      and(
+        eq(githubActivityEvent.memberId, memberId),
+        gte(githubActivityEvent.occurredAt, since),
+      ),
+    )
+    .groupBy(sql`to_char(${githubActivityEvent.occurredAt}, 'YYYY-MM-DD')`);
 }
 
 export interface ContributorRankingEntry {
