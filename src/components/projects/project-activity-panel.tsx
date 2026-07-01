@@ -6,9 +6,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { syncProjectActivity } from "@/actions/projects";
 import { ActivityRangePicker } from "@/components/activity-range-picker";
+import { ActivityTrendChart } from "@/components/activity-trend-chart";
 import { ContributionHeatmap } from "@/components/contribution-heatmap";
 import type { DailyActivityCount } from "@/components/contribution-heatmap";
-import { ActivityTrendChart } from "@/components/projects/activity-trend-chart";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";

@@ -6,11 +6,14 @@ import type { ReactNode } from "react";
 import { deleteMember } from "@/actions/members";
 import { ActivityTimeline } from "@/components/activity-timeline";
 import { DeleteButton } from "@/components/delete-button";
-import { HeatmapWithRangePicker } from "@/components/heatmap-with-range-picker";
+import { MemberActivityCard } from "@/components/members/member-activity-card";
+import { MemberContactPills } from "@/components/members/member-contact-pills";
 import { RoleManager } from "@/components/members/role-manager";
 import { MemberStatusBadge } from "@/components/status-badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
 import { githubActivityEvent } from "@/db/schema/github";
 import { member } from "@/db/schema/members";
@@ -94,8 +97,16 @@ export default async function MemberProfilePage({
       ])
     : [[], []];
 
+  const initials = profile.fullName
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+
   return (
-    <div className="max-w-2xl space-y-8">
+    <div className="max-w-5xl space-y-8">
       {githubInvited === "1" || discordInvite !== undefined ? (
         <div className="bg-muted/50 space-y-1 rounded-md border p-3 text-sm">
           <p className="font-medium">Onboarding — akcje do wykonania</p>
@@ -120,13 +131,24 @@ export default async function MemberProfilePage({
       ) : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold break-words">
-            {profile.fullName}
-          </h1>
-          {profile.bio !== null && (
-            <p className="text-muted-foreground">{profile.bio}</p>
-          )}
+        <div className="flex min-w-0 items-start gap-3">
+          <Avatar className="size-16 sm:size-20">
+            {profile.photoUrl === null ? null : (
+              <AvatarImage src={profile.photoUrl} alt={profile.fullName} />
+            )}
+            <AvatarFallback className="text-lg">{initials}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-semibold break-words">
+                {profile.fullName}
+              </h1>
+              <MemberStatusBadge status={profile.status} />
+            </div>
+            {profile.bio !== null && (
+              <p className="text-muted-foreground">{profile.bio}</p>
+            )}
+          </div>
         </div>
         <div className="flex flex-col gap-2 min-[360px]:flex-row sm:flex-row">
           {canEdit ? (
@@ -145,83 +167,87 @@ export default async function MemberProfilePage({
         </div>
       </div>
 
-      <section className="space-y-2">
-        <h2 className="font-medium">Dane</h2>
-        <dl className="text-sm">
-          <Row label="GitHub" value={profile.githubUsername} />
-          <Row label="Discord" value={profile.discordId} />
-          <Row label="Facebook" value={profile.facebookUrl} />
-          <Row
-            label="Status"
-            value={<MemberStatusBadge status={profile.status} />}
-          />
-          <Row label="Indeks" value={profile.studentIndex} />
-          <Row label="Wydział" value={profile.studyDepartment} />
-          <Row label="Kierunek" value={profile.studyField} />
-          <Row label="Rok" value={profile.studyYear} />
-        </dl>
-        {profile.parent === null ? null : (
-          <div className="flex justify-between border-b py-1.5 text-sm last:border-0">
-            <dt className="text-muted-foreground">Rodzic</dt>
-            <dd>
-              <Link
-                href={`/members/${profile.parent.id}`}
-                className="hover:underline"
-              >
-                {profile.parent.fullName}
-              </Link>
-            </dd>
-          </div>
-        )}
-      </section>
+      <MemberContactPills
+        githubUsername={profile.githubUsername}
+        discordId={profile.discordId}
+        facebookUrl={profile.facebookUrl}
+        linkedinUrl={profile.linkedinUrl}
+        instagramUrl={profile.instagramUrl}
+      />
+
+      <Card size="sm">
+        <CardHeader>
+          <CardTitle>Profil</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <dl className="text-sm">
+            <Row label="Indeks" value={profile.studentIndex} />
+            <Row label="Wydział" value={profile.studyDepartment} />
+            <Row label="Kierunek" value={profile.studyField} />
+            <Row label="Rok" value={profile.studyYear} />
+            {profile.parent === null ? null : (
+              <Row
+                label="Rodzic"
+                value={
+                  <Link
+                    href={`/members/${profile.parent.id}`}
+                    className="hover:underline"
+                  >
+                    {profile.parent.fullName}
+                  </Link>
+                }
+              />
+            )}
+          </dl>
+          {profile.sections.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {profile.sections.map((membership) => (
+                <Badge key={membership.id} variant="outline">
+                  {membership.section.name}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <Card size="sm">
+        <CardHeader>
+          <CardTitle>Adresy e-mail</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-1 text-sm">
+            {profile.emails.map((email) => (
+              <li key={email.id} className="flex items-center gap-2">
+                {email.email}
+                <Badge variant="outline">
+                  {email.kind === "login" ? "logowanie" : "powiadomienia"}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
 
       {canViewHrNotes ? (
-        <section className="space-y-2">
-          <h2 className="font-medium">Notatki HR</h2>
-          <p className="text-muted-foreground text-sm whitespace-pre-wrap">
-            {profile.hrNotes ?? "—"}
-          </p>
-        </section>
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle>Notatki HR</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground text-sm whitespace-pre-wrap">
+              {profile.hrNotes ?? "—"}
+            </p>
+          </CardContent>
+        </Card>
       ) : null}
 
-      <section className="space-y-2">
-        <h2 className="font-medium">Adresy e-mail</h2>
-        <ul className="text-sm">
-          {profile.emails.map((email) => (
-            <li key={email.id}>
-              {email.email}{" "}
-              <Badge variant="outline">
-                {email.kind === "login" ? "logowanie" : "powiadomienia"}
-              </Badge>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <MemberActivityCard counts={dailyActivity} />
 
-      <section className="space-y-2">
-        <h2 className="font-medium">Sekcje</h2>
-        <div className="flex flex-wrap gap-1">
-          {profile.sections.map((membership) => (
-            <Badge key={membership.id} variant="outline">
-              {membership.section.name}
-            </Badge>
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <h2 className="font-medium">Aktywność na GitHubie</h2>
-        <div className="space-y-2">
-          <h3 className="text-muted-foreground text-sm font-medium">
-            Aktywność &middot; cała historia
-          </h3>
-          <HeatmapWithRangePicker counts={dailyActivity} />
-        </div>
-        <div className="space-y-2">
+      <Card size="sm">
+        <CardHeader>
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <h3 className="text-muted-foreground text-sm font-medium">
-              Ostatnia aktywność
-            </h3>
+            <CardTitle>Ostatnia aktywność</CardTitle>
             {hasMoreActivity ? (
               <Link
                 href={`/members/${id}/activity`}
@@ -231,6 +257,8 @@ export default async function MemberProfilePage({
               </Link>
             ) : null}
           </div>
+        </CardHeader>
+        <CardContent>
           <ActivityTimeline
             items={recentActivity.map((event) => ({
               id: event.id,
@@ -241,99 +269,116 @@ export default async function MemberProfilePage({
               subtitle: `${event.project.name} · ${event.projectRepository.githubRepoFullName}`,
             }))}
           />
-        </div>
-      </section>
+        </CardContent>
+      </Card>
 
       {canManageRoles ? (
-        <section className="space-y-2">
-          <h2 className="font-medium">Zarządzaj rolami</h2>
-          <RoleManager
-            memberId={id}
-            activeRoles={roles
-              .filter((assignment) => assignment.endedAt === null)
-              .map((assignment) => ({
-                id: assignment.id,
-                roleDefinitionName: assignment.roleDefinition.name,
-                targetLabel:
-                  assignment.section?.name ?? assignment.project?.name ?? null,
-              }))}
-            roleDefinitions={roleDefinitions}
-            sections={sections}
-          />
-        </section>
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle>Zarządzaj rolami</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <RoleManager
+              memberId={id}
+              activeRoles={roles
+                .filter((assignment) => assignment.endedAt === null)
+                .map((assignment) => ({
+                  id: assignment.id,
+                  roleDefinitionName: assignment.roleDefinition.name,
+                  targetLabel:
+                    assignment.section?.name ??
+                    assignment.project?.name ??
+                    null,
+                }))}
+              roleDefinitions={roleDefinitions}
+              sections={sections}
+            />
+          </CardContent>
+        </Card>
       ) : null}
 
-      <section className="space-y-2">
-        <h2 className="font-medium">Projekty</h2>
-        <ul className="space-y-2">
-          {profile.teamMemberships
-            .toSorted((a, b) => b.joinedAt.getTime() - a.joinedAt.getTime())
-            .map((membership) => (
-              <li key={membership.id} className="rounded-md border p-3 text-sm">
+      <Card size="sm">
+        <CardHeader>
+          <CardTitle>Projekty</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-2">
+            {profile.teamMemberships
+              .toSorted((a, b) => b.joinedAt.getTime() - a.joinedAt.getTime())
+              .map((membership) => (
+                <li
+                  key={membership.id}
+                  className="rounded-md border p-3 text-sm"
+                >
+                  <div className="font-medium">
+                    <Link
+                      href={`/projects/${membership.team.project.id}`}
+                      className="hover:underline"
+                    >
+                      {membership.team.project.name}
+                    </Link>
+                  </div>
+                  <div className="text-muted-foreground">
+                    {membership.team.name} · {membership.roleDefinition.name}
+                  </div>
+                  <div className="text-muted-foreground text-xs">
+                    {membership.joinedAt.toLocaleDateString("pl-PL")} –{" "}
+                    {membership.leftAt === null
+                      ? "obecnie"
+                      : membership.leftAt.toLocaleDateString("pl-PL")}
+                  </div>
+                </li>
+              ))}
+            {profile.teamMemberships.length === 0 ? (
+              <li className="text-muted-foreground text-sm">Brak projektów</li>
+            ) : null}
+          </ul>
+        </CardContent>
+      </Card>
+
+      <Card size="sm">
+        <CardHeader>
+          <CardTitle>Historia ról organizacyjnych</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-2">
+            {roles.map((assignment) => (
+              <li key={assignment.id} className="rounded-md border p-3 text-sm">
                 <div className="font-medium">
-                  <Link
-                    href={`/projects/${membership.team.project.id}`}
-                    className="hover:underline"
-                  >
-                    {membership.team.project.name}
-                  </Link>
+                  {assignment.roleDefinition.name}
                 </div>
                 <div className="text-muted-foreground">
-                  {membership.team.name} · {membership.roleDefinition.name}
+                  {assignment.section === null ? null : (
+                    <Link
+                      href={`/sections/${assignment.section.id}`}
+                      className="hover:underline"
+                    >
+                      {assignment.section.name}
+                    </Link>
+                  )}
+                  {assignment.project === null ? null : (
+                    <Link
+                      href={`/projects/${assignment.project.id}`}
+                      className="hover:underline"
+                    >
+                      {assignment.project.name}
+                    </Link>
+                  )}
+                  {assignment.section === null && assignment.project === null
+                    ? "Zarząd"
+                    : null}
                 </div>
                 <div className="text-muted-foreground text-xs">
-                  {membership.joinedAt.toLocaleDateString("pl-PL")} –{" "}
-                  {membership.leftAt === null
+                  {assignment.startedAt.toLocaleDateString("pl-PL")} –{" "}
+                  {assignment.endedAt === null
                     ? "obecnie"
-                    : membership.leftAt.toLocaleDateString("pl-PL")}
+                    : assignment.endedAt.toLocaleDateString("pl-PL")}
                 </div>
               </li>
             ))}
-          {profile.teamMemberships.length === 0 ? (
-            <li className="text-muted-foreground text-sm">Brak projektów</li>
-          ) : null}
-        </ul>
-      </section>
-
-      <section className="space-y-2">
-        <h2 className="font-medium">Historia ról organizacyjnych</h2>
-        <ul className="space-y-2">
-          {roles.map((assignment) => (
-            <li key={assignment.id} className="rounded-md border p-3 text-sm">
-              <div className="font-medium">
-                {assignment.roleDefinition.name}
-              </div>
-              <div className="text-muted-foreground">
-                {assignment.section === null ? null : (
-                  <Link
-                    href={`/sections/${assignment.section.id}`}
-                    className="hover:underline"
-                  >
-                    {assignment.section.name}
-                  </Link>
-                )}
-                {assignment.project === null ? null : (
-                  <Link
-                    href={`/projects/${assignment.project.id}`}
-                    className="hover:underline"
-                  >
-                    {assignment.project.name}
-                  </Link>
-                )}
-                {assignment.section === null && assignment.project === null
-                  ? "Zarząd"
-                  : null}
-              </div>
-              <div className="text-muted-foreground text-xs">
-                {assignment.startedAt.toLocaleDateString("pl-PL")} –{" "}
-                {assignment.endedAt === null
-                  ? "obecnie"
-                  : assignment.endedAt.toLocaleDateString("pl-PL")}
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
+          </ul>
+        </CardContent>
+      </Card>
     </div>
   );
 }

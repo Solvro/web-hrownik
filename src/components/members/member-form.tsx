@@ -342,6 +342,66 @@ export function MemberForm({
         />
 
         <Controller
+          name="linkedinUrl"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor={field.name}>LinkedIn</FieldLabel>
+              <Input
+                {...field}
+                id={field.name}
+                placeholder="https://linkedin.com/in/..."
+                aria-invalid={fieldState.invalid}
+              />
+              {fieldState.invalid ? (
+                <FieldError errors={[fieldState.error]} />
+              ) : null}
+            </Field>
+          )}
+        />
+
+        <Controller
+          name="instagramUrl"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor={field.name}>Instagram</FieldLabel>
+              <Input
+                {...field}
+                id={field.name}
+                placeholder="https://instagram.com/..."
+                aria-invalid={fieldState.invalid}
+              />
+              {fieldState.invalid ? (
+                <FieldError errors={[fieldState.error]} />
+              ) : null}
+            </Field>
+          )}
+        />
+
+        <Controller
+          name="photoUrl"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor={field.name}>Zdjęcie (link)</FieldLabel>
+              <Input
+                {...field}
+                id={field.name}
+                placeholder="https://..."
+                aria-invalid={fieldState.invalid}
+              />
+              <FieldDescription>
+                Link do zdjęcia profilowego, np. z Google Drive lub Discorda.
+              </FieldDescription>
+              {fieldState.invalid ? (
+                <FieldError errors={[fieldState.error]} />
+              ) : null}
+            </Field>
+          )}
+        />
+
+        <Controller
           name="studentIndex"
           control={form.control}
           render={({ field, fieldState }) => (
