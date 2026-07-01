@@ -1,16 +1,12 @@
 "use client";
 
-import {
-  ChevronsUpDown,
-  FolderKanban,
-  LogOut,
-  Shapes,
-  User,
-  Users,
-} from "lucide-react";
+import { ChevronsUpDown, LogOut, User } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
+import logoMono from "@/assets/logo-mono.svg";
+import { appNavItems } from "@/components/app-nav-items";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,11 +32,7 @@ import { authClient } from "@/lib/auth-client";
 
 import { ModeToggle } from "./mode-toggle";
 
-const navItems = [
-  { href: "/members", label: "Członkowie", icon: Users },
-  { href: "/sections", label: "Sekcje", icon: Shapes },
-  { href: "/projects", label: "Projekty", icon: FolderKanban },
-];
+const logoMonoSource = logoMono as unknown as string;
 
 export function AppSidebar({
   memberId,
@@ -59,7 +51,14 @@ export function AppSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip="HRownik">
               <Link href="/">
-                <Shapes />
+                <span className="flex size-6 shrink-0 items-center justify-center">
+                  <Image
+                    src={logoMonoSource}
+                    alt=""
+                    className="size-5"
+                    aria-hidden="true"
+                  />
+                </span>
                 <span className="text-lg font-semibold">HRownik</span>
               </Link>
             </SidebarMenuButton>
@@ -71,7 +70,7 @@ export function AppSidebar({
           <SidebarGroupLabel>Nawigacja</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {appNavItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild
