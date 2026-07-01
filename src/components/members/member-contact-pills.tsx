@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ComponentType } from "react";
 
 import {
@@ -81,7 +82,7 @@ export function MemberContactPills({
           </Badge>
         ) : (
           <Badge key={pill.key} variant="outline" asChild className="h-7 px-3">
-            <a
+            <Link
               href={pill.href}
               target="_blank"
               rel="noreferrer"
@@ -89,7 +90,7 @@ export function MemberContactPills({
             >
               <pill.icon className="size-3.5" data-icon="inline-start" />
               {pill.label}
-            </a>
+            </Link>
           </Badge>
         ),
       )}

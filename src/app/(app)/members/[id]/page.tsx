@@ -132,7 +132,7 @@ export default async function MemberProfilePage({
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-start gap-3">
-          <Avatar className="size-16 sm:size-20">
+          <Avatar className="size-15 sm:size-20">
             {profile.photoUrl === null ? null : (
               <AvatarImage src={profile.photoUrl} alt={profile.fullName} />
             )}
@@ -140,7 +140,7 @@ export default async function MemberProfilePage({
           </Avatar>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-semibold break-words">
+              <h1 className="text-2xl font-semibold wrap-break-word">
                 {profile.fullName}
               </h1>
               <MemberStatusBadge status={profile.status} />
