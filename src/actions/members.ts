@@ -50,6 +50,9 @@ export async function createMember(input: MemberFormValues) {
       githubUsername: emptyToNull(values.githubUsername),
       discordId: emptyToNull(values.discordId),
       facebookUrl: emptyToNull(values.facebookUrl),
+      linkedinUrl: emptyToNull(values.linkedinUrl),
+      instagramUrl: emptyToNull(values.instagramUrl),
+      photoUrl: emptyToNull(values.photoUrl),
       studentIndex: emptyToNull(values.studentIndex),
       studyDepartment: emptyToNull(values.studyDepartment),
       studyField: emptyToNull(values.studyField),
@@ -179,6 +182,15 @@ export async function updateMember(
       }),
       ...(values.facebookUrl !== undefined && {
         facebookUrl: emptyToNull(values.facebookUrl),
+      }),
+      ...(values.linkedinUrl !== undefined && {
+        linkedinUrl: emptyToNull(values.linkedinUrl),
+      }),
+      ...(values.instagramUrl !== undefined && {
+        instagramUrl: emptyToNull(values.instagramUrl),
+      }),
+      ...(values.photoUrl !== undefined && {
+        photoUrl: emptyToNull(values.photoUrl),
       }),
       ...(values.studentIndex !== undefined && {
         studentIndex: emptyToNull(values.studentIndex),
