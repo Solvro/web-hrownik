@@ -1,9 +1,11 @@
 import { eq, isNull } from "drizzle-orm";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { deleteSection } from "@/actions/sections";
 import { DeleteButton } from "@/components/delete-button";
 import { SectionMembersBrowser } from "@/components/sections/section-members-browser";
+import { Button } from "@/components/ui/button";
 import { db } from "@/db";
 import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
@@ -70,12 +72,17 @@ export default async function SectionPage({
           )}
         </div>
         {canManage ? (
-          <DeleteButton
-            action={deleteSection.bind(null, id)}
-            confirmMessage={`Na pewno usunąć sekcję "${sectionRow.name}"? Tej operacji nie można cofnąć.`}
-          >
-            Usuń sekcję
-          </DeleteButton>
+          <div className="flex flex-col gap-2 min-[360px]:flex-row">
+            <Button asChild variant="outline">
+              <Link href={`/sections/${id}/edit`}>Edytuj</Link>
+            </Button>
+            <DeleteButton
+              action={deleteSection.bind(null, id)}
+              confirmMessage={`Na pewno usunąć sekcję "${sectionRow.name}"? Tej operacji nie można cofnąć.`}
+            >
+              Usuń sekcję
+            </DeleteButton>
+          </div>
         ) : null}
       </div>
 

@@ -4,7 +4,14 @@ import { Plus } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 import { SectionForm } from "./section-form";
 
@@ -19,11 +26,20 @@ export function NewSectionDialog() {
           Dodaj sekcję
         </Button>
       </DialogTrigger>
-      <SectionForm
-        onCreated={() => {
-          setOpen(false);
-        }}
-      />
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Nowa sekcja</DialogTitle>
+          <DialogDescription>
+            Sekcje grupują członków (np. dział graficzny, dział webowy).
+          </DialogDescription>
+        </DialogHeader>
+        <SectionForm
+          mode="create"
+          onCreated={() => {
+            setOpen(false);
+          }}
+        />
+      </DialogContent>
     </Dialog>
   );
 }
