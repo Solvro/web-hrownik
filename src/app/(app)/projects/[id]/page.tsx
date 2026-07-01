@@ -10,6 +10,7 @@ import { NewTeamForm } from "@/components/projects/new-team-form";
 import { SyncActivityButton } from "@/components/projects/sync-activity-button";
 import { TeamPanel } from "@/components/projects/team-panel";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { db } from "@/db";
 import { githubActivityEvent } from "@/db/schema/github";
 import { member } from "@/db/schema/members";
@@ -95,14 +96,21 @@ export default async function ProjectPage({
             {projectRow.visibility === "public" ? "publiczny" : "wewnętrzny"}
           </p>
         </div>
-        {permissions?.isBoard === true ? (
-          <DeleteButton
-            action={deleteProject.bind(null, id)}
-            confirmMessage={`Na pewno usunąć projekt "${projectRow.name}"? Tej operacji nie można cofnąć.`}
-          >
-            Usuń projekt
-          </DeleteButton>
-        ) : null}
+        <div className="flex gap-2">
+          {canManage ? (
+            <Button asChild variant="outline">
+              <Link href={`/projects/${id}/edit`}>Edytuj</Link>
+            </Button>
+          ) : null}
+          {permissions?.isBoard === true ? (
+            <DeleteButton
+              action={deleteProject.bind(null, id)}
+              confirmMessage={`Na pewno usunąć projekt "${projectRow.name}"? Tej operacji nie można cofnąć.`}
+            >
+              Usuń projekt
+            </DeleteButton>
+          ) : null}
+        </div>
       </div>
 
       <section className="space-y-2">
