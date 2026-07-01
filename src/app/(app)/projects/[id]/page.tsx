@@ -10,6 +10,7 @@ import { NewTeamForm } from "@/components/projects/new-team-form";
 import { ProjectActivityPanel } from "@/components/projects/project-activity-panel";
 import { TeamPanel } from "@/components/projects/team-panel";
 import { ProjectStatusBadge } from "@/components/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { db } from "@/db";
 import { githubActivityEvent } from "@/db/schema/github";
@@ -152,23 +153,21 @@ export default async function ProjectPage({
 
       <section className="space-y-2">
         <h2 className="font-medium">Repozytoria</h2>
-        <ul className="divide-y rounded-md border">
-          {projectRow.repositories.map((repo) => (
-            <li key={repo.id} className="p-2 text-sm">
-              <Link
-                href={`/projects/${id}/repos/${repo.id}`}
-                className="hover:underline"
-              >
-                {repo.githubRepoFullName}
-              </Link>
-            </li>
-          ))}
-          {projectRow.repositories.length === 0 ? (
-            <li className="text-muted-foreground p-2 text-sm">
-              Brak podłączonych repozytoriów
-            </li>
-          ) : null}
-        </ul>
+        {projectRow.repositories.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {projectRow.repositories.map((repo) => (
+              <Badge key={repo.id} variant="outline" asChild>
+                <Link href={`/projects/${id}/repos/${repo.id}`}>
+                  {repo.githubRepoFullName}
+                </Link>
+              </Badge>
+            ))}
+          </div>
+        ) : (
+          <p className="text-muted-foreground text-sm">
+            Brak podłączonych repozytoriów
+          </p>
+        )}
       </section>
 
       <section className="space-y-2">
