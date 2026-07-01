@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { ListFilters } from "@/components/list-filters";
 import { MemberStatusBadge } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { declineNumeric } from "@/lib/polish";
 import type { MemberStatus } from "@/lib/schemas/members";
 
 export interface MembersTableRow {
@@ -112,72 +113,63 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
 
   return (
     <div className="space-y-3">
-      <div className="grid gap-2 md:grid-cols-[minmax(14rem,1fr)_repeat(4,auto)]">
-        <Input
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
+      <div className="grid gap-2 lg:grid-cols-[minmax(14rem,1fr)_auto]">
+        <ListFilters
+          query={query}
+          onQueryChange={(value) => {
+            setQuery(value);
             resetPage();
           }}
-          placeholder="Szukaj po imieniu, nazwisku, GitHubie, sekcji lub roli…"
+          queryPlaceholder="Szukaj po imieniu, nazwisku, GitHubie, sekcji lub roli…"
+          selects={[
+            {
+              value: sectionId,
+              onValueChange: (value) => {
+                setSectionId(value);
+                resetPage();
+              },
+              placeholder: "Sekcja",
+              options: [
+                { value: "all", label: "Wszystkie sekcje" },
+                ...sectionOptions.map((section) => ({
+                  value: section.id,
+                  label: section.name,
+                })),
+              ],
+            },
+            {
+              value: roleId,
+              onValueChange: (value) => {
+                setRoleId(value);
+                resetPage();
+              },
+              placeholder: "Rola",
+              options: [
+                { value: "all", label: "Wszystkie role" },
+                ...roleOptions.map((role) => ({
+                  value: role.id,
+                  label: role.name,
+                })),
+              ],
+            },
+            {
+              value: status,
+              onValueChange: (value) => {
+                setStatus(value as MemberStatus | "all");
+                resetPage();
+              },
+              placeholder: "Status",
+              options: [
+                { value: "all", label: "Wszystkie statusy" },
+                ...Object.entries(statusLabels).map(([value, label]) => ({
+                  value,
+                  label,
+                })),
+              ],
+              className: "md:w-40",
+            },
+          ]}
         />
-        <Select
-          value={sectionId}
-          onValueChange={(value) => {
-            setSectionId(value);
-            resetPage();
-          }}
-        >
-          <SelectTrigger className="w-full md:w-44">
-            <SelectValue placeholder="Sekcja" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Wszystkie sekcje</SelectItem>
-            {sectionOptions.map((section) => (
-              <SelectItem key={section.id} value={section.id}>
-                {section.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={roleId}
-          onValueChange={(value) => {
-            setRoleId(value);
-            resetPage();
-          }}
-        >
-          <SelectTrigger className="w-full md:w-44">
-            <SelectValue placeholder="Rola" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Wszystkie role</SelectItem>
-            {roleOptions.map((role) => (
-              <SelectItem key={role.id} value={role.id}>
-                {role.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={status}
-          onValueChange={(value) => {
-            setStatus(value as MemberStatus | "all");
-            resetPage();
-          }}
-        >
-          <SelectTrigger className="w-full md:w-40">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Wszystkie statusy</SelectItem>
-            {Object.entries(statusLabels).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
         <Select
           value={String(pageSize)}
           onValueChange={(value) => {
@@ -249,7 +241,7 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
         <span>
           Wyniki {filtered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}–
           {Math.min(currentPage * pageSize, filtered.length)} z{" "}
-          {filtered.length}
+          {declineNumeric(filtered.length, "członek")}
         </span>
         <div className="flex items-center gap-2">
           <Button

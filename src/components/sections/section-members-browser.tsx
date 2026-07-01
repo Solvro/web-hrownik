@@ -2,16 +2,9 @@
 
 import { useMemo, useState } from "react";
 
+import { ListFilters } from "@/components/list-filters";
 import { MemberCard } from "@/components/members/member-card";
 import type { MemberCardData } from "@/components/members/member-card";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type { MemberStatus } from "@/lib/schemas/members";
 
 type StatusFilter = MemberStatus | "all";
@@ -61,48 +54,42 @@ export function SectionMembersBrowser({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-2 md:grid-cols-[1fr_12rem_14rem]">
-        <Input
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-          }}
-          placeholder="Szukaj po nazwie, GitHubie, roli lub projekcie..."
-        />
-        <Select
-          value={status}
-          onValueChange={(value) => {
-            setStatus(value as StatusFilter);
-          }}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="active">aktywni</SelectItem>
-            <SelectItem value="new">nowi</SelectItem>
-            <SelectItem value="inactive">nieaktywni</SelectItem>
-            <SelectItem value="honorary">honorowi</SelectItem>
-            <SelectItem value="all">wszyscy</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select
-          value={sort}
-          onValueChange={(value) => {
-            setSort(value as SortMode);
-          }}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="joined-desc">najnowsi w sekcji</SelectItem>
-            <SelectItem value="joined-asc">najstarsi w sekcji</SelectItem>
-            <SelectItem value="name-asc">nazwa A-Z</SelectItem>
-            <SelectItem value="name-desc">nazwa Z-A</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <ListFilters
+        query={query}
+        onQueryChange={setQuery}
+        queryPlaceholder="Szukaj po nazwie, GitHubie, roli lub projekcie..."
+        selects={[
+          {
+            value: status,
+            onValueChange: (value) => {
+              setStatus(value as StatusFilter);
+            },
+            placeholder: "Status",
+            options: [
+              { value: "active", label: "aktywni" },
+              { value: "new", label: "nowi" },
+              { value: "inactive", label: "nieaktywni" },
+              { value: "honorary", label: "honorowi" },
+              { value: "all", label: "wszyscy" },
+            ],
+            className: "md:w-48",
+          },
+          {
+            value: sort,
+            onValueChange: (value) => {
+              setSort(value as SortMode);
+            },
+            placeholder: "Sortowanie",
+            options: [
+              { value: "joined-desc", label: "najnowsi w sekcji" },
+              { value: "joined-asc", label: "najstarsi w sekcji" },
+              { value: "name-asc", label: "nazwa A-Z" },
+              { value: "name-desc", label: "nazwa Z-A" },
+            ],
+            className: "md:w-56",
+          },
+        ]}
+      />
 
       <div className="grid gap-3 sm:grid-cols-2">
         {filteredMembers.map((member) => (

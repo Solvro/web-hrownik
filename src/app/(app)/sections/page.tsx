@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
 import { canManageMembers, getMemberPermissions } from "@/lib/permissions";
+import { declineNumeric } from "@/lib/polish";
 
 export default async function SectionsPage() {
   const currentMember = await getCurrentMember();
@@ -22,7 +23,7 @@ export default async function SectionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">Sekcje</h1>
         {permissions !== null && canManageMembers(permissions) ? (
           <NewSectionDialog />
@@ -36,10 +37,12 @@ export default async function SectionsPage() {
             href={`/sections/${sectionRow.id}`}
             className="hover:bg-accent rounded-lg border p-4"
           >
-            <div className="flex items-center justify-between">
-              <h2 className="font-medium">{sectionRow.name}</h2>
+            <div className="flex items-start justify-between gap-2">
+              <h2 className="min-w-0 font-medium break-words">
+                {sectionRow.name}
+              </h2>
               <Badge variant="secondary">
-                {sectionRow.members.length} członków
+                {declineNumeric(sectionRow.members.length, "członek")}
               </Badge>
             </div>
             {sectionRow.description !== null && (

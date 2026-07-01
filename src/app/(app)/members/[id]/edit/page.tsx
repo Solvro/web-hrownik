@@ -63,7 +63,9 @@ export default async function EditMemberPage({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Edytuj: {profile.fullName}</h1>
+      <h1 className="text-2xl font-semibold break-words">
+        Edytuj: {profile.fullName}
+      </h1>
       <MemberForm
         mode="edit"
         memberId={id}

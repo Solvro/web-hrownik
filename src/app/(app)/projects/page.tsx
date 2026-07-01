@@ -2,7 +2,7 @@ import { asc } from "drizzle-orm";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 
-import { ProjectStatusBadge } from "@/components/status-badge";
+import { ProjectsBrowser } from "@/components/projects/projects-browser";
 import { Button } from "@/components/ui/button";
 import { db } from "@/db";
 import { project } from "@/db/schema/projects";
@@ -22,10 +22,10 @@ export default async function ProjectsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">Projekty</h1>
         {permissions?.isBoard === true ? (
-          <Button asChild>
+          <Button asChild className="w-full sm:w-auto">
             <Link href="/projects/new">
               <Plus />
               Nowy projekt
@@ -34,23 +34,7 @@ export default async function ProjectsPage() {
         ) : null}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {projects.map((projectRow) => (
-          <Link
-            key={projectRow.id}
-            href={`/projects/${projectRow.id}`}
-            className="hover:bg-accent rounded-lg border p-4"
-          >
-            <div className="flex items-center justify-between">
-              <h2 className="font-medium">{projectRow.name}</h2>
-              <ProjectStatusBadge status={projectRow.status} />
-            </div>
-            <p className="text-muted-foreground mt-1 text-sm">
-              {projectRow.visibility === "public" ? "publiczny" : "wewnętrzny"}
-            </p>
-          </Link>
-        ))}
-      </div>
+      <ProjectsBrowser projects={projects} />
     </div>
   );
 }

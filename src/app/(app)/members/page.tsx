@@ -26,17 +26,17 @@ export default async function MembersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">Członkowie</h1>
         {permissions !== null && canManageMembers(permissions) ? (
-          <div className="flex gap-2">
-            <Button asChild variant="outline">
+          <div className="flex flex-col gap-2 min-[360px]:flex-row sm:flex-row">
+            <Button asChild variant="outline" className="w-full sm:w-auto">
               <Link href="/members/import">
                 <FileUp />
                 Importuj z pliku
               </Link>
             </Button>
-            <Button asChild>
+            <Button asChild className="w-full sm:w-auto">
               <Link href="/members/new">
                 <UserPlus />
                 Dodaj członka

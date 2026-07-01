@@ -94,7 +94,7 @@ export default async function AppLayout({
         <header className="flex h-12 items-center border-b px-4">
           <SidebarTrigger />
         </header>
-        <div className="flex-1 p-6">{children}</div>
+        <div className="min-w-0 flex-1 p-4 sm:p-6">{children}</div>
       </SidebarInset>
     </SidebarProvider>
   );

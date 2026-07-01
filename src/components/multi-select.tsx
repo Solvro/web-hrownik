@@ -18,6 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { declineNumeric } from "@/lib/polish";
 import { cn } from "@/lib/utils";
 
 export interface MultiSelectOption {
@@ -80,7 +81,7 @@ export function MultiSelect({
             <span className="text-muted-foreground">
               {selected.length === 0
                 ? placeholder
-                : `Wybrano: ${selected.length}`}
+                : `Wybrano ${declineNumeric(selected.length, "element")}`}
             </span>
             <ChevronsUpDown className="text-muted-foreground" />
           </Button>
