@@ -78,6 +78,36 @@ export async function createProject(input: ProjectFormValues) {
   redirect(`/projects/${created.id}`);
 }
 
+export async function updateProject(
+  projectId: string,
+  input: ProjectFormValues,
+) {
+  await assertCanManageProject(projectId);
+
+  const values = projectFormSchema.parse(input);
+
+  await db
+    .update(project)
+    .set({
+      name: values.name,
+      slug: values.slug,
+      status: values.status,
+      visibility: values.visibility,
+      productionUrl: emptyToNull(values.productionUrl),
+      driveFolderUrl: emptyToNull(values.driveFolderUrl),
+      projectCardDriveUrl: emptyToNull(values.projectCardDriveUrl),
+      reportDriveUrl:
+        values.status === "completed"
+          ? emptyToNull(values.reportDriveUrl)
+          : null,
+      updatedAt: new Date(),
+    })
+    .where(eq(project.id, projectId));
+
+  revalidatePath(`/projects/${projectId}`);
+  redirect(`/projects/${projectId}`);
+}
+
 export async function createTeam(projectId: string, name: string) {
   await assertCanManageProject(projectId);
 

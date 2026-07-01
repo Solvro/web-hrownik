@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
-import { createProject } from "@/actions/projects";
+import { createProject, updateProject } from "@/actions/projects";
 import { MultiSelect } from "@/components/multi-select";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,16 +27,22 @@ import type { ProjectFormValues } from "@/lib/schemas/projects";
 import { projectFormSchema } from "@/lib/schemas/projects";
 
 export function ProjectForm({
+  mode = "create",
+  projectId,
   repoOptions,
+  defaultValues,
 }: {
+  mode?: "create" | "edit";
+  projectId?: string;
   repoOptions: { value: string; label: string }[];
+  defaultValues?: ProjectFormValues;
 }) {
   const router = useRouter();
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectFormSchema),
-    defaultValues: {
+    defaultValues: defaultValues ?? {
       name: "",
       slug: "",
       status: "active",
@@ -58,7 +64,11 @@ export function ProjectForm({
   async function onSubmit(values: ProjectFormValues) {
     setSubmitError(null);
     try {
-      await createProject(values);
+      if (mode === "create") {
+        await createProject(values);
+      } else if (projectId !== undefined) {
+        await updateProject(projectId, values);
+      }
     } catch (error) {
       if (
         typeof error === "object" &&
@@ -230,59 +240,61 @@ export function ProjectForm({
             )}
           />
         ) : null}
-        <Controller
-          name="repositoryFullNames"
-          control={form.control}
-          render={({ field }) => (
-            <Field>
-              <FieldLabel>Repozytoria GitHub</FieldLabel>
-              {repoOptions.length === 0 ? (
-                <FieldDescription>
-                  Integracja z GitHub nie jest skonfigurowana albo organizacja
-                  nie ma repozytoriów — repozytoria można podłączyć później.
-                </FieldDescription>
-              ) : (
-                <div className="space-y-2">
-                  {slug.trim() !== "" && suggestedRepoOptions.length > 0 ? (
-                    <div className="bg-muted/40 rounded-md border p-2 text-sm">
-                      <div className="flex items-center justify-between gap-2">
-                        <span>
-                          Sugerowane dla slugu: {suggestedRepoOptions.length}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            field.onChange([
-                              ...new Set([
-                                ...field.value,
-                                ...suggestedRepoValues,
-                              ]),
-                            ]);
-                          }}
-                        >
-                          Wybierz wszystkie
-                        </Button>
+        {mode === "create" ? (
+          <Controller
+            name="repositoryFullNames"
+            control={form.control}
+            render={({ field }) => (
+              <Field>
+                <FieldLabel>Repozytoria GitHub</FieldLabel>
+                {repoOptions.length === 0 ? (
+                  <FieldDescription>
+                    Integracja z GitHub nie jest skonfigurowana albo organizacja
+                    nie ma repozytoriów — repozytoria można podłączyć później.
+                  </FieldDescription>
+                ) : (
+                  <div className="space-y-2">
+                    {slug.trim() !== "" && suggestedRepoOptions.length > 0 ? (
+                      <div className="bg-muted/40 rounded-md border p-2 text-sm">
+                        <div className="flex items-center justify-between gap-2">
+                          <span>
+                            Sugerowane dla slugu: {suggestedRepoOptions.length}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              field.onChange([
+                                ...new Set([
+                                  ...field.value,
+                                  ...suggestedRepoValues,
+                                ]),
+                              ]);
+                            }}
+                          >
+                            Wybierz wszystkie
+                          </Button>
+                        </div>
+                        <p className="text-muted-foreground mt-1 truncate">
+                          {suggestedRepoOptions
+                            .map((repo) => repo.label)
+                            .join(", ")}
+                        </p>
                       </div>
-                      <p className="text-muted-foreground mt-1 truncate">
-                        {suggestedRepoOptions
-                          .map((repo) => repo.label)
-                          .join(", ")}
-                      </p>
-                    </div>
-                  ) : null}
-                  <MultiSelect
-                    options={repoOptions}
-                    value={field.value}
-                    onChange={field.onChange}
-                    placeholder="Wybierz repozytoria"
-                  />
-                </div>
-              )}
-            </Field>
-          )}
-        />
+                    ) : null}
+                    <MultiSelect
+                      options={repoOptions}
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="Wybierz repozytoria"
+                    />
+                  </div>
+                )}
+              </Field>
+            )}
+          />
+        ) : null}
         {submitError === null ? null : (
           <FieldDescription className="text-destructive">
             {submitError}
@@ -290,7 +302,7 @@ export function ProjectForm({
         )}
         <div className="flex gap-2">
           <Button type="submit" disabled={form.formState.isSubmitting}>
-            Utwórz projekt
+            {mode === "create" ? "Utwórz projekt" : "Zapisz"}
           </Button>
           <Button
             type="button"
