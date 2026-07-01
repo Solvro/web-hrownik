@@ -101,7 +101,7 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex min-h-full flex-col gap-4">
       <div className="grid gap-2 lg:grid-cols-[minmax(14rem,1fr)_auto]">
         <ListFilters
           query={query}
@@ -181,31 +181,33 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {paginated.map((project) => (
-          <Link
-            key={project.id}
-            href={`/projects/${project.id}`}
-            className="hover:bg-accent min-w-0 rounded-lg border p-4"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <h2 className="min-w-0 font-medium break-words">
-                {project.name}
-              </h2>
-              <ProjectStatusBadge status={project.status} />
-            </div>
-            <p className="text-muted-foreground mt-1 text-sm">
-              {visibilityLabels[project.visibility]}
-            </p>
-          </Link>
-        ))}
-      </div>
+      <div className="flex-1">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {paginated.map((project) => (
+            <Link
+              key={project.id}
+              href={`/projects/${project.id}`}
+              className="hover:bg-accent min-w-0 rounded-lg border p-4"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <h2 className="min-w-0 font-medium break-words">
+                  {project.name}
+                </h2>
+                <ProjectStatusBadge status={project.status} />
+              </div>
+              <p className="text-muted-foreground mt-1 text-sm">
+                {visibilityLabels[project.visibility]}
+              </p>
+            </Link>
+          ))}
+        </div>
 
-      {paginated.length === 0 ? (
-        <p className="text-muted-foreground rounded-md border p-4 text-sm">
-          Brak projektów pasujących do filtrów.
-        </p>
-      ) : null}
+        {paginated.length === 0 ? (
+          <p className="text-muted-foreground rounded-md border p-4 text-sm">
+            Brak projektów pasujących do filtrów.
+          </p>
+        ) : null}
+      </div>
 
       <div className="text-muted-foreground flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
         <span>
