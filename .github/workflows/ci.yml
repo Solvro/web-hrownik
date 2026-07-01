@@ -32,13 +32,11 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 11
 
       - name: Setup node
         uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version-file: package.json
           cache: "pnpm"
 
       - name: Setup build cache
