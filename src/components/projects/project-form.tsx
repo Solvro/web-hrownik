@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Plus, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -25,6 +26,14 @@ import {
 } from "@/components/ui/select";
 import type { ProjectFormValues } from "@/lib/schemas/projects";
 import { projectFormSchema } from "@/lib/schemas/projects";
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replaceAll(/[^a-z0-9\s-]/g, "")
+    .replaceAll(/[\s-]+/g, "-");
+}
 
 export function ProjectForm({
   mode = "create",
@@ -101,6 +110,18 @@ export function ProjectForm({
               <Input
                 {...field}
                 id={field.name}
+                onChange={(event) => {
+                  field.onChange(event);
+                  if (
+                    mode === "create" &&
+                    form.getValues("slug").trim() === ""
+                  ) {
+                    form.setValue("slug", slugify(event.target.value), {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                  }
+                }}
                 aria-invalid={fieldState.invalid}
               />
               {fieldState.invalid ? (
@@ -230,7 +251,7 @@ export function ProjectForm({
                 <Input
                   {...field}
                   id={field.name}
-                  placeholder="https://drive.google.com/..."
+                  placeholder="https://docs.google.com/..."
                   aria-invalid={fieldState.invalid}
                 />
                 {fieldState.invalid ? (
@@ -302,6 +323,7 @@ export function ProjectForm({
         )}
         <div className="flex gap-2">
           <Button type="submit" disabled={form.formState.isSubmitting}>
+            {mode === "create" ? <Plus /> : <Save />}
             {mode === "create" ? "Utwórz projekt" : "Zapisz"}
           </Button>
           <Button

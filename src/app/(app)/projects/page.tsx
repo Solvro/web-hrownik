@@ -1,4 +1,5 @@
 import { asc } from "drizzle-orm";
+import { Plus } from "lucide-react";
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +26,10 @@ export default async function ProjectsPage() {
         <h1 className="text-2xl font-semibold">Projekty</h1>
         {permissions?.isBoard === true ? (
           <Button asChild>
-            <Link href="/projects/new">Nowy projekt</Link>
+            <Link href="/projects/new">
+              <Plus />
+              Nowy projekt
+            </Link>
           </Button>
         ) : null}
       </div>

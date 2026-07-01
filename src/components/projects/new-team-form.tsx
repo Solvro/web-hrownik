@@ -1,5 +1,6 @@
 "use client";
 
+import { Plus } from "lucide-react";
 import { useState } from "react";
 
 import { createTeam } from "@/actions/projects";
@@ -44,6 +45,7 @@ export function NewTeamForm({ projectId }: { projectId: string }) {
           disabled={pending || name.trim() === ""}
           onClick={() => void handleCreate()}
         >
+          <Plus />
           Dodaj zespół
         </Button>
       </div>

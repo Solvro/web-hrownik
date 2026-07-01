@@ -1,4 +1,5 @@
 import { asc } from "drizzle-orm";
+import { FileUp, UserPlus } from "lucide-react";
 import Link from "next/link";
 
 import { MembersTable } from "@/components/members/members-table";
@@ -27,10 +28,16 @@ export default async function MembersPage() {
         {permissions !== null && canManageMembers(permissions) ? (
           <div className="flex gap-2">
             <Button asChild variant="outline">
-              <Link href="/members/import">Importuj z pliku</Link>
+              <Link href="/members/import">
+                <FileUp />
+                Importuj z pliku
+              </Link>
             </Button>
             <Button asChild>
-              <Link href="/members/new">Dodaj członka</Link>
+              <Link href="/members/new">
+                <UserPlus />
+                Dodaj członka
+              </Link>
             </Button>
           </div>
         ) : null}

@@ -1,4 +1,5 @@
 import { asc, desc, eq } from "drizzle-orm";
+import { Pencil } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -72,6 +73,17 @@ export default async function ProjectPage({
   });
   const hasMoreActivity = activityEvents.length > RECENT_ACTIVITY_PREVIEW_LIMIT;
   const recentActivity = activityEvents.slice(0, RECENT_ACTIVITY_PREVIEW_LIMIT);
+  const teamOptions = projectRow.teams.map((teamRow) => ({
+    id: teamRow.id,
+    name: teamRow.name,
+  }));
+  const activeProjectMemberIds = new Set(
+    projectRow.teams.flatMap((teamRow) =>
+      teamRow.members
+        .filter((teamMembership) => teamMembership.leftAt === null)
+        .map((teamMembership) => teamMembership.memberId),
+    ),
+  );
 
   const now = Date.now();
   const [weeklyRanking, monthlyRanking, dailyActivity] = await Promise.all([
@@ -99,7 +111,10 @@ export default async function ProjectPage({
         <div className="flex gap-2">
           {canManage ? (
             <Button asChild variant="outline">
-              <Link href={`/projects/${id}/edit`}>Edytuj</Link>
+              <Link href={`/projects/${id}/edit`}>
+                <Pencil />
+                Edytuj
+              </Link>
             </Button>
           ) : null}
           {permissions?.isBoard === true ? (
@@ -206,6 +221,16 @@ export default async function ProjectPage({
               addMemberHref:
                 canAddMembers && event.member === null
                   ? `/members/new?githubUsername=${encodeURIComponent(event.githubLogin)}`
+                  : undefined,
+              assignToTeam:
+                canManage &&
+                event.member !== null &&
+                !activeProjectMemberIds.has(event.member.id)
+                  ? {
+                      projectId: id,
+                      memberId: event.member.id,
+                      teams: teamOptions,
+                    }
                   : undefined,
               subtitle: event.projectRepository.githubRepoFullName,
             }))}

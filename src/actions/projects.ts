@@ -4,6 +4,7 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
+import * as z from "zod";
 
 import { db } from "@/db";
 import { projectRepository, teamRepository } from "@/db/schema/github";
@@ -17,6 +18,14 @@ import { canManageProject, getMemberPermissions } from "@/lib/permissions";
 import { projectFormSchema } from "@/lib/schemas/projects";
 import type { ProjectFormValues } from "@/lib/schemas/projects";
 import { grantTeamAccess, revokeTeamAccess } from "@/lib/team-sync";
+
+const assignProjectMemberToTeamSchema = z.object({
+  projectId: z.string().trim().min(1),
+  memberId: z.string().trim().min(1),
+  teamId: z.string().trim().min(1),
+  newTeamName: z.string().trim().optional(),
+  role: z.string().trim().optional(),
+});
 
 export async function createProject(input: ProjectFormValues) {
   const currentMember = await getCurrentMember();
@@ -140,6 +149,41 @@ export async function addTeamMember(
   });
   await grantTeamAccess(teamRow, memberRow);
   revalidatePath(`/projects/${teamRow.projectId}`);
+}
+
+export async function assignProjectMemberToTeam(
+  input: z.input<typeof assignProjectMemberToTeamSchema>,
+) {
+  const values = assignProjectMemberToTeamSchema.parse(input);
+  await assertCanManageProject(values.projectId);
+
+  const memberRow = await db.query.member.findFirst({
+    where: eq(member.id, values.memberId),
+  });
+  if (memberRow === undefined) {
+    throw new Error("Nie znaleziono członka.");
+  }
+
+  const teamRow =
+    values.teamId === "new"
+      ? await createTeamForAssignment(values.projectId, values.newTeamName)
+      : await db.query.team.findFirst({ where: eq(team.id, values.teamId) });
+  if (teamRow?.projectId !== values.projectId) {
+    throw new Error("Nie znaleziono zespołu w tym projekcie.");
+  }
+
+  await db.insert(teamMember).values({
+    teamId: teamRow.id,
+    memberId: memberRow.id,
+    role:
+      values.role === undefined || values.role.trim() === ""
+        ? "członek zespołu"
+        : values.role.trim(),
+  });
+  await grantTeamAccess(teamRow, memberRow);
+
+  revalidatePath(`/projects/${values.projectId}`);
+  revalidatePath(`/projects/${values.projectId}/activity`);
 }
 
 export async function updateTeamMemberDetails(
@@ -280,6 +324,20 @@ async function assertCanManageProject(projectId: string) {
   if (!canManageProject(permissions, projectId)) {
     throw new Error("Brak uprawnień do zarządzania tym projektem.");
   }
+}
+
+async function createTeamForAssignment(
+  projectId: string,
+  name: string | undefined,
+) {
+  if (name === undefined || name.trim() === "") {
+    throw new Error("Podaj nazwę nowego zespołu.");
+  }
+  const [created] = await db
+    .insert(team)
+    .values({ projectId, name: name.trim() })
+    .returning();
+  return created;
 }
 
 function emptyToNull(value: string | undefined): string | null {
