@@ -7,7 +7,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { syncProjectActivity } from "@/actions/projects";
 import { ContributionHeatmap } from "@/components/contribution-heatmap";
 import type { DailyActivityCount } from "@/components/contribution-heatmap";
+import { ActivityTrendChart } from "@/components/projects/activity-trend-chart";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { SyncResult } from "@/lib/integrations/github-activity";
 import { declineNumeric } from "@/lib/polish";
@@ -66,45 +68,48 @@ export function ProjectActivityPanel({
   const failed = results?.filter((result) => result.error !== undefined) ?? [];
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-muted-foreground text-sm font-medium">
-          Aktywność &middot; cała historia
-        </h3>
-        {canManage ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={pending}
-            onClick={() => void runSync()}
-          >
-            <RefreshCw className={pending ? "animate-spin" : undefined} />
-            {pending ? "Pobieranie aktywności" : "Synchronizuj aktywność"}
-          </Button>
-        ) : null}
-      </div>
-      {pending ? (
-        <ActivityHeatmapSkeleton />
-      ) : (
-        <ContributionHeatmap counts={counts} />
-      )}
-      {summary === null ? null : (
-        <div className="text-muted-foreground space-y-1 text-sm">
-          <p>{summary}</p>
-          {failed.length === 0 ? null : (
-            <ul className="space-y-1">
-              {failed.map((result) => (
-                <li key={result.repo}>
-                  <span className="font-medium">{result.repo}</span>:{" "}
-                  {result.error}
-                </li>
-              ))}
-            </ul>
-          )}
+    <Card size="sm">
+      <CardHeader>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle>Aktywność</CardTitle>
+          {canManage ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={pending}
+              onClick={() => void runSync()}
+            >
+              <RefreshCw className={pending ? "animate-spin" : undefined} />
+              {pending ? "Pobieranie aktywności" : "Synchronizuj aktywność"}
+            </Button>
+          ) : null}
         </div>
-      )}
-    </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {counts.length > 0 ? <ActivityTrendChart counts={counts} /> : null}
+        {pending ? (
+          <ActivityHeatmapSkeleton />
+        ) : (
+          <ContributionHeatmap counts={counts} />
+        )}
+        {summary === null ? null : (
+          <div className="text-muted-foreground space-y-1 text-sm">
+            <p>{summary}</p>
+            {failed.length === 0 ? null : (
+              <ul className="space-y-1">
+                {failed.map((result) => (
+                  <li key={result.repo}>
+                    <span className="font-medium">{result.repo}</span>:{" "}
+                    {result.error}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

@@ -6,12 +6,14 @@ import { notFound } from "next/navigation";
 import { deleteProject } from "@/actions/projects";
 import { ActivityTimeline } from "@/components/activity-timeline";
 import { DeleteButton } from "@/components/delete-button";
+import { ContributorLeaderboardCard } from "@/components/projects/contributor-leaderboard";
 import { NewTeamForm } from "@/components/projects/new-team-form";
 import { ProjectActivityPanel } from "@/components/projects/project-activity-panel";
+import { ProjectLinkPills } from "@/components/projects/project-link-pills";
 import { TeamPanel } from "@/components/projects/team-panel";
 import { ProjectStatusBadge } from "@/components/status-badge";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
 import { githubActivityEvent } from "@/db/schema/github";
 import { member } from "@/db/schema/members";
@@ -95,11 +97,13 @@ export default async function ProjectPage({
   );
 
   const now = Date.now();
-  const [weeklyRanking, monthlyRanking, dailyActivity] = await Promise.all([
-    getContributorRanking(id, new Date(now - 7 * DAY_MS)),
-    getContributorRanking(id, new Date(now - 30 * DAY_MS)),
-    getProjectDailyActivity(id),
-  ]);
+  const [weeklyRanking, monthlyRanking, allTimeRanking, dailyActivity] =
+    await Promise.all([
+      getContributorRanking(id, new Date(now - 7 * DAY_MS)),
+      getContributorRanking(id, new Date(now - 30 * DAY_MS)),
+      getContributorRanking(id),
+      getProjectDailyActivity(id),
+    ]);
 
   return (
     <div className="max-w-5xl space-y-8">
@@ -135,240 +139,139 @@ export default async function ProjectPage({
         </div>
       </div>
 
-      <section className="space-y-2">
-        <h2 className="font-medium">Linki</h2>
-        <dl className="text-sm">
-          <LinkRow label="Produkcja" url={projectRow.productionUrl} />
-          <LinkRow label="Google Drive" url={projectRow.driveFolderUrl} />
-          {projectRow.status === "completed" ? (
-            <LinkRow label="Sprawozdanie" url={projectRow.reportDriveUrl} />
-          ) : (
-            <LinkRow
-              label="Karta projektu"
-              url={projectRow.projectCardDriveUrl}
-            />
-          )}
-        </dl>
-      </section>
+      <ProjectLinkPills
+        productionUrl={projectRow.productionUrl}
+        driveFolderUrl={projectRow.driveFolderUrl}
+        reportUrl={
+          projectRow.status === "completed"
+            ? projectRow.reportDriveUrl
+            : projectRow.projectCardDriveUrl
+        }
+        reportLabel={
+          projectRow.status === "completed" ? "Sprawozdanie" : "Karta projektu"
+        }
+        repositories={projectRow.repositories.map((repo) => ({
+          id: repo.id,
+          label: repo.githubRepoFullName,
+        }))}
+        projectId={id}
+      />
 
-      <section className="space-y-2">
-        <h2 className="font-medium">Repozytoria</h2>
-        {projectRow.repositories.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {projectRow.repositories.map((repo) => (
-              <Badge key={repo.id} variant="outline" asChild>
-                <Link href={`/projects/${id}/repos/${repo.id}`}>
-                  {repo.githubRepoFullName}
-                </Link>
-              </Badge>
-            ))}
-          </div>
-        ) : (
-          <p className="text-muted-foreground text-sm">
-            Brak podłączonych repozytoriów
-          </p>
-        )}
-      </section>
+      <ContributorLeaderboardCard
+        weekly={weeklyRanking}
+        monthly={monthlyRanking}
+        allTime={allTimeRanking}
+        canAddMembers={canAddMembers}
+      />
 
-      <section className="space-y-2">
-        <h2 className="font-medium">Ranking kontrybutorów</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <RankingList
-            title="Ostatni tydzień"
-            entries={weeklyRanking}
-            canAddMembers={canAddMembers}
-          />
-          <RankingList
-            title="Ostatni miesiąc"
-            entries={monthlyRanking}
-            canAddMembers={canAddMembers}
-          />
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <h2 className="font-medium">Aktywność</h2>
+      <div className="space-y-4">
         <ProjectActivityPanel
           projectId={id}
           canManage={canManage}
           counts={dailyActivity}
           autoSync={canManage ? ingestActivity === "1" : false}
         />
-        <div className="space-y-2">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <h3 className="text-muted-foreground text-sm font-medium">
-              Ostatnia aktywność
-            </h3>
-            {hasMoreActivity ? (
-              <Link
-                href={`/projects/${id}/activity`}
-                className="text-sm hover:underline"
-              >
-                Zobacz całą aktywność →
-              </Link>
-            ) : null}
-          </div>
-          <ActivityTimeline
-            items={recentActivity.map((event) => ({
-              id: event.id,
-              type: event.type,
-              url: event.url,
-              occurredAt: event.occurredAt,
-              title: event.title ?? fallbackActivityTitle(event),
-              actorName: event.member?.fullName ?? event.githubLogin,
-              actorHref:
-                event.member === null
-                  ? undefined
-                  : `/members/${event.member.id}`,
-              addMemberHref:
-                canAddMembers && event.member === null
-                  ? `/members/new?githubUsername=${encodeURIComponent(event.githubLogin)}`
-                  : undefined,
-              assignToTeam:
-                canManage &&
-                event.member !== null &&
-                !activeProjectMemberIds.has(event.member.id)
-                  ? {
-                      projectId: id,
-                      memberId: event.member.id,
-                      teams: teamOptions,
-                      roleDefinitions: projectRoleDefinitions.map((role) => ({
-                        id: role.id,
-                        name: role.name,
-                      })),
-                    }
-                  : undefined,
-              subtitle: event.projectRepository.githubRepoFullName,
-            }))}
-          />
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="font-medium">Zespoły</h2>
-        {projectRow.teams.map((teamRow) => (
-          <div key={teamRow.id} className="space-y-2 rounded-md border p-3">
-            <h3 className="text-sm font-medium">{teamRow.name}</h3>
-            <TeamPanel
-              teamId={teamRow.id}
-              canManage={canManage}
-              roleDefinitions={projectRoleDefinitions.map((role) => ({
-                id: role.id,
-                name: role.name,
+        <Card size="sm">
+          <CardHeader>
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle>Ostatnia aktywność</CardTitle>
+              {hasMoreActivity ? (
+                <Link
+                  href={`/projects/${id}/activity`}
+                  className="text-sm hover:underline"
+                >
+                  Zobacz całą aktywność →
+                </Link>
+              ) : null}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ActivityTimeline
+              items={recentActivity.map((event) => ({
+                id: event.id,
+                type: event.type,
+                url: event.url,
+                occurredAt: event.occurredAt,
+                title: event.title ?? fallbackActivityTitle(event),
+                actorName: event.member?.fullName ?? event.githubLogin,
+                actorHref:
+                  event.member === null
+                    ? undefined
+                    : `/members/${event.member.id}`,
+                addMemberHref:
+                  canAddMembers && event.member === null
+                    ? `/members/new?githubUsername=${encodeURIComponent(event.githubLogin)}`
+                    : undefined,
+                assignToTeam:
+                  canManage &&
+                  event.member !== null &&
+                  !activeProjectMemberIds.has(event.member.id)
+                    ? {
+                        projectId: id,
+                        memberId: event.member.id,
+                        teams: teamOptions,
+                        roleDefinitions: projectRoleDefinitions.map((role) => ({
+                          id: role.id,
+                          name: role.name,
+                        })),
+                      }
+                    : undefined,
+                subtitle: event.projectRepository.githubRepoFullName,
               }))}
-              members={teamRow.members.map((teamMembership) => ({
-                teamMemberId: teamMembership.id,
-                memberId: teamMembership.memberId,
-                fullName: teamMembership.member.fullName,
-                roleDefinitionId: teamMembership.roleDefinitionId,
-                roleDefinitionName: teamMembership.roleDefinition.name,
-                joinedAt: teamMembership.joinedAt,
-                leftAt: teamMembership.leftAt,
-              }))}
-              repositories={projectRow.repositories.map((repo) => ({
-                id: repo.id,
-                name: repo.githubRepoFullName,
-              }))}
-              selectedRepositoryIds={teamRow.repositories.map(
-                (repo) => repo.projectRepositoryId,
-              )}
-              availableMembers={
-                canManage
-                  ? allMembers.filter(
-                      (memberRow) =>
-                        !teamRow.members.some(
-                          (teamMembership) =>
-                            teamMembership.memberId === memberRow.id &&
-                            teamMembership.leftAt === null,
-                        ),
-                    )
-                  : []
-              }
             />
-          </div>
-        ))}
-        {canManage ? <NewTeamForm projectId={id} /> : null}
-      </section>
-    </div>
-  );
-}
+          </CardContent>
+        </Card>
+      </div>
 
-function RankingList({
-  title,
-  entries,
-  canAddMembers,
-}: {
-  title: string;
-  entries: {
-    memberId: string | null;
-    fullName: string | null;
-    githubLogin: string;
-    eventCount: number;
-  }[];
-  canAddMembers: boolean;
-}) {
-  return (
-    <div className="space-y-1 rounded-md border p-3">
-      <h3 className="text-sm font-medium">{title}</h3>
-      {entries.length === 0 ? (
-        <p className="text-muted-foreground text-sm">Brak aktywności.</p>
-      ) : (
-        <ol className="space-y-1 text-sm">
-          {entries.map((entry, index) => (
-            <li
-              key={entry.memberId ?? entry.githubLogin}
-              className="flex justify-between"
-            >
-              <span>
-                {index + 1}.{" "}
-                {entry.memberId === null ? (
-                  <span className="inline-flex items-center gap-2">
-                    {entry.fullName ?? entry.githubLogin}
-                    {canAddMembers ? (
-                      <Link
-                        href={`/members/new?githubUsername=${encodeURIComponent(entry.githubLogin)}`}
-                        className="text-xs underline"
-                      >
-                        Dodaj członka
-                      </Link>
-                    ) : null}
-                  </span>
-                ) : (
-                  <Link
-                    href={`/members/${entry.memberId}`}
-                    className="hover:underline"
-                  >
-                    {entry.fullName ?? entry.githubLogin}
-                  </Link>
+      <Card size="sm">
+        <CardHeader>
+          <CardTitle>Zespoły</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {projectRow.teams.map((teamRow) => (
+            <div key={teamRow.id} className="space-y-2 rounded-md border p-3">
+              <h3 className="text-sm font-medium">{teamRow.name}</h3>
+              <TeamPanel
+                teamId={teamRow.id}
+                canManage={canManage}
+                roleDefinitions={projectRoleDefinitions.map((role) => ({
+                  id: role.id,
+                  name: role.name,
+                }))}
+                members={teamRow.members.map((teamMembership) => ({
+                  teamMemberId: teamMembership.id,
+                  memberId: teamMembership.memberId,
+                  fullName: teamMembership.member.fullName,
+                  roleDefinitionId: teamMembership.roleDefinitionId,
+                  roleDefinitionName: teamMembership.roleDefinition.name,
+                  joinedAt: teamMembership.joinedAt,
+                  leftAt: teamMembership.leftAt,
+                }))}
+                repositories={projectRow.repositories.map((repo) => ({
+                  id: repo.id,
+                  name: repo.githubRepoFullName,
+                }))}
+                selectedRepositoryIds={teamRow.repositories.map(
+                  (repo) => repo.projectRepositoryId,
                 )}
-              </span>
-              <span className="text-muted-foreground">{entry.eventCount}</span>
-            </li>
+                availableMembers={
+                  canManage
+                    ? allMembers.filter(
+                        (memberRow) =>
+                          !teamRow.members.some(
+                            (teamMembership) =>
+                              teamMembership.memberId === memberRow.id &&
+                              teamMembership.leftAt === null,
+                          ),
+                      )
+                    : []
+                }
+              />
+            </div>
           ))}
-        </ol>
-      )}
-    </div>
-  );
-}
-
-function LinkRow({ label, url }: { label: string; url: string | null }) {
-  return (
-    <div className="flex justify-between border-b py-1.5 last:border-0">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd>
-        {url === null ? (
-          "—"
-        ) : (
-          <a
-            href={url}
-            target="_blank"
-            rel="noreferrer"
-            className="hover:underline"
-          >
-            {url}
-          </a>
-        )}
-      </dd>
+          {canManage ? <NewTeamForm projectId={id} /> : null}
+        </CardContent>
+      </Card>
     </div>
   );
 }

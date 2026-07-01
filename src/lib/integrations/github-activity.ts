@@ -331,7 +331,7 @@ export interface ContributorRankingEntry {
 
 export async function getContributorRanking(
   projectId: string,
-  since: Date,
+  since?: Date,
   limit = 5,
 ): Promise<ContributorRankingEntry[]> {
   return db
@@ -344,10 +344,12 @@ export async function getContributorRanking(
     .from(githubActivityEvent)
     .leftJoin(member, eq(githubActivityEvent.memberId, member.id))
     .where(
-      and(
-        eq(githubActivityEvent.projectId, projectId),
-        gte(githubActivityEvent.occurredAt, since),
-      ),
+      since === undefined
+        ? eq(githubActivityEvent.projectId, projectId)
+        : and(
+            eq(githubActivityEvent.projectId, projectId),
+            gte(githubActivityEvent.occurredAt, since),
+          ),
     )
     .groupBy(
       githubActivityEvent.memberId,
