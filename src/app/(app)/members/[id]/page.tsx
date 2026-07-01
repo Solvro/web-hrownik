@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ActivityTimeline } from "@/components/activity-timeline";
+import { ContributionHeatmap } from "@/components/contribution-heatmap";
 import { RoleManager } from "@/components/members/role-manager";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,10 +15,17 @@ import { roleAssignment, roleDefinition } from "@/db/schema/roles";
 import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
 import {
+  fallbackActivityTitle,
+  getMemberDailyActivity,
+} from "@/lib/integrations/github-activity";
+import {
   canEditOwnProfile,
   canManageMembers,
   getMemberPermissions,
 } from "@/lib/permissions";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const RECENT_ACTIVITY_PREVIEW_LIMIT = 5;
 
 export default async function MemberProfilePage({
   params,
@@ -49,24 +57,15 @@ export default async function MemberProfilePage({
   const activityEvents = await db.query.githubActivityEvent.findMany({
     where: eq(githubActivityEvent.memberId, id),
     orderBy: desc(githubActivityEvent.occurredAt),
-    limit: 100,
-    with: { project: true },
+    limit: RECENT_ACTIVITY_PREVIEW_LIMIT + 1,
+    with: { project: true, projectRepository: true },
   });
-  const activityByProject = new Map<
-    string,
-    { projectName: string; events: typeof activityEvents }
-  >();
-  for (const event of activityEvents) {
-    const bucket = activityByProject.get(event.projectId);
-    if (bucket === undefined) {
-      activityByProject.set(event.projectId, {
-        projectName: event.project.name,
-        events: [event],
-      });
-    } else {
-      bucket.events.push(event);
-    }
-  }
+  const hasMoreActivity = activityEvents.length > RECENT_ACTIVITY_PREVIEW_LIMIT;
+  const recentActivity = activityEvents.slice(0, RECENT_ACTIVITY_PREVIEW_LIMIT);
+  const dailyActivity = await getMemberDailyActivity(
+    id,
+    new Date(Date.now() - 371 * DAY_MS),
+  );
 
   const currentMember = await getCurrentMember();
   const permissions =
@@ -169,31 +168,39 @@ export default async function MemberProfilePage({
         </div>
       </section>
 
-      <section className="space-y-3">
+      <section className="space-y-4">
         <h2 className="font-medium">Aktywność na GitHubie</h2>
-        {activityByProject.size === 0 ? (
-          <p className="text-muted-foreground text-sm">Brak aktywności.</p>
-        ) : (
-          [...activityByProject.entries()].map(([projectId, bucket]) => (
-            <div key={projectId} className="space-y-1">
+        <div className="space-y-2">
+          <h3 className="text-muted-foreground text-sm font-medium">
+            Aktywność &middot; ostatnie 12 miesięcy
+          </h3>
+          <ContributionHeatmap counts={dailyActivity} />
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-muted-foreground text-sm font-medium">
+              Ostatnia aktywność
+            </h3>
+            {hasMoreActivity ? (
               <Link
-                href={`/projects/${projectId}`}
-                className="text-sm font-medium hover:underline"
+                href={`/members/${id}/activity`}
+                className="text-sm hover:underline"
               >
-                {bucket.projectName}
+                Zobacz całą aktywność →
               </Link>
-              <ActivityTimeline
-                items={bucket.events.map((event) => ({
-                  id: event.id,
-                  type: event.type,
-                  url: event.url,
-                  occurredAt: event.occurredAt,
-                  githubLogin: event.githubLogin,
-                }))}
-              />
-            </div>
-          ))
-        )}
+            ) : null}
+          </div>
+          <ActivityTimeline
+            items={recentActivity.map((event) => ({
+              id: event.id,
+              type: event.type,
+              url: event.url,
+              occurredAt: event.occurredAt,
+              title: event.title ?? fallbackActivityTitle(event),
+              subtitle: `${event.project.name} · ${event.projectRepository.githubRepoFullName}`,
+            }))}
+          />
+        </div>
       </section>
 
       {canManageRoles ? (

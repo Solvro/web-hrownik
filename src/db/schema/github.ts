@@ -42,6 +42,9 @@ export const githubActivityEvent = pgTable(
     externalId: text("external_id").notNull(),
     occurredAt: timestamp("occurred_at").notNull(),
     url: text("url").notNull(),
+    // Commit message (first line) / PR or issue title. Nullable because
+    // rows written before this column existed don't have it backfilled.
+    title: text("title"),
   },
   (table) => [
     unique("github_activity_event_dedupe_unique").on(

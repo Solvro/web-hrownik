@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
 
+import { ModeToggle } from "./mode-toggle";
+
 const navItems = [
   { href: "/members", label: "Członkowie", icon: Users },
   { href: "/sections", label: "Sekcje", icon: Shapes },
@@ -59,6 +61,9 @@ export function AppSidebar({ memberName }: { memberName: string }) {
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
+          <SidebarMenuItem>
+            <ModeToggle sidebar />
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={() => {

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ActivityTimeline } from "@/components/activity-timeline";
+import { ContributionHeatmap } from "@/components/contribution-heatmap";
 import { NewTeamForm } from "@/components/projects/new-team-form";
 import { SyncActivityButton } from "@/components/projects/sync-activity-button";
 import { TeamPanel } from "@/components/projects/team-panel";
@@ -12,10 +13,15 @@ import { githubActivityEvent } from "@/db/schema/github";
 import { member } from "@/db/schema/members";
 import { project } from "@/db/schema/projects";
 import { getCurrentMember } from "@/lib/current-member";
-import { getContributorRanking } from "@/lib/integrations/github-activity";
+import {
+  fallbackActivityTitle,
+  getContributorRanking,
+  getProjectDailyActivity,
+} from "@/lib/integrations/github-activity";
 import { canManageProject, getMemberPermissions } from "@/lib/permissions";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const RECENT_ACTIVITY_PREVIEW_LIMIT = 5;
 
 export default async function ProjectPage({
   params,
@@ -49,14 +55,17 @@ export default async function ProjectPage({
   const activityEvents = await db.query.githubActivityEvent.findMany({
     where: eq(githubActivityEvent.projectId, id),
     orderBy: desc(githubActivityEvent.occurredAt),
-    limit: 50,
-    with: { member: true },
+    limit: RECENT_ACTIVITY_PREVIEW_LIMIT + 1,
+    with: { member: true, projectRepository: true },
   });
+  const hasMoreActivity = activityEvents.length > RECENT_ACTIVITY_PREVIEW_LIMIT;
+  const recentActivity = activityEvents.slice(0, RECENT_ACTIVITY_PREVIEW_LIMIT);
 
   const now = Date.now();
-  const [weeklyRanking, monthlyRanking] = await Promise.all([
+  const [weeklyRanking, monthlyRanking, dailyActivity] = await Promise.all([
     getContributorRanking(id, new Date(now - 7 * DAY_MS)),
     getContributorRanking(id, new Date(now - 30 * DAY_MS)),
+    getProjectDailyActivity(id, new Date(now - 371 * DAY_MS)),
   ]);
 
   return (
@@ -113,20 +122,42 @@ export default async function ProjectPage({
         </div>
       </section>
 
-      <section className="space-y-2">
+      <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="font-medium">Aktywność</h2>
           {canManage ? <SyncActivityButton projectId={id} /> : null}
         </div>
-        <ActivityTimeline
-          items={activityEvents.map((event) => ({
-            id: event.id,
-            type: event.type,
-            url: event.url,
-            occurredAt: event.occurredAt,
-            githubLogin: event.member?.fullName ?? event.githubLogin,
-          }))}
-        />
+        <div className="space-y-2">
+          <h3 className="text-muted-foreground text-sm font-medium">
+            Aktywność &middot; ostatnie 12 miesięcy
+          </h3>
+          <ContributionHeatmap counts={dailyActivity} />
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-muted-foreground text-sm font-medium">
+              Ostatnia aktywność
+            </h3>
+            {hasMoreActivity ? (
+              <Link
+                href={`/projects/${id}/activity`}
+                className="text-sm hover:underline"
+              >
+                Zobacz całą aktywność →
+              </Link>
+            ) : null}
+          </div>
+          <ActivityTimeline
+            items={recentActivity.map((event) => ({
+              id: event.id,
+              type: event.type,
+              url: event.url,
+              occurredAt: event.occurredAt,
+              title: event.title ?? fallbackActivityTitle(event),
+              subtitle: `${event.member?.fullName ?? event.githubLogin} · ${event.projectRepository.githubRepoFullName}`,
+            }))}
+          />
+        </div>
       </section>
 
       <section className="space-y-3">
