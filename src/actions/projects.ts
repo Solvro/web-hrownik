@@ -3,7 +3,6 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { after } from "next/server";
 import * as z from "zod";
 
 import { db } from "@/db";
@@ -56,6 +55,7 @@ export async function createProject(input: ProjectFormValues) {
     })
     .returning();
 
+  let linkedRepositoryCount = 0;
   if (values.repositoryFullNames.length > 0) {
     const orgRepos = await listOrgRepos();
     const reposByFullName = new Map(
@@ -76,15 +76,13 @@ export async function createProject(input: ProjectFormValues) {
           })),
         )
         .returning();
-
-      // Historical activity for a freshly linked repo only exists via REST
-      // backfill — going forward, /api/webhooks/github keeps it current.
-      // Scheduled after the response so project creation isn't slowed down.
-      after(syncRepositories(linkedRepos));
+      linkedRepositoryCount = linkedRepos.length;
     }
   }
 
-  redirect(`/projects/${created.id}`);
+  redirect(
+    `/projects/${created.id}${linkedRepositoryCount > 0 ? "?ingestActivity=1" : ""}`,
+  );
 }
 
 export async function updateProject(

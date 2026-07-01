@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { MemberStatusBadge } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,13 +15,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { MemberStatus } from "@/lib/schemas/members";
-
-const memberStatusLabels: Record<MemberStatus, string> = {
-  new: "nowy",
-  active: "aktywny",
-  inactive: "nieaktywny",
-  honorary: "honorowy",
-};
 
 export interface MembersTableRow {
   id: string;
@@ -91,15 +85,7 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
               </TableCell>
               <TableCell>{memberRow.githubUsername ?? "—"}</TableCell>
               <TableCell>
-                <Badge
-                  variant={
-                    memberRow.status === "active" || memberRow.status === "new"
-                      ? "default"
-                      : "secondary"
-                  }
-                >
-                  {memberStatusLabels[memberRow.status]}
-                </Badge>
+                <MemberStatusBadge status={memberRow.status} />
               </TableCell>
             </TableRow>
           ))}

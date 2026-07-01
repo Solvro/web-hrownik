@@ -2,7 +2,7 @@ import { asc } from "drizzle-orm";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 
-import { Badge } from "@/components/ui/badge";
+import { ProjectStatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { db } from "@/db";
 import { project } from "@/db/schema/projects";
@@ -43,13 +43,7 @@ export default async function ProjectsPage() {
           >
             <div className="flex items-center justify-between">
               <h2 className="font-medium">{projectRow.name}</h2>
-              <Badge
-                variant={
-                  projectRow.status === "active" ? "default" : "secondary"
-                }
-              >
-                {projectRow.status}
-              </Badge>
+              <ProjectStatusBadge status={projectRow.status} />
             </div>
             <p className="text-muted-foreground mt-1 text-sm">
               {projectRow.visibility === "public" ? "publiczny" : "wewnętrzny"}
