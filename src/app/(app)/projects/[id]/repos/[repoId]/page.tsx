@@ -15,6 +15,7 @@ import {
   canManageProject,
   getMemberPermissions,
 } from "@/lib/permissions";
+import { declineNumeric } from "@/lib/polish";
 
 export default async function ProjectRepositoryPage({
   params,
@@ -58,9 +59,11 @@ export default async function ProjectRepositoryPage({
 
   return (
     <div className="max-w-2xl space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{repo.githubRepoFullName}</h1>
-        <Button asChild variant="outline">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-semibold break-all">
+          {repo.githubRepoFullName}
+        </h1>
+        <Button asChild variant="outline" className="w-full sm:w-auto">
           <a
             href={`https://github.com/${repo.githubRepoFullName}`}
             target="_blank"
@@ -79,7 +82,9 @@ export default async function ProjectRepositoryPage({
       ) : null}
 
       <section className="space-y-2">
-        <h2 className="font-medium">Otwarte issues ({issues.length})</h2>
+        <h2 className="font-medium">
+          Issues: {declineNumeric(issues.length, "issue")}
+        </h2>
         <IssueList
           items={issues}
           canAddMembers={canAddMembers}
@@ -89,7 +94,7 @@ export default async function ProjectRepositoryPage({
 
       <section className="space-y-2">
         <h2 className="font-medium">
-          Otwarte pull requesty ({pullRequests.length})
+          Pull requesty: {declineNumeric(pullRequests.length, "pull request")}
         </h2>
         <IssueList
           items={pullRequests}

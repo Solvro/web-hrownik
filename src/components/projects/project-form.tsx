@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { declineNumeric } from "@/lib/polish";
 import type { ProjectFormValues } from "@/lib/schemas/projects";
 import { projectFormSchema } from "@/lib/schemas/projects";
 
@@ -288,7 +289,11 @@ export function ProjectForm({
                       <div className="bg-muted/40 rounded-md border p-2 text-sm">
                         <div className="flex items-center justify-between gap-2">
                           <span>
-                            Sugerowane dla slugu: {suggestedRepoOptions.length}
+                            Sugerowane dla slugu:{" "}
+                            {declineNumeric(
+                              suggestedRepoOptions.length,
+                              "repozytorium",
+                            )}
                           </span>
                           <Button
                             type="button"

@@ -27,6 +27,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
 
@@ -43,6 +44,13 @@ export function AppSidebar({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  function closeMobileSidebar() {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }
 
   return (
     <Sidebar collapsible="icon">
@@ -50,7 +58,7 @@ export function AppSidebar({
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip="HRownik">
-              <Link href="/">
+              <Link href="/" onClick={closeMobileSidebar}>
                 <span className="flex size-6 shrink-0 items-center justify-center">
                   <Image
                     src={logoMonoSource}
@@ -77,7 +85,7 @@ export function AppSidebar({
                     isActive={pathname.startsWith(item.href)}
                     tooltip={item.label}
                   >
-                    <Link href={item.href}>
+                    <Link href={item.href} onClick={closeMobileSidebar}>
                       <item.icon />
                       <span>{item.label}</span>
                     </Link>
@@ -102,11 +110,18 @@ export function AppSidebar({
                   <ChevronsUpDown className="ml-auto" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
-              <DropdownMenuContent side="right" align="end">
+              <DropdownMenuContent
+                side={isMobile ? "top" : "right"}
+                align="end"
+                className="max-w-[calc(100vw-1rem)]"
+              >
                 <DropdownMenuLabel>{memberName}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link href={`/members/${memberId}`}>
+                  <Link
+                    href={`/members/${memberId}`}
+                    onClick={closeMobileSidebar}
+                  >
                     <User />
                     Dane członka
                   </Link>
@@ -114,6 +129,7 @@ export function AppSidebar({
                 <DropdownMenuItem
                   onClick={() => {
                     void authClient.signOut().then(() => {
+                      closeMobileSidebar();
                       router.push("/login");
                     });
                   }}

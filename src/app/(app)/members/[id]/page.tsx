@@ -114,14 +114,16 @@ export default async function MemberProfilePage({
         </div>
       ) : null}
 
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">{profile.fullName}</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold break-words">
+            {profile.fullName}
+          </h1>
           {profile.bio !== null && (
             <p className="text-muted-foreground">{profile.bio}</p>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 min-[360px]:flex-row sm:flex-row">
           {canEdit ? (
             <Button asChild variant="outline">
               <Link href={`/members/${id}/edit`}>Edytuj</Link>
@@ -211,7 +213,7 @@ export default async function MemberProfilePage({
           <ContributionHeatmap counts={dailyActivity} />
         </div>
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="text-muted-foreground text-sm font-medium">
               Ostatnia aktywność
             </h3>

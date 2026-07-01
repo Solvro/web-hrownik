@@ -59,9 +59,11 @@ export default async function SectionPage({
 
   return (
     <div className="max-w-5xl space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">{sectionRow.name}</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold break-words">
+            {sectionRow.name}
+          </h1>
           {sectionRow.description !== null && (
             <p className="text-muted-foreground">{sectionRow.description}</p>
           )}

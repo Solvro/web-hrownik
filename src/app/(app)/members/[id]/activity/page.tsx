@@ -37,7 +37,7 @@ export default async function MemberActivityPage({
       <div>
         <Link
           href={`/members/${id}`}
-          className="text-muted-foreground text-sm hover:underline"
+          className="text-muted-foreground text-sm break-words hover:underline"
         >
           ← {memberRow.fullName}
         </Link>

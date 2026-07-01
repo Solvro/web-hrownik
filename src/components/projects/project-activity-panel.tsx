@@ -10,6 +10,7 @@ import type { DailyActivityCount } from "@/components/contribution-heatmap";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { SyncResult } from "@/lib/integrations/github-activity";
+import { declineNumeric } from "@/lib/polish";
 
 export function ProjectActivityPanel({
   projectId,
@@ -133,7 +134,7 @@ function formatSyncSummary(results: SyncResult[]): string {
   );
   const failed = results.filter((result) => result.error !== undefined);
   if (failed.length > 0) {
-    return `Pobrano ${totalEvents} zdarzeń, ${failed.length} repozytoriów z błędem.`;
+    return `Pobrano ${declineNumeric(totalEvents, "zdarzenie")}, ${declineNumeric(failed.length, "repozytorium")} z błędem.`;
   }
-  return `Pobrano ${totalEvents} nowych zdarzeń.`;
+  return `Pobrano ${declineNumeric(totalEvents, "zdarzenie")}.`;
 }

@@ -62,7 +62,7 @@ export default async function ProjectActivityPage({
       <div>
         <Link
           href={`/projects/${id}`}
-          className="text-muted-foreground text-sm hover:underline"
+          className="text-muted-foreground text-sm break-words hover:underline"
         >
           ← {projectRow.name}
         </Link>
