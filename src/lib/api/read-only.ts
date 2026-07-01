@@ -4,6 +4,7 @@ import type { PgTable } from "drizzle-orm/pg-core";
 import { NextResponse } from "next/server";
 
 import { db } from "@/db";
+import { authenticateApiKey } from "@/lib/api/authenticate";
 
 interface RelationSpec {
   [name: string]: RelationSpec | undefined;
@@ -19,6 +20,7 @@ interface QueryConfiguration {
 }
 
 interface EndpointConfig {
+  resource: string;
   query: {
     findMany: (configuration: QueryConfiguration) => Promise<unknown[]>;
     findFirst: (configuration: QueryConfiguration) => Promise<unknown>;
@@ -240,6 +242,11 @@ function badRequest(message: string) {
 }
 
 export async function listReadOnly(request: Request, config: EndpointConfig) {
+  const auth = await authenticateApiKey(request, config.resource);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   const searchParameters = new URL(request.url).searchParams;
   const { page, pageSize, offset } = parsePagination(searchParameters);
   const filters = parseFilters(searchParameters, config);
@@ -281,6 +288,11 @@ export async function getReadOnly(
   id: string,
   config: EndpointConfig,
 ) {
+  const auth = await authenticateApiKey(request, config.resource);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
   const searchParameters = new URL(request.url).searchParams;
   const withRelations = buildRelations(searchParameters, config);
   const idColumn = config.columns.id;

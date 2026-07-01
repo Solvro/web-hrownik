@@ -2,6 +2,7 @@ import { relations } from "drizzle-orm";
 
 import { user } from "@/db/auth-schema";
 
+import { apiKey, apiKeyEndpointStat } from "./api-keys";
 import {
   githubActivityEvent,
   projectRepository,
@@ -167,6 +168,24 @@ export const teamRepositoryRelations = relations(teamRepository, ({ one }) => ({
     references: [projectRepository.id],
   }),
 }));
+
+export const apiKeyRelations = relations(apiKey, ({ one, many }) => ({
+  createdBy: one(member, {
+    fields: [apiKey.createdByMemberId],
+    references: [member.id],
+  }),
+  endpointStats: many(apiKeyEndpointStat),
+}));
+
+export const apiKeyEndpointStatRelations = relations(
+  apiKeyEndpointStat,
+  ({ one }) => ({
+    apiKey: one(apiKey, {
+      fields: [apiKeyEndpointStat.apiKeyId],
+      references: [apiKey.id],
+    }),
+  }),
+);
 
 export const githubActivityEventRelations = relations(
   githubActivityEvent,

@@ -5,4 +5,5 @@ export * from "./schema/sections";
 export * from "./schema/projects";
 export * from "./schema/roles";
 export * from "./schema/github";
+export * from "./schema/api-keys";
 export * from "./schema/relations";

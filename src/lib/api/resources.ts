@@ -63,6 +63,7 @@ export const memberApiConfig = {
     findFirst: (configuration: object) =>
       db.query.member.findFirst(configuration as MemberQueryConfiguration),
   },
+  resource: "members",
   table: member,
   columns: {
     id: member.id,
@@ -97,6 +98,7 @@ export const projectApiConfig = {
     findFirst: (configuration: object) =>
       db.query.project.findFirst(configuration as ProjectQueryConfiguration),
   },
+  resource: "projects",
   table: project,
   columns: {
     id: project.id,
@@ -124,6 +126,7 @@ export const sectionApiConfig = {
     findFirst: (configuration: object) =>
       db.query.section.findFirst(configuration as SectionQueryConfiguration),
   },
+  resource: "sections",
   table: section,
   columns: {
     id: section.id,
