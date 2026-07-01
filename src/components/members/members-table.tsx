@@ -112,7 +112,7 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="flex min-h-full flex-col gap-3">
       <div className="grid gap-2 lg:grid-cols-[minmax(14rem,1fr)_auto]">
         <ListFilters
           query={query}
@@ -190,53 +190,55 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
         </Select>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Imię i nazwisko</TableHead>
-            <TableHead>Sekcje</TableHead>
-            <TableHead>GitHub</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {paginated.map((memberRow) => (
-            <TableRow key={memberRow.id}>
-              <TableCell>
-                <Link
-                  href={`/members/${memberRow.id}`}
-                  className="font-medium hover:underline"
-                >
-                  {memberRow.fullName}
-                </Link>
-              </TableCell>
-              <TableCell>
-                <div className="flex flex-wrap gap-1">
-                  {memberRow.sections.map((section) => (
-                    <Badge key={section.id} variant="outline">
-                      {section.name}
-                    </Badge>
-                  ))}
-                </div>
-              </TableCell>
-              <TableCell>{memberRow.githubUsername ?? "—"}</TableCell>
-              <TableCell>
-                <MemberStatusBadge status={memberRow.status} />
-              </TableCell>
-            </TableRow>
-          ))}
-          {paginated.length === 0 ? (
+      <div className="flex-1">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell
-                colSpan={4}
-                className="text-muted-foreground text-center"
-              >
-                Brak wyników.
-              </TableCell>
+              <TableHead>Imię i nazwisko</TableHead>
+              <TableHead>Sekcje</TableHead>
+              <TableHead>GitHub</TableHead>
+              <TableHead>Status</TableHead>
             </TableRow>
-          ) : null}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {paginated.map((memberRow) => (
+              <TableRow key={memberRow.id}>
+                <TableCell>
+                  <Link
+                    href={`/members/${memberRow.id}`}
+                    className="font-medium hover:underline"
+                  >
+                    {memberRow.fullName}
+                  </Link>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {memberRow.sections.map((section) => (
+                      <Badge key={section.id} variant="outline">
+                        {section.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </TableCell>
+                <TableCell>{memberRow.githubUsername ?? "—"}</TableCell>
+                <TableCell>
+                  <MemberStatusBadge status={memberRow.status} />
+                </TableCell>
+              </TableRow>
+            ))}
+            {paginated.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={4}
+                  className="text-muted-foreground text-center"
+                >
+                  Brak wyników.
+                </TableCell>
+              </TableRow>
+            ) : null}
+          </TableBody>
+        </Table>
+      </div>
       <div className="text-muted-foreground flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
         <span>
           Wyniki {filtered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}–
