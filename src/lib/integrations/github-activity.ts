@@ -182,6 +182,40 @@ export interface SyncResult {
   error?: string;
 }
 
+function formatGithubSyncError(error: unknown): string {
+  if (typeof error === "object" && error !== null && "status" in error) {
+    const status = Number(error.status);
+    const message =
+      "message" in error && typeof error.message === "string"
+        ? error.message
+        : "";
+
+    if (status === 401) {
+      return "GitHub odrzucił uwierzytelnienie aplikacji. Sprawdź konfigurację GitHub App.";
+    }
+    if (status === 403) {
+      if (message.toLowerCase().includes("rate limit")) {
+        return "Przekroczono limit zapytań GitHub API. Spróbuj ponownie później.";
+      }
+      if (message.toLowerCase().includes("resource not accessible")) {
+        return "Aplikacja GitHub nie ma wymaganych uprawnień do tego repozytorium. Sprawdź uprawnienia instalacji, szczególnie odczyt Contents, Issues i Pull requests.";
+      }
+      return `GitHub API odmówiło dostępu (${status}). ${message}`.trim();
+    }
+    if (status === 404) {
+      return "Repozytorium nie jest dostępne dla instalacji GitHub App albo nie istnieje. Sprawdź, czy aplikacja jest zainstalowana dla tego repozytorium.";
+    }
+    if (status >= 500) {
+      return `GitHub API chwilowo nie odpowiada (${status}). Spróbuj ponownie później.`;
+    }
+    if (message !== "") {
+      return `GitHub API zwróciło błąd (${status}): ${message}`;
+    }
+  }
+
+  return error instanceof Error ? error.message : String(error);
+}
+
 /**
  * On-demand REST backfill for a known set of repos — used right after a
  * repo is linked to a project (so its history isn't empty until the next
@@ -201,7 +235,7 @@ export async function syncRepositories(
     octokit = await getGithubOctokit();
   } catch (error) {
     console.warn("Failed to resolve GitHub App installation:", error);
-    const message = error instanceof Error ? error.message : String(error);
+    const message = formatGithubSyncError(error);
     return repos.map((repo) => ({
       repo: repo.githubRepoFullName,
       error: message,
@@ -210,7 +244,7 @@ export async function syncRepositories(
   if (octokit === null) {
     return repos.map((repo) => ({
       repo: repo.githubRepoFullName,
-      error: "GitHub integration is not configured.",
+      error: "Integracja z GitHub nie jest skonfigurowana.",
     }));
   }
 
@@ -234,7 +268,7 @@ export async function syncRepositories(
       );
       results.push({
         repo: repo.githubRepoFullName,
-        error: error instanceof Error ? error.message : String(error),
+        error: formatGithubSyncError(error),
       });
     }
   }

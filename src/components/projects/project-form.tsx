@@ -63,7 +63,9 @@ export function ProjectForm({
       repositoryFullNames: [],
     },
   });
+  const projectName = form.watch("name");
   const slug = form.watch("slug");
+  const suggestedSlug = slugify(projectName);
   const status = form.watch("status");
   const suggestedRepoOptions = repoOptions.filter((repo) =>
     repo.label.toLowerCase().includes(slug.toLowerCase()),
@@ -110,18 +112,6 @@ export function ProjectForm({
               <Input
                 {...field}
                 id={field.name}
-                onChange={(event) => {
-                  field.onChange(event);
-                  if (
-                    mode === "create" &&
-                    form.getValues("slug").trim() === ""
-                  ) {
-                    form.setValue("slug", slugify(event.target.value), {
-                      shouldDirty: true,
-                      shouldValidate: true,
-                    });
-                  }
-                }}
                 aria-invalid={fieldState.invalid}
               />
               {fieldState.invalid ? (
@@ -136,12 +126,31 @@ export function ProjectForm({
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor={field.name}>Slug</FieldLabel>
-              <Input
-                {...field}
-                id={field.name}
-                placeholder="nazwa-projektu"
-                aria-invalid={fieldState.invalid}
-              />
+              <div className="flex gap-2">
+                <Input
+                  {...field}
+                  id={field.name}
+                  placeholder="nazwa-projektu"
+                  aria-invalid={fieldState.invalid}
+                />
+                {mode === "create" ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={suggestedSlug === "" || suggestedSlug === slug}
+                    onClick={() => {
+                      form.setValue("slug", suggestedSlug, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
+                    }}
+                    className="max-w-48 shrink-0 truncate"
+                    title={suggestedSlug}
+                  >
+                    {suggestedSlug === "" ? "Sugestia" : suggestedSlug}
+                  </Button>
+                ) : null}
+              </div>
               {fieldState.invalid ? (
                 <FieldError errors={[fieldState.error]} />
               ) : null}

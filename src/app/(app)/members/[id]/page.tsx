@@ -1,12 +1,14 @@
 import { asc, desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 
 import { deleteMember } from "@/actions/members";
 import { ActivityTimeline } from "@/components/activity-timeline";
 import { ContributionHeatmap } from "@/components/contribution-heatmap";
 import { DeleteButton } from "@/components/delete-button";
 import { RoleManager } from "@/components/members/role-manager";
+import { MemberStatusBadge } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { db } from "@/db";
@@ -26,13 +28,6 @@ import {
 } from "@/lib/permissions";
 
 const RECENT_ACTIVITY_PREVIEW_LIMIT = 5;
-
-const memberStatusLabels = {
-  new: "nowy",
-  active: "aktywny",
-  inactive: "nieaktywny",
-  honorary: "honorowy",
-} as const;
 
 export default async function MemberProfilePage({
   params,
@@ -149,7 +144,10 @@ export default async function MemberProfilePage({
           <Row label="GitHub" value={profile.githubUsername} />
           <Row label="Discord" value={profile.discordId} />
           <Row label="Facebook" value={profile.facebookUrl} />
-          <Row label="Status" value={memberStatusLabels[profile.status]} />
+          <Row
+            label="Status"
+            value={<MemberStatusBadge status={profile.status} />}
+          />
           <Row label="Indeks" value={profile.studentIndex} />
           <Row label="Wydział" value={profile.studyDepartment} />
           <Row label="Kierunek" value={profile.studyField} />
@@ -333,7 +331,7 @@ export default async function MemberProfilePage({
   );
 }
 
-function Row({ label, value }: { label: string; value: string | null }) {
+function Row({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex justify-between border-b py-1.5 last:border-0">
       <dt className="text-muted-foreground">{label}</dt>

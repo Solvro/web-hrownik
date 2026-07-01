@@ -1,15 +1,9 @@
 import { AtSign, CalendarDays } from "lucide-react";
 import Link from "next/link";
 
+import { MemberStatusBadge } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import type { MemberStatus } from "@/lib/schemas/members";
-
-export const memberStatusLabels: Record<MemberStatus, string> = {
-  new: "nowy",
-  active: "aktywny",
-  inactive: "nieaktywny",
-  honorary: "honorowy",
-};
 
 export interface MemberCardData {
   id: string;
@@ -39,15 +33,7 @@ export function MemberCard({ member }: { member: MemberCardData }) {
             </p>
           )}
         </div>
-        <Badge
-          variant={
-            member.status === "active" || member.status === "new"
-              ? "default"
-              : "secondary"
-          }
-        >
-          {memberStatusLabels[member.status]}
-        </Badge>
+        <MemberStatusBadge status={member.status} />
       </div>
 
       <div className="text-muted-foreground mt-3 flex flex-wrap items-center gap-3 text-sm">

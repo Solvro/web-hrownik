@@ -5,12 +5,11 @@ import { notFound } from "next/navigation";
 
 import { deleteProject } from "@/actions/projects";
 import { ActivityTimeline } from "@/components/activity-timeline";
-import { ContributionHeatmap } from "@/components/contribution-heatmap";
 import { DeleteButton } from "@/components/delete-button";
 import { NewTeamForm } from "@/components/projects/new-team-form";
-import { SyncActivityButton } from "@/components/projects/sync-activity-button";
+import { ProjectActivityPanel } from "@/components/projects/project-activity-panel";
 import { TeamPanel } from "@/components/projects/team-panel";
-import { Badge } from "@/components/ui/badge";
+import { ProjectStatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { db } from "@/db";
 import { githubActivityEvent } from "@/db/schema/github";
@@ -33,10 +32,13 @@ const RECENT_ACTIVITY_PREVIEW_LIMIT = 5;
 
 export default async function ProjectPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ ingestActivity?: string }>;
 }) {
   const { id } = await params;
+  const { ingestActivity } = await searchParams;
 
   const projectRow = await db.query.project.findFirst({
     where: eq(project.id, id),
@@ -98,11 +100,7 @@ export default async function ProjectPage({
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-semibold">{projectRow.name}</h1>
-            <Badge
-              variant={projectRow.status === "active" ? "default" : "secondary"}
-            >
-              {projectRow.status}
-            </Badge>
+            <ProjectStatusBadge status={projectRow.status} />
           </div>
           <p className="text-muted-foreground text-sm">
             {projectRow.visibility === "public" ? "publiczny" : "wewnętrzny"}
@@ -182,16 +180,13 @@ export default async function ProjectPage({
       </section>
 
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-medium">Aktywność</h2>
-          {canManage ? <SyncActivityButton projectId={id} /> : null}
-        </div>
-        <div className="space-y-2">
-          <h3 className="text-muted-foreground text-sm font-medium">
-            Aktywność &middot; cała historia
-          </h3>
-          <ContributionHeatmap counts={dailyActivity} />
-        </div>
+        <h2 className="font-medium">Aktywność</h2>
+        <ProjectActivityPanel
+          projectId={id}
+          canManage={canManage}
+          counts={dailyActivity}
+          autoSync={canManage ? ingestActivity === "1" : false}
+        />
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="text-muted-foreground text-sm font-medium">
