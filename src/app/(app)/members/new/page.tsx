@@ -6,6 +6,7 @@ import { project } from "@/db/schema/projects";
 import { roleDefinition } from "@/db/schema/roles";
 import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
+import { getGithubUserProfile } from "@/lib/integrations/github";
 import { canManageMembers, getMemberPermissions } from "@/lib/permissions";
 import type { MemberFormInput } from "@/lib/schemas/members";
 
@@ -26,7 +27,12 @@ const emptyValues: MemberFormInput = {
   sendDiscordInvite: true,
 };
 
-export default async function NewMemberPage() {
+export default async function NewMemberPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ githubUsername?: string; fullName?: string }>;
+}) {
+  const { githubUsername, fullName } = await searchParams;
   const currentMember = await getCurrentMember();
   const permissions =
     currentMember === null
@@ -46,6 +52,15 @@ export default async function NewMemberPage() {
     db.query.project.findMany({ orderBy: asc(project.name) }),
     db.query.roleDefinition.findMany({ orderBy: asc(roleDefinition.name) }),
   ]);
+  const githubProfile =
+    githubUsername === undefined || fullName !== undefined
+      ? null
+      : await getGithubUserProfile(githubUsername);
+  const defaultValues: MemberFormInput = {
+    ...emptyValues,
+    githubUsername: githubProfile?.login ?? githubUsername ?? "",
+    fullName: fullName ?? githubProfile?.name ?? "",
+  };
 
   return (
     <div className="space-y-6">
@@ -56,7 +71,7 @@ export default async function NewMemberPage() {
         sections={sections}
         projects={projects}
         roleDefinitions={roleDefinitions}
-        defaultValues={emptyValues}
+        defaultValues={defaultValues}
       />
     </div>
   );

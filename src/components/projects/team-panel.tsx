@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 
-import { addTeamMember, removeTeamMember } from "@/actions/projects";
+import {
+  addTeamMember,
+  removeTeamMember,
+  updateTeamRepositories,
+} from "@/actions/projects";
+import { MultiSelect } from "@/components/multi-select";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -16,17 +21,22 @@ interface TeamMemberRow {
   teamMemberId: string;
   memberId: string;
   fullName: string;
+  projectRoles: string[];
 }
 
 export function TeamPanel({
   teamId,
   members,
   availableMembers,
+  repositories,
+  selectedRepositoryIds,
   canManage,
 }: {
   teamId: string;
   members: TeamMemberRow[];
   availableMembers: { id: string; fullName: string }[];
+  repositories: { id: string; name: string }[];
+  selectedRepositoryIds: string[];
   canManage: boolean;
 }) {
   const [selectedMemberId, setSelectedMemberId] = useState<string>("");
@@ -42,6 +52,18 @@ export function TeamPanel({
     try {
       await addTeamMember(teamId, selectedMemberId);
       setSelectedMemberId("");
+    } catch (error_) {
+      setError(error_ instanceof Error ? error_.message : "Błąd");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function handleRepositoryChange(nextRepositoryIds: string[]) {
+    setPending(true);
+    setError(null);
+    try {
+      await updateTeamRepositories(teamId, nextRepositoryIds);
     } catch (error_) {
       setError(error_ instanceof Error ? error_.message : "Błąd");
     } finally {
@@ -69,7 +91,14 @@ export function TeamPanel({
             key={memberRow.teamMemberId}
             className="flex items-center justify-between p-2 text-sm"
           >
-            {memberRow.fullName}
+            <span>
+              {memberRow.fullName}
+              {memberRow.projectRoles.length === 0 ? null : (
+                <span className="text-muted-foreground ml-2">
+                  {memberRow.projectRoles.join(", ")}
+                </span>
+              )}
+            </span>
             {canManage ? (
               <Button
                 type="button"
@@ -87,6 +116,31 @@ export function TeamPanel({
           <li className="text-muted-foreground p-2 text-sm">Brak członków</li>
         ) : null}
       </ul>
+      <div className="space-y-1">
+        <p className="text-muted-foreground text-xs">Repozytoria zespołu</p>
+        {canManage ? (
+          <MultiSelect
+            options={repositories.map((repo) => ({
+              value: repo.id,
+              label: repo.name,
+            }))}
+            value={selectedRepositoryIds}
+            onChange={(value) => void handleRepositoryChange(value)}
+            placeholder="Wybierz repozytoria"
+          />
+        ) : selectedRepositoryIds.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            Brak przypisanych repozytoriów
+          </p>
+        ) : (
+          <div className="text-sm">
+            {repositories
+              .filter((repo) => selectedRepositoryIds.includes(repo.id))
+              .map((repo) => repo.name)
+              .join(", ")}
+          </div>
+        )}
+      </div>
       {canManage && availableMembers.length > 0 ? (
         <div className="flex gap-2">
           <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>

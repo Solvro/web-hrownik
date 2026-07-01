@@ -1,4 +1,5 @@
 import { asc, eq, isNotNull } from "drizzle-orm";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AssignIssuePicker } from "@/components/projects/assign-issue-picker";
@@ -9,7 +10,11 @@ import { projectRepository } from "@/db/schema/github";
 import { member } from "@/db/schema/members";
 import { getCurrentMember } from "@/lib/current-member";
 import { listOpenIssuesAndPulls } from "@/lib/integrations/github";
-import { canManageProject, getMemberPermissions } from "@/lib/permissions";
+import {
+  canManageMembers,
+  canManageProject,
+  getMemberPermissions,
+} from "@/lib/permissions";
 
 export default async function ProjectRepositoryPage({
   params,
@@ -35,6 +40,7 @@ export default async function ProjectRepositoryPage({
       ? null
       : await getMemberPermissions(currentMember.id);
   const canManage = permissions !== null && canManageProject(permissions, id);
+  const canAddMembers = permissions !== null && canManageMembers(permissions);
 
   const membersWithGithub = canManage
     ? await db.query.member.findMany({
@@ -45,6 +51,9 @@ export default async function ProjectRepositoryPage({
   const assignableMembers = membersWithGithub.filter(
     (row): row is typeof row & { githubUsername: string } =>
       row.githubUsername !== null,
+  );
+  const memberByGithub = new Map(
+    assignableMembers.map((row) => [row.githubUsername.toLowerCase(), row]),
   );
 
   return (
@@ -71,14 +80,22 @@ export default async function ProjectRepositoryPage({
 
       <section className="space-y-2">
         <h2 className="font-medium">Otwarte issues ({issues.length})</h2>
-        <IssueList items={issues} />
+        <IssueList
+          items={issues}
+          canAddMembers={canAddMembers}
+          memberByGithub={memberByGithub}
+        />
       </section>
 
       <section className="space-y-2">
         <h2 className="font-medium">
           Otwarte pull requesty ({pullRequests.length})
         </h2>
-        <IssueList items={pullRequests} />
+        <IssueList
+          items={pullRequests}
+          canAddMembers={canAddMembers}
+          memberByGithub={memberByGithub}
+        />
       </section>
     </div>
   );
@@ -86,8 +103,12 @@ export default async function ProjectRepositoryPage({
 
 function IssueList({
   items,
+  canAddMembers,
+  memberByGithub,
 }: {
   items: { number: number; title: string; url: string; author: string }[];
+  canAddMembers: boolean;
+  memberByGithub: Map<string, { id: string; fullName: string }>;
 }) {
   if (items.length === 0) {
     return <p className="text-muted-foreground text-sm">Brak.</p>;
@@ -104,9 +125,28 @@ function IssueList({
           >
             #{item.number} {item.title}
           </a>
-          <Badge variant="outline" className="ml-auto">
-            {item.author}
-          </Badge>
+          <div className="ml-auto flex items-center gap-2">
+            <Badge variant="outline">
+              {memberByGithub.has(item.author.toLowerCase()) ? (
+                <Link
+                  href={`/members/${memberByGithub.get(item.author.toLowerCase())?.id}`}
+                  className="hover:underline"
+                >
+                  {memberByGithub.get(item.author.toLowerCase())?.fullName}
+                </Link>
+              ) : (
+                item.author
+              )}
+            </Badge>
+            {canAddMembers && !memberByGithub.has(item.author.toLowerCase()) ? (
+              <Link
+                href={`/members/new?githubUsername=${encodeURIComponent(item.author)}`}
+                className="text-xs underline"
+              >
+                Dodaj członka
+              </Link>
+            ) : null}
+          </div>
         </li>
       ))}
     </ul>

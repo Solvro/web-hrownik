@@ -2,7 +2,11 @@ import { relations } from "drizzle-orm";
 
 import { user } from "@/db/auth-schema";
 
-import { githubActivityEvent, projectRepository } from "./github";
+import {
+  githubActivityEvent,
+  projectRepository,
+  teamRepository,
+} from "./github";
 import { member, memberEmail } from "./members";
 import { project, team, teamMember } from "./projects";
 import { roleAssignment, roleDefinition } from "./roles";
@@ -83,6 +87,7 @@ export const teamRelations = relations(team, ({ one, many }) => ({
     references: [project.id],
   }),
   members: many(teamMember),
+  repositories: many(teamRepository),
 }));
 
 export const teamMemberRelations = relations(teamMember, ({ one }) => ({
@@ -101,8 +106,17 @@ export const projectRepositoryRelations = relations(
       references: [project.id],
     }),
     activityEvents: many(githubActivityEvent),
+    teams: many(teamRepository),
   }),
 );
+
+export const teamRepositoryRelations = relations(teamRepository, ({ one }) => ({
+  team: one(team, { fields: [teamRepository.teamId], references: [team.id] }),
+  projectRepository: one(projectRepository, {
+    fields: [teamRepository.projectRepositoryId],
+    references: [projectRepository.id],
+  }),
+}));
 
 export const githubActivityEventRelations = relations(
   githubActivityEvent,

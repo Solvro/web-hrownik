@@ -1,3 +1,6 @@
+import Link from "next/link";
+
+import { Button } from "@/components/ui/button";
 import { formatRelativeTime } from "@/lib/relative-time";
 import { cn } from "@/lib/utils";
 
@@ -7,6 +10,9 @@ export interface ActivityTimelineItem {
   url: string;
   title: string;
   subtitle: string;
+  actorName?: string;
+  actorHref?: string;
+  addMemberHref?: string;
   occurredAt: Date;
 }
 
@@ -40,9 +46,31 @@ export function ActivityTimeline({ items }: { items: ActivityTimelineItem[] }) {
             >
               {item.title}
             </a>
-            <p className="text-muted-foreground truncate text-xs">
-              {item.subtitle}
-            </p>
+            <div className="text-muted-foreground flex min-w-0 items-center gap-2 text-xs">
+              <p className="truncate">
+                {item.actorName === undefined ? null : item.actorHref ===
+                  undefined ? (
+                  item.actorName
+                ) : (
+                  <Link href={item.actorHref} className="hover:underline">
+                    {item.actorName}
+                  </Link>
+                )}
+                {item.actorName === undefined
+                  ? item.subtitle
+                  : ` · ${item.subtitle}`}
+              </p>
+              {item.addMemberHref === undefined ? null : (
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="h-6 shrink-0 px-2"
+                >
+                  <Link href={item.addMemberHref}>Dodaj członka</Link>
+                </Button>
+              )}
+            </div>
           </div>
           <span className="text-muted-foreground shrink-0 text-xs">
             {formatRelativeTime(item.occurredAt)}

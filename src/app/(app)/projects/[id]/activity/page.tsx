@@ -6,7 +6,9 @@ import { ActivityTimeline } from "@/components/activity-timeline";
 import { db } from "@/db";
 import { githubActivityEvent } from "@/db/schema/github";
 import { project } from "@/db/schema/projects";
+import { getCurrentMember } from "@/lib/current-member";
 import { fallbackActivityTitle } from "@/lib/integrations/github-activity";
+import { canManageMembers, getMemberPermissions } from "@/lib/permissions";
 
 const ACTIVITY_LIMIT = 200;
 
@@ -31,6 +33,12 @@ export default async function ProjectActivityPage({
     limit: ACTIVITY_LIMIT,
     with: { member: true, projectRepository: true },
   });
+  const currentMember = await getCurrentMember();
+  const permissions =
+    currentMember === null
+      ? null
+      : await getMemberPermissions(currentMember.id);
+  const canAddMembers = permissions !== null && canManageMembers(permissions);
 
   return (
     <div className="max-w-3xl space-y-4">
@@ -50,7 +58,14 @@ export default async function ProjectActivityPage({
           url: event.url,
           occurredAt: event.occurredAt,
           title: event.title ?? fallbackActivityTitle(event),
-          subtitle: `${event.member?.fullName ?? event.githubLogin} · ${event.projectRepository.githubRepoFullName}`,
+          subtitle: event.projectRepository.githubRepoFullName,
+          actorName: event.member?.fullName ?? event.githubLogin,
+          actorHref:
+            event.member === null ? undefined : `/members/${event.member.id}`,
+          addMemberHref:
+            canAddMembers && event.member === null
+              ? `/members/new?githubUsername=${encodeURIComponent(event.githubLogin)}`
+              : undefined,
         }))}
       />
     </div>

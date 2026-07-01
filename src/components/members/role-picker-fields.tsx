@@ -1,5 +1,6 @@
 "use client";
 
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -111,6 +112,25 @@ export function RolePickerFields({
           </SelectContent>
         </Select>
       ) : null}
+
+      <Input
+        type="date"
+        value={value.startedAt ?? ""}
+        onChange={(event) => {
+          onChange({ ...value, startedAt: event.target.value });
+        }}
+        aria-label="Data objęcia roli"
+        className="w-40"
+      />
+      <Input
+        type="date"
+        value={value.endedAt ?? ""}
+        onChange={(event) => {
+          onChange({ ...value, endedAt: event.target.value });
+        }}
+        aria-label="Data zakończenia roli"
+        className="w-40"
+      />
     </div>
   );
 }

@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { MemberForm } from "@/components/members/member-form";
 import { db } from "@/db";
 import { member } from "@/db/schema/members";
+import { project } from "@/db/schema/projects";
+import { roleDefinition } from "@/db/schema/roles";
 import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
 import {
@@ -24,6 +26,7 @@ export default async function EditMemberPage({
     with: {
       emails: true,
       sections: true,
+      roleAssignments: true,
     },
   });
   if (profile === undefined) {
@@ -46,9 +49,13 @@ export default async function EditMemberPage({
     );
   }
 
-  const sections = fullAccess
-    ? await db.query.section.findMany({ orderBy: asc(section.name) })
-    : [];
+  const [sections, projects, roleDefinitions] = fullAccess
+    ? await Promise.all([
+        db.query.section.findMany({ orderBy: asc(section.name) }),
+        db.query.project.findMany({ orderBy: asc(project.name) }),
+        db.query.roleDefinition.findMany({ orderBy: asc(roleDefinition.name) }),
+      ])
+    : [[], [], []];
 
   return (
     <div className="space-y-6">
@@ -58,8 +65,8 @@ export default async function EditMemberPage({
         memberId={id}
         fullAccess={fullAccess}
         sections={sections}
-        projects={[]}
-        roleDefinitions={[]}
+        projects={projects}
+        roleDefinitions={roleDefinitions}
         defaultValues={{
           fullName: profile.fullName,
           githubUsername: profile.githubUsername ?? "",
@@ -77,9 +84,22 @@ export default async function EditMemberPage({
           sectionIds: profile.sections.map(
             (membership) => membership.sectionId,
           ),
-          roleAssignments: [],
+          roleAssignments: profile.roleAssignments.map((assignment) => ({
+            roleDefinitionId: assignment.roleDefinitionId,
+            sectionId: assignment.sectionId ?? undefined,
+            projectId: assignment.projectId ?? undefined,
+            startedAt: toDateInput(assignment.startedAt),
+            endedAt:
+              assignment.endedAt === null
+                ? ""
+                : toDateInput(assignment.endedAt),
+          })),
         }}
       />
     </div>
   );
+}
+
+function toDateInput(date: Date): string {
+  return date.toISOString().slice(0, 10);
 }

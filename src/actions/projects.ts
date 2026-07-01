@@ -1,14 +1,15 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
 import { db } from "@/db";
-import { projectRepository } from "@/db/schema/github";
+import { projectRepository, teamRepository } from "@/db/schema/github";
 import { member } from "@/db/schema/members";
 import { project, team, teamMember } from "@/db/schema/projects";
+import { roleAssignment, roleDefinition } from "@/db/schema/roles";
 import { getCurrentMember } from "@/lib/current-member";
 import { listOrgRepos } from "@/lib/integrations/github";
 import { syncRepositories } from "@/lib/integrations/github-activity";
@@ -39,6 +40,11 @@ export async function createProject(input: ProjectFormValues) {
       visibility: values.visibility,
       productionUrl: emptyToNull(values.productionUrl),
       driveFolderUrl: emptyToNull(values.driveFolderUrl),
+      projectCardDriveUrl: emptyToNull(values.projectCardDriveUrl),
+      reportDriveUrl:
+        values.status === "completed"
+          ? emptyToNull(values.reportDriveUrl)
+          : null,
     })
     .returning();
 
@@ -112,6 +118,60 @@ export async function removeTeamMember(teamMemberId: string) {
   await db.delete(teamMember).where(eq(teamMember.id, teamMemberId));
   await revokeTeamAccess(membership.team, membership.member);
   revalidatePath(`/projects/${membership.team.projectId}`);
+}
+
+export async function updateTeamRepositories(
+  teamId: string,
+  projectRepositoryIds: string[],
+) {
+  const teamRow = await db.query.team.findFirst({ where: eq(team.id, teamId) });
+  if (teamRow === undefined) {
+    throw new Error("Nie znaleziono zespołu.");
+  }
+  await assertCanManageProject(teamRow.projectId);
+
+  await db.delete(teamRepository).where(eq(teamRepository.teamId, teamId));
+  if (projectRepositoryIds.length > 0) {
+    const repos = await db.query.projectRepository.findMany({
+      where: and(
+        eq(projectRepository.projectId, teamRow.projectId),
+        inArray(projectRepository.id, projectRepositoryIds),
+      ),
+    });
+    if (repos.length > 0) {
+      await db.insert(teamRepository).values(
+        repos.map((repo) => ({
+          teamId,
+          projectRepositoryId: repo.id,
+        })),
+      );
+    }
+  }
+  revalidatePath(`/projects/${teamRow.projectId}`);
+}
+
+export async function assignProjectRole(
+  projectId: string,
+  memberId: string,
+  roleName: "PM" | "PO",
+) {
+  await assertCanManageProject(projectId);
+  const definition = await db.query.roleDefinition.findFirst({
+    where: and(
+      eq(roleDefinition.scope, "project"),
+      eq(roleDefinition.name, roleName),
+    ),
+  });
+  if (definition === undefined) {
+    throw new Error(`Nie znaleziono roli ${roleName}.`);
+  }
+
+  await db.insert(roleAssignment).values({
+    memberId,
+    projectId,
+    roleDefinitionId: definition.id,
+  });
+  revalidatePath(`/projects/${projectId}`);
 }
 
 /** Manual "Synchronizuj aktywność" button — initial data collection or a
