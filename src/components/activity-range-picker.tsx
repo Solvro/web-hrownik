@@ -3,6 +3,33 @@
 import { Button } from "@/components/ui/button";
 import type { ActivityRange } from "@/lib/activity-range";
 
+function YearButton({
+  year,
+  selected,
+  onSelect,
+}: {
+  year: number;
+  selected: ActivityRange;
+  onSelect: (range: ActivityRange) => void;
+}) {
+  return (
+    <Button
+      type="button"
+      size="xs"
+      variant={
+        selected.type === "year" && selected.year === year ? "default" : "ghost"
+      }
+      onClick={() => {
+        onSelect({ type: "year", year });
+      }}
+      aria-pressed={selected.type === "year" && selected.year === year}
+      className="justify-start"
+    >
+      {year}
+    </Button>
+  );
+}
+
 export function ActivityRangePicker({
   selected,
   availableYears,
@@ -12,8 +39,11 @@ export function ActivityRangePicker({
   availableYears: number[];
   onSelect: (range: ActivityRange) => void;
 }) {
+  const [currentYear, ...olderYears] = availableYears;
+
   return (
     <div className="flex flex-wrap gap-1 md:flex-col md:flex-nowrap">
+      <YearButton year={currentYear} selected={selected} onSelect={onSelect} />
       <Button
         type="button"
         size="xs"
@@ -26,24 +56,13 @@ export function ActivityRangePicker({
       >
         Ostatni rok
       </Button>
-      {availableYears.map((year) => (
-        <Button
+      {olderYears.map((year) => (
+        <YearButton
           key={year}
-          type="button"
-          size="xs"
-          variant={
-            selected.type === "year" && year === selected.year
-              ? "default"
-              : "ghost"
-          }
-          onClick={() => {
-            onSelect({ type: "year", year });
-          }}
-          aria-pressed={selected.type === "year" && year === selected.year}
-          className="justify-start"
-        >
-          {year}
-        </Button>
+          year={year}
+          selected={selected}
+          onSelect={onSelect}
+        />
       ))}
     </div>
   );
