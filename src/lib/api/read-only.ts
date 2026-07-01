@@ -57,11 +57,7 @@ function parsePositiveInteger(value: string | null, fallback: number) {
   return parsed;
 }
 
-function parseNonNegativeInteger(value: string | null, fallback: number) {
-  if (value === null) {
-    return fallback;
-  }
-
+function parseNonNegativeInteger(value: string, fallback: number) {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed) || parsed < 0) {
     return fallback;
