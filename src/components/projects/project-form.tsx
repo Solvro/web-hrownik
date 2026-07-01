@@ -241,7 +241,7 @@ export function ProjectForm({
               <Input
                 {...field}
                 id={field.name}
-                placeholder="https://drive.google.com/..."
+                placeholder="https://docs.google.com/..."
                 aria-invalid={fieldState.invalid}
               />
               {fieldState.invalid ? (

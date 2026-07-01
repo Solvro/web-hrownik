@@ -10,6 +10,15 @@ import {
 } from "@/actions/projects";
 import { MultiSelect } from "@/components/multi-select";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -59,6 +68,7 @@ export function TeamPanel({
 }) {
   const [selectedMemberId, setSelectedMemberId] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("członek zespołu");
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,6 +82,7 @@ export function TeamPanel({
       await addTeamMember(teamId, selectedMemberId, selectedRole);
       setSelectedMemberId("");
       setSelectedRole("członek zespołu");
+      setAddDialogOpen(false);
     } catch (error_) {
       setError(error_ instanceof Error ? error_.message : "Błąd");
     } finally {
@@ -225,40 +236,59 @@ export function TeamPanel({
         )}
       </div>
       {canManage && availableMembers.length > 0 ? (
-        <div className="flex gap-2">
-          <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
-            <SelectTrigger className="w-56">
-              <SelectValue placeholder="Wybierz członka" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableMembers.map((option) => (
-                <SelectItem key={option.id} value={option.id}>
-                  {option.fullName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={selectedRole} onValueChange={setSelectedRole}>
-            <SelectTrigger className="w-44">
-              <SelectValue placeholder="Rola" />
-            </SelectTrigger>
-            <SelectContent>
-              {projectRoleOptions.map((role) => (
-                <SelectItem key={role} value={role}>
-                  {role}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            type="button"
-            size="sm"
-            disabled={pending || selectedMemberId === ""}
-            onClick={() => void handleAdd()}
-          >
-            Dodaj
-          </Button>
-        </div>
+        <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button type="button" size="sm">
+              Dodaj do zespołu
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Dodaj do zespołu</DialogTitle>
+              <DialogDescription>
+                Wybierz członka i jedną ze zdefiniowanych ról projektowych.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-3">
+              <Select
+                value={selectedMemberId}
+                onValueChange={setSelectedMemberId}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Wybierz członka" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableMembers.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.fullName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={selectedRole} onValueChange={setSelectedRole}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Rola" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projectRoleOptions.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {role}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                disabled={pending || selectedMemberId === ""}
+                onClick={() => void handleAdd()}
+              >
+                Dodaj
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       ) : null}
       {error === null ? null : (
         <p className="text-destructive text-sm">{error}</p>
