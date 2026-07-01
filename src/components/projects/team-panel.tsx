@@ -32,20 +32,11 @@ interface TeamMemberRow {
   teamMemberId: string;
   memberId: string;
   fullName: string;
-  role: string;
+  roleDefinitionId: string;
+  roleDefinitionName: string;
   joinedAt: Date;
   leftAt: Date | null;
 }
-
-const projectRoleOptions = [
-  "PM",
-  "PO",
-  "techlead",
-  "TS",
-  "programista",
-  "UI/UX designer",
-  "członek zespołu",
-] as const;
 
 function toDateInput(date: Date | null): string {
   return date?.toISOString().slice(0, 10) ?? "";
@@ -58,6 +49,7 @@ export function TeamPanel({
   repositories,
   selectedRepositoryIds,
   canManage,
+  roleDefinitions,
 }: {
   teamId: string;
   members: TeamMemberRow[];
@@ -65,23 +57,26 @@ export function TeamPanel({
   repositories: { id: string; name: string }[];
   selectedRepositoryIds: string[];
   canManage: boolean;
+  roleDefinitions: { id: string; name: string }[];
 }) {
   const [selectedMemberId, setSelectedMemberId] = useState<string>("");
-  const [selectedRole, setSelectedRole] = useState<string>("członek zespołu");
+  const [selectedRoleId, setSelectedRoleId] = useState<string>(
+    roleDefinitions[0]?.id ?? "",
+  );
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleAdd() {
-    if (selectedMemberId === "") {
+    if (selectedMemberId === "" || selectedRoleId === "") {
       return;
     }
     setPending(true);
     setError(null);
     try {
-      await addTeamMember(teamId, selectedMemberId, selectedRole);
+      await addTeamMember(teamId, selectedMemberId, selectedRoleId);
       setSelectedMemberId("");
-      setSelectedRole("członek zespołu");
+      setSelectedRoleId(roleDefinitions[0]?.id ?? "");
       setAddDialogOpen(false);
     } catch (error_) {
       setError(error_ instanceof Error ? error_.message : "Błąd");
@@ -116,13 +111,17 @@ export function TeamPanel({
 
   async function handleMemberDetailsChange(
     memberRow: TeamMemberRow,
-    values: Partial<{ role: string; joinedAt: string; leftAt: string }>,
+    values: Partial<{
+      roleDefinitionId: string;
+      joinedAt: string;
+      leftAt: string;
+    }>,
   ) {
     setPending(true);
     setError(null);
     try {
       await updateTeamMemberDetails(memberRow.teamMemberId, {
-        role: values.role ?? memberRow.role,
+        roleDefinitionId: values.roleDefinitionId ?? memberRow.roleDefinitionId,
         joinedAt: values.joinedAt ?? toDateInput(memberRow.joinedAt),
         leftAt: values.leftAt ?? toDateInput(memberRow.leftAt),
       });
@@ -151,18 +150,20 @@ export function TeamPanel({
             {canManage ? (
               <div className="flex items-center gap-2">
                 <Select
-                  value={memberRow.role}
-                  onValueChange={(role) =>
-                    void handleMemberDetailsChange(memberRow, { role })
+                  value={memberRow.roleDefinitionId}
+                  onValueChange={(roleDefinitionId) =>
+                    void handleMemberDetailsChange(memberRow, {
+                      roleDefinitionId,
+                    })
                   }
                 >
                   <SelectTrigger className="w-44">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {projectRoleOptions.map((role) => (
-                      <SelectItem key={role} value={role}>
-                        {role}
+                    {roleDefinitions.map((role) => (
+                      <SelectItem key={role.id} value={role.id}>
+                        {role.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -202,7 +203,9 @@ export function TeamPanel({
                 ) : null}
               </div>
             ) : (
-              <span className="text-muted-foreground">{memberRow.role}</span>
+              <span className="text-muted-foreground">
+                {memberRow.roleDefinitionName}
+              </span>
             )}
           </li>
         ))}
@@ -265,14 +268,14 @@ export function TeamPanel({
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={selectedRole} onValueChange={setSelectedRole}>
+              <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Rola" />
                 </SelectTrigger>
                 <SelectContent>
-                  {projectRoleOptions.map((role) => (
-                    <SelectItem key={role} value={role}>
-                      {role}
+                  {roleDefinitions.map((role) => (
+                    <SelectItem key={role.id} value={role.id}>
+                      {role.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -281,7 +284,9 @@ export function TeamPanel({
             <DialogFooter>
               <Button
                 type="button"
-                disabled={pending || selectedMemberId === ""}
+                disabled={
+                  pending || selectedMemberId === "" || selectedRoleId === ""
+                }
                 onClick={() => void handleAdd()}
               >
                 Dodaj

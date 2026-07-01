@@ -1,6 +1,6 @@
 import { MemberImportForm } from "@/components/members/member-import-form";
 import { getCurrentMember } from "@/lib/current-member";
-import { canManageMembers, getMemberPermissions } from "@/lib/permissions";
+import { can, getMemberPermissions } from "@/lib/permissions";
 
 export default async function ImportMembersPage() {
   const currentMember = await getCurrentMember();
@@ -9,7 +9,7 @@ export default async function ImportMembersPage() {
       ? null
       : await getMemberPermissions(currentMember.id);
 
-  if (permissions === null || !canManageMembers(permissions)) {
+  if (permissions === null || !can(permissions, "members", "write")) {
     return (
       <p className="text-muted-foreground">
         Tylko zarząd może importować członków.

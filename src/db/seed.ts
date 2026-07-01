@@ -1,24 +1,69 @@
 import { hashPassword } from "better-auth/crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import { account, user } from "@/db/auth-schema";
 import { member, memberEmail } from "@/db/schema/members";
 import { env } from "@/env";
 
-import { roleAssignment, roleDefinition } from "./schema/roles";
+import {
+  permissionGrant,
+  permissionGroup,
+  roleAssignment,
+  roleDefinition,
+  roleDefinitionPermissionGroup,
+} from "./schema/roles";
 
 const roleDefinitions: (typeof roleDefinition.$inferInsert)[] = [
   // Sekcja
-  { scope: "section", name: "przewodniczący", permissionLevel: "member" },
-  { scope: "section", name: "wiceprzewodniczący", permissionLevel: "member" },
-  { scope: "section", name: "członek", permissionLevel: "member" },
+  { scope: "section", name: "przewodniczący" },
+  { scope: "section", name: "wiceprzewodniczący" },
+  { scope: "section", name: "członek" },
 
   // Zarząd
-  { scope: "board", name: "prezes", permissionLevel: "board" },
-  { scope: "board", name: "wiceprezes", permissionLevel: "board" },
-  { scope: "board", name: "sekretarz", permissionLevel: "board" },
+  { scope: "board", name: "prezes" },
+  { scope: "board", name: "wiceprezes" },
+  { scope: "board", name: "sekretarz" },
+
+  // Projekt — pełne nazwy, bez skrótów; admin może dodać własne w panelu.
+  { scope: "project", name: "Project Manager" },
+  { scope: "project", name: "Product Owner" },
+  { scope: "project", name: "Tech Lead" },
+  { scope: "project", name: "programista" },
+  { scope: "project", name: "UI/UX designer" },
+  { scope: "project", name: "członek zespołu" },
 ];
+
+const PROJECT_LEAD_ROLE_NAMES = [
+  "Project Manager",
+  "Product Owner",
+  "Tech Lead",
+];
+
+const permissionGroups: (typeof permissionGroup.$inferInsert)[] = [
+  {
+    name: "Zarząd",
+    description: "Pełne zarządzanie członkami, sekcjami, projektami i rolami.",
+  },
+  {
+    name: "Liderzy projektów",
+    description:
+      "Prowadzenie własnego projektu (nadawane przez rolę w zespole).",
+  },
+];
+
+const ZARZAD_GRANTS = [
+  { resource: "members", action: "read" },
+  { resource: "members", action: "write" },
+  { resource: "sections", action: "read" },
+  { resource: "sections", action: "write" },
+  { resource: "projects", action: "read" },
+  { resource: "projects", action: "write" },
+  { resource: "roles", action: "read" },
+  { resource: "roles", action: "write" },
+];
+
+const PROJECT_LEAD_GRANTS = [{ resource: "project_team", action: "lead" }];
 
 async function seed() {
   await db
@@ -27,14 +72,98 @@ async function seed() {
     .onConflictDoNothing({
       target: [roleDefinition.scope, roleDefinition.name],
     });
+  await db
+    .insert(permissionGroup)
+    .values(permissionGroups)
+    .onConflictDoNothing({ target: permissionGroup.name });
 
-  const adminUser = await seedAdminUser();
+  const zarzadGroup = await db.query.permissionGroup.findFirst({
+    where: eq(permissionGroup.name, "Zarząd"),
+  });
+  const projectLeadGroup = await db.query.permissionGroup.findFirst({
+    where: eq(permissionGroup.name, "Liderzy projektów"),
+  });
+  if (zarzadGroup === undefined || projectLeadGroup === undefined) {
+    throw new Error("Permission groups were not seeded.");
+  }
+
+  await db
+    .insert(permissionGrant)
+    .values(
+      ZARZAD_GRANTS.map((grant) => ({
+        ...grant,
+        permissionGroupId: zarzadGroup.id,
+      })),
+    )
+    .onConflictDoNothing({
+      target: [
+        permissionGrant.permissionGroupId,
+        permissionGrant.resource,
+        permissionGrant.action,
+      ],
+    });
+  await db
+    .insert(permissionGrant)
+    .values(
+      PROJECT_LEAD_GRANTS.map((grant) => ({
+        ...grant,
+        permissionGroupId: projectLeadGroup.id,
+      })),
+    )
+    .onConflictDoNothing({
+      target: [
+        permissionGrant.permissionGroupId,
+        permissionGrant.resource,
+        permissionGrant.action,
+      ],
+    });
+
+  const boardRoles = await db.query.roleDefinition.findMany({
+    where: eq(roleDefinition.scope, "board"),
+  });
+  await db
+    .insert(roleDefinitionPermissionGroup)
+    .values(
+      boardRoles.map((role) => ({
+        roleDefinitionId: role.id,
+        permissionGroupId: zarzadGroup.id,
+      })),
+    )
+    .onConflictDoNothing({
+      target: [
+        roleDefinitionPermissionGroup.roleDefinitionId,
+        roleDefinitionPermissionGroup.permissionGroupId,
+      ],
+    });
+
+  const projectLeadRoles = await db.query.roleDefinition.findMany({
+    where: and(
+      eq(roleDefinition.scope, "project"),
+      inArray(roleDefinition.name, PROJECT_LEAD_ROLE_NAMES),
+    ),
+  });
+  await db
+    .insert(roleDefinitionPermissionGroup)
+    .values(
+      projectLeadRoles.map((role) => ({
+        roleDefinitionId: role.id,
+        permissionGroupId: projectLeadGroup.id,
+      })),
+    )
+    .onConflictDoNothing({
+      target: [
+        roleDefinitionPermissionGroup.roleDefinitionId,
+        roleDefinitionPermissionGroup.permissionGroupId,
+      ],
+    });
+
+  const adminUser = await seedAdminUser(zarzadGroup.id);
 
   console.log(`Seeded ${roleDefinitions.length} role definitions.`);
   console.log(`Seeded admin user ${adminUser.email}.`);
 }
 
-async function seedAdminUser() {
+async function seedAdminUser(zarzadGroupId: string) {
   const email = env.ADMIN_EMAIL.toLowerCase();
   const now = new Date();
 
@@ -133,11 +262,19 @@ async function seedAdminUser() {
   const boardRole = await db.query.roleDefinition.findFirst({
     where: and(
       eq(roleDefinition.scope, "board"),
-      eq(roleDefinition.permissionLevel, "board"),
+      eq(roleDefinition.name, "prezes"),
     ),
+    with: {
+      permissionGroupLinks: {
+        where: eq(
+          roleDefinitionPermissionGroup.permissionGroupId,
+          zarzadGroupId,
+        ),
+      },
+    },
   });
 
-  if (boardRole === undefined) {
+  if (boardRole === undefined || boardRole.permissionGroupLinks.length === 0) {
     throw new Error("Board role definition was not seeded.");
   }
 

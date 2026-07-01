@@ -9,7 +9,13 @@ import {
 } from "./github";
 import { member, memberEmail } from "./members";
 import { project, team, teamMember } from "./projects";
-import { roleAssignment, roleDefinition } from "./roles";
+import {
+  permissionGrant,
+  permissionGroup,
+  roleAssignment,
+  roleDefinition,
+  roleDefinitionPermissionGroup,
+} from "./roles";
 import { memberSection, section } from "./sections";
 
 export const userRelations = relations(user, ({ one }) => ({
@@ -58,6 +64,40 @@ export const roleDefinitionRelations = relations(
   roleDefinition,
   ({ many }) => ({
     assignments: many(roleAssignment),
+    teamMembers: many(teamMember),
+    permissionGroupLinks: many(roleDefinitionPermissionGroup),
+  }),
+);
+
+export const permissionGroupRelations = relations(
+  permissionGroup,
+  ({ many }) => ({
+    grants: many(permissionGrant),
+    roleLinks: many(roleDefinitionPermissionGroup),
+  }),
+);
+
+export const permissionGrantRelations = relations(
+  permissionGrant,
+  ({ one }) => ({
+    permissionGroup: one(permissionGroup, {
+      fields: [permissionGrant.permissionGroupId],
+      references: [permissionGroup.id],
+    }),
+  }),
+);
+
+export const roleDefinitionPermissionGroupRelations = relations(
+  roleDefinitionPermissionGroup,
+  ({ one }) => ({
+    roleDefinition: one(roleDefinition, {
+      fields: [roleDefinitionPermissionGroup.roleDefinitionId],
+      references: [roleDefinition.id],
+    }),
+    permissionGroup: one(permissionGroup, {
+      fields: [roleDefinitionPermissionGroup.permissionGroupId],
+      references: [permissionGroup.id],
+    }),
   }),
 );
 
@@ -101,6 +141,10 @@ export const teamMemberRelations = relations(teamMember, ({ one }) => ({
   member: one(member, {
     fields: [teamMember.memberId],
     references: [member.id],
+  }),
+  roleDefinition: one(roleDefinition, {
+    fields: [teamMember.roleDefinitionId],
+    references: [roleDefinition.id],
   }),
 }));
 

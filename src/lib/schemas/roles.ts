@@ -17,3 +17,13 @@ export const roleAssignmentDraftSchema = z
   );
 
 export type RoleAssignmentDraft = z.infer<typeof roleAssignmentDraftSchema>;
+
+export const roleDefinitionFormSchema = z.object({
+  scope: z.enum(["board", "section", "project"]),
+  name: z.string().trim().min(1, "Podaj nazwę roli").max(80),
+  githubTeamSlug: z.string().trim().max(80).optional().or(z.literal("")),
+  discordRoleId: z.string().trim().max(80).optional().or(z.literal("")),
+  permissionGroupIds: z.array(z.string().trim()),
+});
+
+export type RoleDefinitionFormValues = z.infer<typeof roleDefinitionFormSchema>;

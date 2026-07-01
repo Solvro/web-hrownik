@@ -1,5 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { headers } from "next/headers";
+import { cache } from "react";
 
 import { db } from "@/db";
 import { account } from "@/db/auth-schema";
@@ -44,7 +45,7 @@ export async function getSessionAuthIdentity() {
   };
 }
 
-export async function getCurrentMember() {
+export const getCurrentMember = cache(async () => {
   const session = await auth.api.getSession({ headers: await headers() });
   if (session === null) {
     return null;
@@ -58,7 +59,7 @@ export async function getCurrentMember() {
   }
 
   return linkMemberToUser(session.user);
-}
+});
 
 async function linkMemberToUser(user: {
   id: string;

@@ -22,8 +22,8 @@ import {
   getMemberDailyActivity,
 } from "@/lib/integrations/github-activity";
 import {
+  can,
   canEditOwnProfile,
-  canManageMembers,
   getMemberPermissions,
 } from "@/lib/permissions";
 
@@ -44,7 +44,9 @@ export default async function MemberProfilePage({
     with: {
       emails: true,
       sections: { with: { section: true } },
-      teamMemberships: { with: { team: { with: { project: true } } } },
+      teamMemberships: {
+        with: { team: { with: { project: true } }, roleDefinition: true },
+      },
       parent: true,
     },
   });
@@ -76,11 +78,14 @@ export default async function MemberProfilePage({
     currentMember === null
       ? null
       : await getMemberPermissions(currentMember.id);
+  const canManageMembers =
+    permissions !== null && can(permissions, "members", "write");
   const canEdit =
-    permissions !== null &&
-    (canManageMembers(permissions) || canEditOwnProfile(permissions, id));
-  const canManageRoles = permissions !== null && canManageMembers(permissions);
-  const canViewHrNotes = canManageRoles;
+    canManageMembers ||
+    (permissions !== null && canEditOwnProfile(permissions, id));
+  const canManageRoles =
+    permissions !== null && can(permissions, "roles", "write");
+  const canViewHrNotes = canManageMembers;
 
   const [roleDefinitions, sections] = canManageRoles
     ? await Promise.all([
@@ -129,7 +134,7 @@ export default async function MemberProfilePage({
               <Link href={`/members/${id}/edit`}>Edytuj</Link>
             </Button>
           ) : null}
-          {canManageRoles ? (
+          {canManageMembers ? (
             <DeleteButton
               action={deleteMember.bind(null, id)}
               confirmMessage={`Na pewno usunąć ${profile.fullName}? Tej operacji nie można cofnąć.`}
@@ -274,7 +279,7 @@ export default async function MemberProfilePage({
                   </Link>
                 </div>
                 <div className="text-muted-foreground">
-                  {membership.team.name} · {membership.role}
+                  {membership.team.name} · {membership.roleDefinition.name}
                 </div>
                 <div className="text-muted-foreground text-xs">
                   {membership.joinedAt.toLocaleDateString("pl-PL")} –{" "}

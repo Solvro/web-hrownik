@@ -21,7 +21,7 @@ import {
 const formSchema = z.object({
   teamId: z.string().trim().min(1),
   newTeamName: z.string().trim(),
-  role: z.string().trim(),
+  roleDefinitionId: z.string().trim().min(1, "Wybierz rolę"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -30,10 +30,12 @@ export function AssignActivityMemberToTeam({
   projectId,
   memberId,
   teams,
+  roleDefinitions,
 }: {
   projectId: string;
   memberId: string;
   teams: { id: string; name: string }[];
+  roleDefinitions: { id: string; name: string }[];
 }) {
   const [open, setOpen] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export function AssignActivityMemberToTeam({
     defaultValues: {
       teamId: teams[0]?.id ?? "new",
       newTeamName: "",
-      role: "członek zespołu",
+      roleDefinitionId: roleDefinitions[0]?.id ?? "",
     },
   });
   const teamId = form.watch("teamId");
@@ -55,7 +57,7 @@ export function AssignActivityMemberToTeam({
         memberId,
         teamId: values.teamId,
         newTeamName: values.newTeamName,
-        role: values.role,
+        roleDefinitionId: values.roleDefinitionId,
       });
       form.reset();
       setOpen(false);
@@ -125,16 +127,22 @@ export function AssignActivityMemberToTeam({
         />
       ) : null}
       <Controller
-        name="role"
+        name="roleDefinitionId"
         control={form.control}
         render={({ field, fieldState }) => (
           <Field data-invalid={fieldState.invalid} className="gap-1">
-            <Input
-              {...field}
-              aria-invalid={fieldState.invalid}
-              placeholder="Rola"
-              className="h-8 w-36"
-            />
+            <Select value={field.value} onValueChange={field.onChange}>
+              <SelectTrigger className="h-8 w-36">
+                <SelectValue placeholder="Rola" />
+              </SelectTrigger>
+              <SelectContent>
+                {roleDefinitions.map((role) => (
+                  <SelectItem key={role.id} value={role.id}>
+                    {role.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {fieldState.invalid ? (
               <FieldError errors={[fieldState.error]} />
             ) : null}

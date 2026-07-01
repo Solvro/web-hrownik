@@ -13,7 +13,7 @@ import { getCurrentMember } from "@/lib/current-member";
 import { listOrgRepos } from "@/lib/integrations/github";
 import { syncRepositories } from "@/lib/integrations/github-activity";
 import type { SyncResult } from "@/lib/integrations/github-activity";
-import { canManageProject, getMemberPermissions } from "@/lib/permissions";
+import { can, canManageProject, getMemberPermissions } from "@/lib/permissions";
 import { projectFormSchema } from "@/lib/schemas/projects";
 import type { ProjectFormValues } from "@/lib/schemas/projects";
 import { grantTeamAccess, revokeTeamAccess } from "@/lib/team-sync";
@@ -23,7 +23,7 @@ const assignProjectMemberToTeamSchema = z.object({
   memberId: z.string().trim().min(1),
   teamId: z.string().trim().min(1),
   newTeamName: z.string().trim().optional(),
-  role: z.string().trim().optional(),
+  roleDefinitionId: z.string().trim().min(1, "Wybierz rolę"),
 });
 
 export async function createProject(input: ProjectFormValues) {
@@ -32,7 +32,7 @@ export async function createProject(input: ProjectFormValues) {
     throw new Error("Unauthorized");
   }
   const permissions = await getMemberPermissions(currentMember.id);
-  if (!permissions.isBoard) {
+  if (!can(permissions, "projects", "write")) {
     throw new Error("Tylko zarząd może tworzyć projekty.");
   }
 
@@ -125,7 +125,7 @@ export async function createTeam(projectId: string, name: string) {
 export async function addTeamMember(
   teamId: string,
   memberId: string,
-  role: string,
+  roleDefinitionId: string,
 ) {
   const teamRow = await db.query.team.findFirst({ where: eq(team.id, teamId) });
   if (teamRow === undefined) {
@@ -143,7 +143,7 @@ export async function addTeamMember(
   await db.insert(teamMember).values({
     teamId,
     memberId,
-    role: role.trim() === "" ? "członek zespołu" : role.trim(),
+    roleDefinitionId,
   });
   await grantTeamAccess(teamRow, memberRow);
   revalidatePath(`/projects/${teamRow.projectId}`);
@@ -173,10 +173,7 @@ export async function assignProjectMemberToTeam(
   await db.insert(teamMember).values({
     teamId: teamRow.id,
     memberId: memberRow.id,
-    role:
-      values.role === undefined || values.role.trim() === ""
-        ? "członek zespołu"
-        : values.role.trim(),
+    roleDefinitionId: values.roleDefinitionId,
   });
   await grantTeamAccess(teamRow, memberRow);
 
@@ -186,7 +183,7 @@ export async function assignProjectMemberToTeam(
 
 export async function updateTeamMemberDetails(
   teamMemberId: string,
-  input: { role: string; joinedAt: string; leftAt: string },
+  input: { roleDefinitionId: string; joinedAt: string; leftAt: string },
 ) {
   const membership = await db.query.teamMember.findFirst({
     where: eq(teamMember.id, teamMemberId),
@@ -206,7 +203,7 @@ export async function updateTeamMemberDetails(
   await db
     .update(teamMember)
     .set({
-      role: input.role.trim() === "" ? "członek zespołu" : input.role.trim(),
+      roleDefinitionId: input.roleDefinitionId,
       joinedAt,
       leftAt,
     })
@@ -291,7 +288,7 @@ export async function deleteProject(projectId: string) {
     throw new Error("Unauthorized");
   }
   const permissions = await getMemberPermissions(currentMember.id);
-  if (!permissions.isBoard) {
+  if (!can(permissions, "projects", "write")) {
     throw new Error("Tylko zarząd może usuwać projekty.");
   }
 

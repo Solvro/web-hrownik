@@ -15,12 +15,6 @@ export const roleScopeEnum = pgEnum("role_scope", [
   "board",
 ]);
 
-export const permissionLevelEnum = pgEnum("permission_level", [
-  "board",
-  "project_lead",
-  "member",
-]);
-
 export const projectStatusEnum = pgEnum("project_status", [
   "active",
   "completed",

@@ -14,6 +14,7 @@ import {
   getSessionAuthIdentity,
   getSessionUser,
 } from "@/lib/current-member";
+import { can, getMemberPermissions } from "@/lib/permissions";
 
 export default async function AppLayout({
   children,
@@ -86,10 +87,16 @@ export default async function AppLayout({
   const cookieStore = await cookies();
   const sidebarDefaultOpen =
     cookieStore.get("sidebar_state")?.value !== "false";
+  const permissions = await getMemberPermissions(member.id);
+  const canManageRoles = can(permissions, "roles", "write");
 
   return (
     <SidebarProvider defaultOpen={sidebarDefaultOpen}>
-      <AppSidebar memberId={member.id} memberName={member.fullName} />
+      <AppSidebar
+        memberId={member.id}
+        memberName={member.fullName}
+        canManageRoles={canManageRoles}
+      />
       <SidebarInset>
         <header className="flex h-12 items-center border-b px-4">
           <SidebarTrigger />
