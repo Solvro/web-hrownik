@@ -18,7 +18,10 @@ export default async function MembersPage() {
 
   const members = await db.query.member.findMany({
     orderBy: asc(member.fullName),
-    with: { sections: { with: { section: true } } },
+    with: {
+      sections: { with: { section: true } },
+      roleAssignments: { with: { roleDefinition: true } },
+    },
   });
 
   return (
@@ -52,6 +55,10 @@ export default async function MembersPage() {
           sections: memberRow.sections.map((membership) => ({
             id: membership.section.id,
             name: membership.section.name,
+          })),
+          roles: memberRow.roleAssignments.map((assignment) => ({
+            id: assignment.roleDefinition.id,
+            name: assignment.roleDefinition.name,
           })),
         }))}
       />

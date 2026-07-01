@@ -58,6 +58,8 @@ interface Day {
   count: number;
 }
 
+type HeatmapRange = { type: "last-year" } | { type: "year"; year: number };
+
 function dateFromParts(year: number, month: number, day: number): Date {
   return new Date(Date.UTC(year, month, day));
 }
@@ -80,12 +82,14 @@ function buildAvailableYears(counts: DailyActivityCount[]): number[] {
   return [...years].toSorted((a, b) => b - a);
 }
 
-function buildWeeks(countsByDate: Map<string, number>, year: number): Day[][] {
-  const firstDayOfYear = dateFromParts(year, 0, 1);
-  const lastDayOfYear = dateFromParts(year, 11, 31);
-  const start = new Date(firstDayOfYear);
+function buildWeeks(
+  countsByDate: Map<string, number>,
+  firstVisibleDay: Date,
+  lastVisibleDay: Date,
+): Day[][] {
+  const start = new Date(firstVisibleDay);
   start.setUTCDate(start.getUTCDate() - start.getUTCDay());
-  const end = new Date(lastDayOfYear);
+  const end = new Date(lastVisibleDay);
   end.setUTCDate(end.getUTCDate() + (6 - end.getUTCDay()));
 
   const weekCount =
@@ -105,6 +109,13 @@ function buildWeeks(countsByDate: Map<string, number>, year: number): Day[][] {
   return weeks;
 }
 
+function buildLastYearRange(today: Date): { start: Date; end: Date } {
+  return {
+    start: dateFromParts(today.getUTCFullYear(), today.getUTCMonth() - 11, 1),
+    end: today,
+  };
+}
+
 export function ContributionHeatmap({
   counts,
 }: {
@@ -112,12 +123,19 @@ export function ContributionHeatmap({
 }) {
   const countsByDate = new Map(counts.map((c) => [c.date, c.count]));
   const availableYears = buildAvailableYears(counts);
-  const [selectedYear, setSelectedYear] = useState(availableYears[0]);
-  const weeks = buildWeeks(countsByDate, selectedYear);
   const now = new Date();
   const today = dateFromParts(now.getFullYear(), now.getMonth(), now.getDate());
-  const firstDayOfYear = dateFromParts(selectedYear, 0, 1);
-  const lastDayOfYear = dateFromParts(selectedYear, 11, 31);
+  const [selectedRange, setSelectedRange] = useState<HeatmapRange>({
+    type: "last-year",
+  });
+  const visibleRange =
+    selectedRange.type === "last-year"
+      ? buildLastYearRange(today)
+      : {
+          start: dateFromParts(selectedRange.year, 0, 1),
+          end: dateFromParts(selectedRange.year, 11, 31),
+        };
+  const weeks = buildWeeks(countsByDate, visibleRange.start, visibleRange.end);
 
   const monthLabels: { startWeek: number; endWeek: number; label: string }[] =
     [];
@@ -125,8 +143,8 @@ export function ContributionHeatmap({
   for (const [weekIndex, week] of weeks.entries()) {
     const firstDay = week.find(
       (day) =>
-        day.date >= firstDayOfYear &&
-        day.date <= lastDayOfYear &&
+        day.date >= visibleRange.start &&
+        day.date <= visibleRange.end &&
         day.date.getUTCDate() <= 7,
     );
     if (firstDay !== undefined && firstDay.date.getUTCMonth() !== lastMonth) {
@@ -171,8 +189,8 @@ export function ContributionHeatmap({
                     title={`${day.date.toLocaleDateString("pl-PL", { timeZone: "UTC" })}: ${String(day.count)}`}
                     className={cn(
                       "aspect-square w-full rounded-sm",
-                      day.date < firstDayOfYear ||
-                        day.date > lastDayOfYear ||
+                      day.date < visibleRange.start ||
+                        day.date > visibleRange.end ||
                         day.date > today
                         ? "invisible"
                         : LEVEL_CLASS[levelForCount(day.count)],
@@ -195,16 +213,34 @@ export function ContributionHeatmap({
         </div>
       </div>
       <div className="flex flex-wrap gap-1 md:flex-col md:flex-nowrap">
+        <Button
+          type="button"
+          size="xs"
+          variant={selectedRange.type === "last-year" ? "default" : "ghost"}
+          onClick={() => {
+            setSelectedRange({ type: "last-year" });
+          }}
+          aria-pressed={selectedRange.type === "last-year"}
+          className="justify-start"
+        >
+          Ostatni rok
+        </Button>
         {availableYears.map((year) => (
           <Button
             key={year}
             type="button"
             size="xs"
-            variant={year === selectedYear ? "default" : "ghost"}
+            variant={
+              selectedRange.type === "year" && year === selectedRange.year
+                ? "default"
+                : "ghost"
+            }
             onClick={() => {
-              setSelectedYear(year);
+              setSelectedRange({ type: "year", year });
             }}
-            aria-pressed={year === selectedYear}
+            aria-pressed={
+              selectedRange.type === "year" && year === selectedRange.year
+            }
             className="justify-start"
           >
             {year}
