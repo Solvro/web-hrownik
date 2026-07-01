@@ -19,6 +19,7 @@ export interface ActivityTimelineItem {
     projectId: string;
     memberId: string;
     teams: { id: string; name: string }[];
+    roleDefinitions: { id: string; name: string }[];
   };
   occurredAt: Date;
 }

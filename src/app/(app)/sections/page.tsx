@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { db } from "@/db";
 import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
-import { canManageMembers, getMemberPermissions } from "@/lib/permissions";
+import { can, getMemberPermissions } from "@/lib/permissions";
 import { declineNumeric } from "@/lib/polish";
 
 export default async function SectionsPage() {
@@ -25,7 +25,7 @@ export default async function SectionsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">Sekcje</h1>
-        {permissions !== null && canManageMembers(permissions) ? (
+        {permissions !== null && can(permissions, "sections", "write") ? (
           <NewSectionDialog />
         ) : null}
       </div>

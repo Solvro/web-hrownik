@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -6,13 +6,10 @@ import { ActivityTimeline } from "@/components/activity-timeline";
 import { db } from "@/db";
 import { githubActivityEvent } from "@/db/schema/github";
 import { project } from "@/db/schema/projects";
+import { roleDefinition } from "@/db/schema/roles";
 import { getCurrentMember } from "@/lib/current-member";
 import { fallbackActivityTitle } from "@/lib/integrations/github-activity";
-import {
-  canManageMembers,
-  canManageProject,
-  getMemberPermissions,
-} from "@/lib/permissions";
+import { can, canManageProject, getMemberPermissions } from "@/lib/permissions";
 
 const ACTIVITY_LIMIT = 200;
 
@@ -43,12 +40,19 @@ export default async function ProjectActivityPage({
     currentMember === null
       ? null
       : await getMemberPermissions(currentMember.id);
-  const canAddMembers = permissions !== null && canManageMembers(permissions);
+  const canAddMembers =
+    permissions !== null && can(permissions, "members", "write");
   const canManage = permissions !== null && canManageProject(permissions, id);
   const teamOptions = projectRow.teams.map((teamRow) => ({
     id: teamRow.id,
     name: teamRow.name,
   }));
+  const projectRoleDefinitions = canManage
+    ? await db.query.roleDefinition.findMany({
+        where: eq(roleDefinition.scope, "project"),
+        orderBy: asc(roleDefinition.name),
+      })
+    : [];
   const activeProjectMemberIds = new Set(
     projectRow.teams.flatMap((teamRow) =>
       teamRow.members
@@ -91,6 +95,10 @@ export default async function ProjectActivityPage({
                   projectId: id,
                   memberId: event.member.id,
                   teams: teamOptions,
+                  roleDefinitions: projectRoleDefinitions.map((role) => ({
+                    id: role.id,
+                    name: role.name,
+                  })),
                 }
               : undefined,
         }))}

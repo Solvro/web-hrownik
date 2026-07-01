@@ -15,8 +15,8 @@ import type { MemberImportSheetType } from "@/lib/member-import";
 import { emailPattern, parseMemberImportFile } from "@/lib/member-import";
 import { runOnboardingAutomations } from "@/lib/onboarding";
 import {
+  can,
   canEditOwnProfile,
-  canManageMembers,
   getMemberPermissions,
 } from "@/lib/permissions";
 import {
@@ -36,7 +36,7 @@ export async function createMember(input: MemberFormValues) {
     throw new Error("Unauthorized");
   }
   const permissions = await getMemberPermissions(currentMember.id);
-  if (!canManageMembers(permissions)) {
+  if (!can(permissions, "members", "write")) {
     throw new Error("Tylko zarząd może dodawać nowych członków.");
   }
 
@@ -146,7 +146,7 @@ export async function updateMember(
     throw new Error("Unauthorized");
   }
   const permissions = await getMemberPermissions(currentMember.id);
-  const isFullAccess = canManageMembers(permissions);
+  const isFullAccess = can(permissions, "members", "write");
   const isSelf = canEditOwnProfile(permissions, memberId);
   if (!isFullAccess && !isSelf) {
     throw new Error("Brak uprawnień do edycji tego profilu.");
@@ -288,7 +288,7 @@ export async function deleteMember(memberId: string): Promise<void> {
     throw new Error("Unauthorized");
   }
   const permissions = await getMemberPermissions(currentMember.id);
-  if (!canManageMembers(permissions)) {
+  if (!can(permissions, "members", "write")) {
     throw new Error("Tylko zarząd może usuwać członków.");
   }
 
@@ -363,7 +363,7 @@ async function assertCanManageMembers(action: string): Promise<void> {
     throw new Error("Unauthorized");
   }
   const permissions = await getMemberPermissions(currentMember.id);
-  if (!canManageMembers(permissions)) {
+  if (!can(permissions, "members", "write")) {
     throw new Error(`Tylko zarząd może ${action}.`);
   }
 }

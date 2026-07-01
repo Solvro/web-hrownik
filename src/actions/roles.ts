@@ -1,28 +1,39 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
-import { roleAssignment, roleDefinition } from "@/db/schema/roles";
+import { teamMember } from "@/db/schema/projects";
+import {
+  roleAssignment,
+  roleDefinition,
+  roleDefinitionPermissionGroup,
+} from "@/db/schema/roles";
 import { getCurrentMember } from "@/lib/current-member";
-import { canManageMembers, getMemberPermissions } from "@/lib/permissions";
-import { roleAssignmentDraftSchema } from "@/lib/schemas/roles";
-import type { RoleAssignmentDraft } from "@/lib/schemas/roles";
+import { can, getMemberPermissions } from "@/lib/permissions";
+import type {
+  RoleAssignmentDraft,
+  RoleDefinitionFormValues,
+} from "@/lib/schemas/roles";
+import {
+  roleAssignmentDraftSchema,
+  roleDefinitionFormSchema,
+} from "@/lib/schemas/roles";
 
-async function assertBoard() {
+async function assertCanManageRoles() {
   const currentMember = await getCurrentMember();
   if (currentMember === null) {
     throw new Error("Unauthorized");
   }
   const permissions = await getMemberPermissions(currentMember.id);
-  if (!canManageMembers(permissions)) {
+  if (!can(permissions, "roles", "write")) {
     throw new Error("Tylko zarząd może zarządzać rolami.");
   }
 }
 
 export async function assignRole(memberId: string, input: RoleAssignmentDraft) {
-  await assertBoard();
+  await assertCanManageRoles();
   const values = roleAssignmentDraftSchema.parse(input);
 
   const role = await db.query.roleDefinition.findFirst({
@@ -33,9 +44,6 @@ export async function assignRole(memberId: string, input: RoleAssignmentDraft) {
   }
   if (role.scope === "section" && values.sectionId === undefined) {
     throw new Error("Ta rola wymaga wskazania sekcji.");
-  }
-  if (role.scope === "project" && values.projectId === undefined) {
-    throw new Error("Role projektowe są zarządzane w zespołach projektu.");
   }
   if (role.scope === "project") {
     throw new Error("Role projektowe są zarządzane w zespołach projektu.");
@@ -61,7 +69,7 @@ function parseDate(value: string | undefined): Date | null {
 }
 
 export async function endRoleAssignment(roleAssignmentId: string) {
-  await assertBoard();
+  await assertCanManageRoles();
 
   const assignment = await db.query.roleAssignment.findFirst({
     where: eq(roleAssignment.id, roleAssignmentId),
@@ -76,4 +84,123 @@ export async function endRoleAssignment(roleAssignmentId: string) {
     .where(eq(roleAssignment.id, roleAssignmentId));
 
   revalidatePath(`/members/${assignment.memberId}`);
+}
+
+export async function createRoleDefinition(input: RoleDefinitionFormValues) {
+  await assertCanManageRoles();
+  const values = roleDefinitionFormSchema.parse(input);
+
+  const [created] = await db
+    .insert(roleDefinition)
+    .values({
+      scope: values.scope,
+      name: values.name,
+      githubTeamSlug:
+        values.githubTeamSlug === undefined || values.githubTeamSlug === ""
+          ? null
+          : values.githubTeamSlug,
+      discordRoleId:
+        values.discordRoleId === undefined || values.discordRoleId === ""
+          ? null
+          : values.discordRoleId,
+    })
+    .returning();
+
+  if (values.permissionGroupIds.length > 0) {
+    await db.insert(roleDefinitionPermissionGroup).values(
+      values.permissionGroupIds.map((permissionGroupId) => ({
+        roleDefinitionId: created.id,
+        permissionGroupId,
+      })),
+    );
+  }
+
+  revalidatePath("/settings/roles");
+}
+
+export async function updateRoleDefinition(
+  roleDefinitionId: string,
+  input: RoleDefinitionFormValues,
+) {
+  await assertCanManageRoles();
+  const values = roleDefinitionFormSchema.parse(input);
+
+  await db
+    .update(roleDefinition)
+    .set({
+      scope: values.scope,
+      name: values.name,
+      githubTeamSlug:
+        values.githubTeamSlug === undefined || values.githubTeamSlug === ""
+          ? null
+          : values.githubTeamSlug,
+      discordRoleId:
+        values.discordRoleId === undefined || values.discordRoleId === ""
+          ? null
+          : values.discordRoleId,
+    })
+    .where(eq(roleDefinition.id, roleDefinitionId));
+
+  await db
+    .delete(roleDefinitionPermissionGroup)
+    .where(
+      eq(roleDefinitionPermissionGroup.roleDefinitionId, roleDefinitionId),
+    );
+  if (values.permissionGroupIds.length > 0) {
+    await db.insert(roleDefinitionPermissionGroup).values(
+      values.permissionGroupIds.map((permissionGroupId) => ({
+        roleDefinitionId,
+        permissionGroupId,
+      })),
+    );
+  }
+
+  revalidatePath("/settings/roles");
+}
+
+export async function deleteRoleDefinition(roleDefinitionId: string) {
+  await assertCanManageRoles();
+
+  const activeAssignments = await db
+    .select({ id: roleAssignment.id })
+    .from(roleAssignment)
+    .where(
+      and(
+        eq(roleAssignment.roleDefinitionId, roleDefinitionId),
+        isNull(roleAssignment.endedAt),
+      ),
+    )
+    .limit(1);
+  if (activeAssignments.length > 0) {
+    throw new Error(
+      "Nie można usunąć roli, która jest aktywnie przypisana do członka.",
+    );
+  }
+
+  const activeTeamMembers = await db
+    .select({ id: teamMember.id })
+    .from(teamMember)
+    .where(
+      and(
+        eq(teamMember.roleDefinitionId, roleDefinitionId),
+        isNull(teamMember.leftAt),
+      ),
+    )
+    .limit(1);
+  if (activeTeamMembers.length > 0) {
+    throw new Error(
+      "Nie można usunąć roli, która jest aktywnie przypisana w zespole projektowym.",
+    );
+  }
+
+  await db
+    .delete(roleDefinitionPermissionGroup)
+    .where(
+      eq(roleDefinitionPermissionGroup.roleDefinitionId, roleDefinitionId),
+    );
+  await db
+    .delete(roleDefinition)
+    .where(eq(roleDefinition.id, roleDefinitionId));
+
+  revalidatePath("/settings/roles");
 }

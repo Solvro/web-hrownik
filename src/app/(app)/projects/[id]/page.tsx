@@ -15,17 +15,14 @@ import { db } from "@/db";
 import { githubActivityEvent } from "@/db/schema/github";
 import { member } from "@/db/schema/members";
 import { project } from "@/db/schema/projects";
+import { roleDefinition } from "@/db/schema/roles";
 import { getCurrentMember } from "@/lib/current-member";
 import {
   fallbackActivityTitle,
   getContributorRanking,
   getProjectDailyActivity,
 } from "@/lib/integrations/github-activity";
-import {
-  canManageMembers,
-  canManageProject,
-  getMemberPermissions,
-} from "@/lib/permissions";
+import { can, canManageProject, getMemberPermissions } from "@/lib/permissions";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RECENT_ACTIVITY_PREVIEW_LIMIT = 5;
@@ -46,7 +43,7 @@ export default async function ProjectPage({
       repositories: true,
       teams: {
         with: {
-          members: { with: { member: true } },
+          members: { with: { member: true, roleDefinition: true } },
           repositories: { with: { projectRepository: true } },
         },
       },
@@ -62,10 +59,19 @@ export default async function ProjectPage({
       ? null
       : await getMemberPermissions(currentMember.id);
   const canManage = permissions !== null && canManageProject(permissions, id);
-  const canAddMembers = permissions !== null && canManageMembers(permissions);
-  const allMembers = canManage
-    ? await db.query.member.findMany({ orderBy: asc(member.fullName) })
-    : [];
+  const canAddMembers =
+    permissions !== null && can(permissions, "members", "write");
+  const canDeleteProject =
+    permissions !== null && can(permissions, "projects", "write");
+  const [allMembers, projectRoleDefinitions] = await Promise.all([
+    canManage
+      ? db.query.member.findMany({ orderBy: asc(member.fullName) })
+      : Promise.resolve([]),
+    db.query.roleDefinition.findMany({
+      where: eq(roleDefinition.scope, "project"),
+      orderBy: asc(roleDefinition.name),
+    }),
+  ]);
 
   const activityEvents = await db.query.githubActivityEvent.findMany({
     where: eq(githubActivityEvent.projectId, id),
@@ -117,7 +123,7 @@ export default async function ProjectPage({
               </Link>
             </Button>
           ) : null}
-          {permissions?.isBoard === true ? (
+          {canDeleteProject ? (
             <DeleteButton
               action={deleteProject.bind(null, id)}
               confirmMessage={`Na pewno usunąć projekt "${projectRow.name}"? Tej operacji nie można cofnąć.`}
@@ -227,6 +233,10 @@ export default async function ProjectPage({
                       projectId: id,
                       memberId: event.member.id,
                       teams: teamOptions,
+                      roleDefinitions: projectRoleDefinitions.map((role) => ({
+                        id: role.id,
+                        name: role.name,
+                      })),
                     }
                   : undefined,
               subtitle: event.projectRepository.githubRepoFullName,
@@ -243,11 +253,16 @@ export default async function ProjectPage({
             <TeamPanel
               teamId={teamRow.id}
               canManage={canManage}
+              roleDefinitions={projectRoleDefinitions.map((role) => ({
+                id: role.id,
+                name: role.name,
+              }))}
               members={teamRow.members.map((teamMembership) => ({
                 teamMemberId: teamMembership.id,
                 memberId: teamMembership.memberId,
                 fullName: teamMembership.member.fullName,
-                role: teamMembership.role,
+                roleDefinitionId: teamMembership.roleDefinitionId,
+                roleDefinitionName: teamMembership.roleDefinition.name,
                 joinedAt: teamMembership.joinedAt,
                 leftAt: teamMembership.leftAt,
               }))}

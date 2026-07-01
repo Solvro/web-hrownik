@@ -1,65 +1,121 @@
 import { and, eq, isNull } from "drizzle-orm";
+import { cache } from "react";
 
 import { db } from "@/db";
 import { project, team, teamMember } from "@/db/schema/projects";
-import { roleAssignment, roleDefinition } from "@/db/schema/roles";
+import {
+  permissionGrant,
+  permissionGroup,
+  roleAssignment,
+  roleDefinition,
+  roleDefinitionPermissionGroup,
+} from "@/db/schema/roles";
 
-const projectLeadRoles = new Set(["pm", "po", "techlead", "ts"]);
+import type { PermissionResourceKey } from "./permissions/catalog";
+import { grantKey } from "./permissions/catalog";
 
 export interface MemberPermissions {
   memberId: string;
-  isBoard: boolean;
+  grants: Set<string>;
   leadProjectIds: string[];
 }
 
-export async function getMemberPermissions(
-  memberId: string,
-): Promise<MemberPermissions> {
-  const [activeAssignments, activeProjectMemberships] = await Promise.all([
-    db
-      .select({
-        permissionLevel: roleDefinition.permissionLevel,
-      })
-      .from(roleAssignment)
-      .innerJoin(
-        roleDefinition,
-        eq(roleAssignment.roleDefinitionId, roleDefinition.id),
-      )
-      .where(
-        and(
-          eq(roleAssignment.memberId, memberId),
-          isNull(roleAssignment.endedAt),
+export const getMemberPermissions = cache(
+  async (memberId: string): Promise<MemberPermissions> => {
+    const [grantRows, leadProjectRows] = await Promise.all([
+      db
+        .select({
+          resource: permissionGrant.resource,
+          action: permissionGrant.action,
+        })
+        .from(roleAssignment)
+        .innerJoin(
+          roleDefinition,
+          eq(roleAssignment.roleDefinitionId, roleDefinition.id),
+        )
+        .innerJoin(
+          roleDefinitionPermissionGroup,
+          eq(roleDefinitionPermissionGroup.roleDefinitionId, roleDefinition.id),
+        )
+        .innerJoin(
+          permissionGroup,
+          eq(
+            permissionGroup.id,
+            roleDefinitionPermissionGroup.permissionGroupId,
+          ),
+        )
+        .innerJoin(
+          permissionGrant,
+          eq(permissionGrant.permissionGroupId, permissionGroup.id),
+        )
+        .where(
+          and(
+            eq(roleAssignment.memberId, memberId),
+            isNull(roleAssignment.endedAt),
+          ),
         ),
-      ),
-    db
-      .select({ projectId: project.id, role: teamMember.role })
-      .from(teamMember)
-      .innerJoin(team, eq(teamMember.teamId, team.id))
-      .innerJoin(project, eq(team.projectId, project.id))
-      .where(and(eq(teamMember.memberId, memberId), isNull(teamMember.leftAt))),
-  ]);
+      db
+        .select({ projectId: project.id })
+        .from(teamMember)
+        .innerJoin(team, eq(teamMember.teamId, team.id))
+        .innerJoin(project, eq(team.projectId, project.id))
+        .innerJoin(
+          roleDefinition,
+          eq(teamMember.roleDefinitionId, roleDefinition.id),
+        )
+        .innerJoin(
+          roleDefinitionPermissionGroup,
+          eq(roleDefinitionPermissionGroup.roleDefinitionId, roleDefinition.id),
+        )
+        .innerJoin(
+          permissionGroup,
+          eq(
+            permissionGroup.id,
+            roleDefinitionPermissionGroup.permissionGroupId,
+          ),
+        )
+        .innerJoin(
+          permissionGrant,
+          and(
+            eq(permissionGrant.permissionGroupId, permissionGroup.id),
+            eq(permissionGrant.resource, "project_team"),
+            eq(permissionGrant.action, "lead"),
+          ),
+        )
+        .where(
+          and(eq(teamMember.memberId, memberId), isNull(teamMember.leftAt)),
+        ),
+    ]);
 
-  const isBoard = activeAssignments.some(
-    (assignment) => assignment.permissionLevel === "board",
-  );
-  const leadProjectIds = activeProjectMemberships
-    .filter((membership) => projectLeadRoles.has(membership.role.toLowerCase()))
-    .map((membership) => membership.projectId);
+    const grants = new Set(
+      grantRows.map((row) => grantKey(row.resource, row.action)),
+    );
+    const leadProjectIds = [
+      ...new Set(leadProjectRows.map((row) => row.projectId)),
+    ];
 
-  return { memberId, isBoard, leadProjectIds };
+    return { memberId, grants, leadProjectIds };
+  },
+);
+
+/** Generic check against the permission catalog — see src/lib/permissions/catalog.ts. */
+export function can(
+  permissions: MemberPermissions,
+  resource: PermissionResourceKey,
+  action: string,
+): boolean {
+  return permissions.grants.has(grantKey(resource, action));
 }
 
-/** Board manages the member directory: onboarding, full profile edits, role assignment. */
-export function canManageMembers(permissions: MemberPermissions): boolean {
-  return permissions.isBoard;
-}
-
-/** Board and the project's own leads manage that project's attributes, repos and teams. */
+/** Board (or anyone with projects:write) manages every project; a project's own leads manage only that one. */
 export function canManageProject(
   permissions: MemberPermissions,
   projectId: string,
 ): boolean {
-  return permissions.isBoard || permissions.leadProjectIds.includes(projectId);
+  return (
+    can(permissions, "projects", "write") ||
+    permissions.leadProjectIds.includes(projectId)
+  );
 }
 
 /** Every member may edit their own socials and study data, regardless of role. */

@@ -50,6 +50,27 @@
       "when": 1782905402643,
       "tag": "0006_daily_gateway",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1782920885166,
+      "tag": "0007_dynamic_permissions_phase1_add",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1782920935876,
+      "tag": "0008_dynamic_permissions_phase2_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1782921042657,
+      "tag": "0009_dynamic_permissions_phase3_cleanup",
+      "breakpoints": true
     }
   ]
 }

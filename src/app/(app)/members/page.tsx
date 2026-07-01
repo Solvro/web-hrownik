@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { db } from "@/db";
 import { member } from "@/db/schema/members";
 import { getCurrentMember } from "@/lib/current-member";
-import { canManageMembers, getMemberPermissions } from "@/lib/permissions";
+import { can, getMemberPermissions } from "@/lib/permissions";
 
 export default async function MembersPage() {
   const currentMember = await getCurrentMember();
@@ -28,7 +28,7 @@ export default async function MembersPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">Członkowie</h1>
-        {permissions !== null && canManageMembers(permissions) ? (
+        {permissions !== null && can(permissions, "members", "write") ? (
           <div className="flex flex-col gap-2 min-[360px]:flex-row sm:flex-row">
             <Button asChild variant="outline" className="w-full sm:w-auto">
               <Link href="/members/import">

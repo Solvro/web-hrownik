@@ -3,6 +3,7 @@ import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { id } from "./columns.helpers";
 import { projectStatusEnum, projectVisibilityEnum } from "./enums";
 import { member } from "./members";
+import { roleDefinition } from "./roles";
 
 export const project = pgTable("project", {
   id: id(),
@@ -37,7 +38,11 @@ export const teamMember = pgTable("team_member", {
   memberId: text("member_id")
     .notNull()
     .references(() => member.id, { onDelete: "cascade" }),
-  role: text("role").notNull().default("członek zespołu"),
+  // Must point at a role_definition with scope = "project" — enforced in the
+  // application layer, same convention as role_assignment's scope matching.
+  roleDefinitionId: text("role_definition_id")
+    .notNull()
+    .references(() => roleDefinition.id, { onDelete: "restrict" }),
   joinedAt: timestamp("joined_at").defaultNow().notNull(),
   leftAt: timestamp("left_at"),
 });

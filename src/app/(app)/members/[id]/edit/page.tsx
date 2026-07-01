@@ -9,8 +9,8 @@ import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
 import { getUniversityInfoOptions } from "@/lib/integrations/topwr";
 import {
+  can,
   canEditOwnProfile,
-  canManageMembers,
   getMemberPermissions,
 } from "@/lib/permissions";
 import { studyYearOptions } from "@/lib/schemas/members";
@@ -39,7 +39,8 @@ export default async function EditMemberPage({
     currentMember === null
       ? null
       : await getMemberPermissions(currentMember.id);
-  const fullAccess = permissions !== null && canManageMembers(permissions);
+  const fullAccess =
+    permissions !== null && can(permissions, "members", "write");
   const isSelf = permissions !== null && canEditOwnProfile(permissions, id);
 
   if (!fullAccess && !isSelf) {

@@ -2,7 +2,7 @@ import { ProjectForm } from "@/components/projects/project-form";
 import { db } from "@/db";
 import { getCurrentMember } from "@/lib/current-member";
 import { listOrgRepos } from "@/lib/integrations/github";
-import { getMemberPermissions } from "@/lib/permissions";
+import { can, getMemberPermissions } from "@/lib/permissions";
 
 export default async function NewProjectPage() {
   const currentMember = await getCurrentMember();
@@ -11,7 +11,7 @@ export default async function NewProjectPage() {
       ? null
       : await getMemberPermissions(currentMember.id);
 
-  if (permissions?.isBoard !== true) {
+  if (permissions === null || !can(permissions, "projects", "write")) {
     return (
       <p className="text-muted-foreground">
         Tylko zarząd może tworzyć projekty.

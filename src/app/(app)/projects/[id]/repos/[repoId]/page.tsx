@@ -10,11 +10,7 @@ import { projectRepository } from "@/db/schema/github";
 import { member } from "@/db/schema/members";
 import { getCurrentMember } from "@/lib/current-member";
 import { listOpenIssuesAndPulls } from "@/lib/integrations/github";
-import {
-  canManageMembers,
-  canManageProject,
-  getMemberPermissions,
-} from "@/lib/permissions";
+import { can, canManageProject, getMemberPermissions } from "@/lib/permissions";
 import { declineNumeric } from "@/lib/polish";
 
 export default async function ProjectRepositoryPage({
@@ -41,7 +37,8 @@ export default async function ProjectRepositoryPage({
       ? null
       : await getMemberPermissions(currentMember.id);
   const canManage = permissions !== null && canManageProject(permissions, id);
-  const canAddMembers = permissions !== null && canManageMembers(permissions);
+  const canAddMembers =
+    permissions !== null && can(permissions, "members", "write");
 
   const membersWithGithub = canManage
     ? await db.query.member.findMany({

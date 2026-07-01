@@ -8,7 +8,7 @@ import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
 import { getGithubUserProfile } from "@/lib/integrations/github";
 import { getUniversityInfoOptions } from "@/lib/integrations/topwr";
-import { canManageMembers, getMemberPermissions } from "@/lib/permissions";
+import { can, getMemberPermissions } from "@/lib/permissions";
 import type { MemberFormInput } from "@/lib/schemas/members";
 
 const emptyValues: MemberFormInput = {
@@ -43,7 +43,7 @@ export default async function NewMemberPage({
       ? null
       : await getMemberPermissions(currentMember.id);
 
-  if (permissions === null || !canManageMembers(permissions)) {
+  if (permissions === null || !can(permissions, "members", "write")) {
     return (
       <p className="text-muted-foreground">
         Tylko zarząd może dodawać nowych członków.

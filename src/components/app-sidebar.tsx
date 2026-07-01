@@ -38,9 +38,11 @@ const logoMonoSource = logoMono as unknown as string;
 export function AppSidebar({
   memberId,
   memberName,
+  canManageRoles,
 }: {
   memberId: string;
   memberName: string;
+  canManageRoles: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -51,6 +53,9 @@ export function AppSidebar({
       setOpenMobile(false);
     }
   }
+  const visibleNavItems = appNavItems.filter(
+    (item) => item.requiredGrant === undefined || canManageRoles,
+  );
 
   return (
     <Sidebar collapsible="icon">
@@ -78,7 +83,7 @@ export function AppSidebar({
           <SidebarGroupLabel>Nawigacja</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {appNavItems.map((item) => (
+              {visibleNavItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild

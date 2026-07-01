@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { db } from "@/db";
 import { project } from "@/db/schema/projects";
 import { getCurrentMember } from "@/lib/current-member";
-import { getMemberPermissions } from "@/lib/permissions";
+import { can, getMemberPermissions } from "@/lib/permissions";
 
 export default async function ProjectsPage() {
   const currentMember = await getCurrentMember();
@@ -24,7 +24,7 @@ export default async function ProjectsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">Projekty</h1>
-        {permissions?.isBoard === true ? (
+        {permissions !== null && can(permissions, "projects", "write") ? (
           <Button asChild className="w-full sm:w-auto">
             <Link href="/projects/new">
               <Plus />

@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
-import { canManageMembers, getMemberPermissions } from "@/lib/permissions";
+import { can, getMemberPermissions } from "@/lib/permissions";
 import { sectionFormSchema } from "@/lib/schemas/sections";
 import type { SectionFormValues } from "@/lib/schemas/sections";
 
@@ -17,7 +17,7 @@ export async function createSection(input: SectionFormValues) {
     throw new Error("Unauthorized");
   }
   const permissions = await getMemberPermissions(currentMember.id);
-  if (!canManageMembers(permissions)) {
+  if (!can(permissions, "sections", "write")) {
     throw new Error("Tylko zarząd może tworzyć sekcje.");
   }
 
@@ -40,7 +40,7 @@ export async function deleteSection(sectionId: string) {
     throw new Error("Unauthorized");
   }
   const permissions = await getMemberPermissions(currentMember.id);
-  if (!canManageMembers(permissions)) {
+  if (!can(permissions, "sections", "write")) {
     throw new Error("Tylko zarząd może usuwać sekcje.");
   }
 

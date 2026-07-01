@@ -7,7 +7,7 @@ import { SectionMembersBrowser } from "@/components/sections/section-members-bro
 import { db } from "@/db";
 import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
-import { canManageMembers, getMemberPermissions } from "@/lib/permissions";
+import { can, getMemberPermissions } from "@/lib/permissions";
 
 export default async function SectionPage({
   params,
@@ -55,7 +55,8 @@ export default async function SectionPage({
     currentMember === null
       ? null
       : await getMemberPermissions(currentMember.id);
-  const canManage = permissions !== null && canManageMembers(permissions);
+  const canManage =
+    permissions !== null && can(permissions, "sections", "write");
 
   return (
     <div className="max-w-5xl space-y-6">
