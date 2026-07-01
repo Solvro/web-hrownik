@@ -38,6 +38,14 @@ import {
 
 const emptySelectValue = "__empty";
 
+function RequiredMark() {
+  return (
+    <span className="text-destructive" aria-hidden="true">
+      *
+    </span>
+  );
+}
+
 const studyDegreeOptions = [
   { value: "1DEGREE", label: "I stopień" },
   { value: "2DEGREE", label: "II stopień" },
@@ -158,10 +166,13 @@ export function MemberForm({
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Imię i nazwisko</FieldLabel>
+                  <FieldLabel htmlFor={field.name}>
+                    Imię i nazwisko <RequiredMark />
+                  </FieldLabel>
                   <Input
                     {...field}
                     id={field.name}
+                    required
                     aria-invalid={fieldState.invalid}
                   />
                   {fieldState.invalid ? (
@@ -176,7 +187,9 @@ export function MemberForm({
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Status</FieldLabel>
+                  <FieldLabel htmlFor={field.name}>
+                    Status <RequiredMark />
+                  </FieldLabel>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger
                       id={field.name}
@@ -568,29 +581,40 @@ export function MemberForm({
               <FieldLabel>Role</FieldLabel>
               <div className="flex flex-col gap-2">
                 {roleFields.fields.map((roleField, index) => (
-                  <div key={roleField.id} className="flex gap-2">
-                    <Controller
-                      name={`roleAssignments.${index}`}
-                      control={form.control}
-                      render={({ field }) => (
-                        <RolePickerFields
-                          roleDefinitions={roleDefinitions}
-                          sections={sections}
-                          value={field.value}
-                          onChange={field.onChange}
-                        />
-                      )}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        roleFields.remove(index);
-                      }}
-                    >
-                      <Trash2 />
-                    </Button>
+                  <div key={roleField.id} className="flex flex-col gap-1">
+                    <div className="flex gap-2">
+                      <Controller
+                        name={`roleAssignments.${index}`}
+                        control={form.control}
+                        render={({ field }) => (
+                          <RolePickerFields
+                            roleDefinitions={roleDefinitions}
+                            sections={sections}
+                            value={field.value}
+                            onChange={field.onChange}
+                          />
+                        )}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          roleFields.remove(index);
+                        }}
+                      >
+                        <Trash2 />
+                      </Button>
+                    </div>
+                    {form.formState.errors.roleAssignments?.[index]
+                      ?.roleDefinitionId === undefined ? null : (
+                      <FieldError
+                        errors={[
+                          form.formState.errors.roleAssignments[index]
+                            .roleDefinitionId,
+                        ]}
+                      />
+                    )}
                   </div>
                 ))}
                 <Button
@@ -610,7 +634,9 @@ export function MemberForm({
             </Field>
 
             <Field>
-              <FieldLabel>Adresy e-mail</FieldLabel>
+              <FieldLabel>
+                Adresy e-mail <RequiredMark />
+              </FieldLabel>
               <div className="flex flex-col gap-2">
                 {emailFields.fields.map((emailField, index) => (
                   <div key={emailField.id} className="flex gap-2">
