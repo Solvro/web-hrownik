@@ -41,7 +41,7 @@ export default function RootLayout({
         outfit.variable,
       )}
     >
-      <body className="flex min-h-full flex-col">
+      <body className="bg-sidebar flex min-h-full flex-col">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
