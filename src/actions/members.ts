@@ -49,7 +49,7 @@ export async function createMember(input: MemberFormValues) {
     await db.insert(memberEmail).values(
       values.emails.map((email) => ({
         memberId: created.id,
-        email: email.email,
+        email: normalizeEmail(email.email),
         kind: email.kind,
       })),
     );
@@ -177,7 +177,7 @@ export async function updateMember(
       await db.insert(memberEmail).values(
         values.emails.map((email) => ({
           memberId,
-          email: email.email,
+          email: normalizeEmail(email.email),
           kind: email.kind,
         })),
       );
@@ -207,4 +207,8 @@ export async function updateMember(
 
 function emptyToNull(value: string | undefined): string | null {
   return value === undefined || value === "" ? null : value;
+}
+
+function normalizeEmail(email: string): string {
+  return email.toLowerCase();
 }

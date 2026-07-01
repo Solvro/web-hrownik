@@ -13,14 +13,37 @@ if (
   env.OIDC_CLIENT_ID !== undefined &&
   env.OIDC_CLIENT_SECRET !== undefined
 ) {
+  const solvroAuth = keycloak({
+    clientId: env.OIDC_CLIENT_ID,
+    clientSecret: env.OIDC_CLIENT_SECRET,
+    issuer: env.OIDC_ISSUER_URL,
+  });
+
   authPlugins.push(
     genericOAuth({
       config: [
-        keycloak({
-          clientId: env.OIDC_CLIENT_ID,
-          clientSecret: env.OIDC_CLIENT_SECRET,
-          issuer: env.OIDC_ISSUER_URL,
-        }),
+        {
+          ...solvroAuth,
+          mapProfileToUser: (profile) => {
+            const email =
+              typeof profile.email === "string" ? profile.email : "";
+            const name =
+              typeof profile.name === "string" && profile.name.trim() !== ""
+                ? profile.name
+                : [profile.given_name, profile.family_name]
+                    .filter(
+                      (part): part is string =>
+                        typeof part === "string" && part.trim() !== "",
+                    )
+                    .join(" ") ||
+                  (typeof profile.preferred_username === "string" &&
+                  profile.preferred_username.trim() !== ""
+                    ? profile.preferred_username
+                    : email.split("@")[0]);
+
+            return { name };
+          },
+        },
       ],
     }),
   );
