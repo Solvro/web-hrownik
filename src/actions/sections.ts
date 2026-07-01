@@ -1,6 +1,8 @@
 "use server";
 
+import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { db } from "@/db";
 import { section } from "@/db/schema/sections";
@@ -30,4 +32,20 @@ export async function createSection(input: SectionFormValues) {
   });
 
   revalidatePath("/sections");
+}
+
+export async function deleteSection(sectionId: string) {
+  const currentMember = await getCurrentMember();
+  if (currentMember === null) {
+    throw new Error("Unauthorized");
+  }
+  const permissions = await getMemberPermissions(currentMember.id);
+  if (!canManageMembers(permissions)) {
+    throw new Error("Tylko zarząd może usuwać sekcje.");
+  }
+
+  await db.delete(section).where(eq(section.id, sectionId));
+
+  revalidatePath("/sections");
+  redirect("/sections");
 }

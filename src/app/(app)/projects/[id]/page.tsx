@@ -2,8 +2,10 @@ import { asc, desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { deleteProject } from "@/actions/projects";
 import { ActivityTimeline } from "@/components/activity-timeline";
 import { ContributionHeatmap } from "@/components/contribution-heatmap";
+import { DeleteButton } from "@/components/delete-button";
 import { NewTeamForm } from "@/components/projects/new-team-form";
 import { SyncActivityButton } from "@/components/projects/sync-activity-button";
 import { TeamPanel } from "@/components/projects/team-panel";
@@ -78,19 +80,29 @@ export default async function ProjectPage({
   ]);
 
   return (
-    <div className="max-w-3xl space-y-8">
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold">{projectRow.name}</h1>
-          <Badge
-            variant={projectRow.status === "active" ? "default" : "secondary"}
-          >
-            {projectRow.status}
-          </Badge>
+    <div className="max-w-5xl space-y-8">
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold">{projectRow.name}</h1>
+            <Badge
+              variant={projectRow.status === "active" ? "default" : "secondary"}
+            >
+              {projectRow.status}
+            </Badge>
+          </div>
+          <p className="text-muted-foreground text-sm">
+            {projectRow.visibility === "public" ? "publiczny" : "wewnętrzny"}
+          </p>
         </div>
-        <p className="text-muted-foreground text-sm">
-          {projectRow.visibility === "public" ? "publiczny" : "wewnętrzny"}
-        </p>
+        {permissions?.isBoard === true ? (
+          <DeleteButton
+            action={deleteProject.bind(null, id)}
+            confirmMessage={`Na pewno usunąć projekt "${projectRow.name}"? Tej operacji nie można cofnąć.`}
+          >
+            Usuń projekt
+          </DeleteButton>
+        ) : null}
       </div>
 
       <section className="space-y-2">

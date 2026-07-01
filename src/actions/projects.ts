@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
@@ -211,6 +211,34 @@ export async function syncProjectActivity(
   const results = await syncRepositories(repos);
   revalidatePath(`/projects/${projectId}`);
   return results;
+}
+
+export async function deleteProject(projectId: string) {
+  const currentMember = await getCurrentMember();
+  if (currentMember === null) {
+    throw new Error("Unauthorized");
+  }
+  const permissions = await getMemberPermissions(currentMember.id);
+  if (!permissions.isBoard) {
+    throw new Error("Tylko zarząd może usuwać projekty.");
+  }
+
+  const teams = await db.query.team.findMany({
+    where: eq(team.projectId, projectId),
+    with: {
+      members: { where: isNull(teamMember.leftAt), with: { member: true } },
+    },
+  });
+  for (const teamRow of teams) {
+    for (const membership of teamRow.members) {
+      await revokeTeamAccess(teamRow, membership.member);
+    }
+  }
+
+  await db.delete(project).where(eq(project.id, projectId));
+
+  revalidatePath("/projects");
+  redirect("/projects");
 }
 
 async function assertCanManageProject(projectId: string) {

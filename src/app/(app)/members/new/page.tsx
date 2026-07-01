@@ -2,6 +2,7 @@ import { asc } from "drizzle-orm";
 
 import { MemberForm } from "@/components/members/member-form";
 import { db } from "@/db";
+import { member } from "@/db/schema/members";
 import { roleDefinition } from "@/db/schema/roles";
 import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
@@ -12,6 +13,7 @@ import type { MemberFormInput } from "@/lib/schemas/members";
 
 const emptyValues: MemberFormInput = {
   fullName: "",
+  parentId: "",
   githubUsername: "",
   discordId: "",
   facebookUrl: "",
@@ -49,11 +51,13 @@ export default async function NewMemberPage({
     );
   }
 
-  const [sections, roleDefinitions, universityInfoOptions] = await Promise.all([
-    db.query.section.findMany({ orderBy: asc(section.name) }),
-    db.query.roleDefinition.findMany({ orderBy: asc(roleDefinition.name) }),
-    getUniversityInfoOptions(),
-  ]);
+  const [sections, roleDefinitions, members, universityInfoOptions] =
+    await Promise.all([
+      db.query.section.findMany({ orderBy: asc(section.name) }),
+      db.query.roleDefinition.findMany({ orderBy: asc(roleDefinition.name) }),
+      db.query.member.findMany({ orderBy: asc(member.fullName) }),
+      getUniversityInfoOptions(),
+    ]);
   const githubProfile =
     githubUsername === undefined || fullName !== undefined
       ? null
@@ -72,6 +76,7 @@ export default async function NewMemberPage({
         fullAccess
         sections={sections}
         roleDefinitions={roleDefinitions}
+        memberOptions={members}
         universityInfoOptions={universityInfoOptions}
         defaultValues={defaultValues}
       />

@@ -37,6 +37,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# raw member data used for one-off CSV imports (PII, never commit)
+/data/member-imports
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
