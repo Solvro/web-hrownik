@@ -52,9 +52,9 @@ export function ProjectActivityPanel({
     [projectId, router],
   );
 
-  // Auto-sync is intentionally triggered by the post-create redirect flag.
-  // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler
   useEffect(() => {
+    // Auto-sync is intentionally triggered by the post-create redirect flag.
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-event-handler
     if (!autoSync || autoSyncStarted.current) {
       return;
     }
