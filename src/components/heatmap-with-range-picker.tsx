@@ -18,7 +18,11 @@ export function HeatmapWithRangePicker({
 
   return (
     <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-      <ContributionHeatmap counts={counts} range={range} />
+      <ContributionHeatmap
+        counts={counts}
+        range={range}
+        availableYears={availableYears}
+      />
       <ActivityRangePicker
         selected={range}
         availableYears={availableYears}

@@ -118,7 +118,11 @@ export function ProjectActivityPanel({
               {counts.length > 0 ? (
                 <ActivityTrendChart counts={counts} range={selectedRange} />
               ) : null}
-              <ContributionHeatmap counts={counts} range={selectedRange} />
+              <ContributionHeatmap
+                counts={counts}
+                range={selectedRange}
+                availableYears={availableYears}
+              />
             </div>
             <ActivityRangePicker
               selected={selectedRange}

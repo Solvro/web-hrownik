@@ -1,6 +1,7 @@
 import type { ActivityRange } from "@/lib/activity-range";
 import {
   buildVisibleDateRange,
+  dateFromParts,
   startOfToday,
   toDateKey,
 } from "@/lib/activity-range";
@@ -33,6 +34,10 @@ const LEVEL_CLASS = [
   "bg-emerald-600",
   "bg-emerald-400",
 ] as const;
+
+// One year's worth of columns is kept on screen; switching the selected
+// range slides this track sideways instead of rebuilding the grid.
+const VISIBLE_WEEKS = 53;
 
 function levelForCount(count: number): 0 | 1 | 2 | 3 | 4 {
   if (count <= 0) {
@@ -85,25 +90,45 @@ function buildWeeks(
 export function ContributionHeatmap({
   counts,
   range,
+  availableYears,
 }: {
   counts: DailyActivityCount[];
   range: ActivityRange;
+  availableYears: number[];
 }) {
   const countsByDate = new Map(counts.map((c) => [c.date, c.count]));
   const today = startOfToday();
   const visibleRange = buildVisibleDateRange(range, today);
-  const weeks = buildWeeks(countsByDate, visibleRange.start, visibleRange.end);
+
+  const earliestYear = Math.min(...availableYears, today.getUTCFullYear());
+  const earliestYearStart = dateFromParts(earliestYear, 0, 1);
+  const rollingWindowStart = buildVisibleDateRange(
+    { type: "last-year" },
+    today,
+  ).start;
+  const trackStart = new Date(
+    Math.min(rollingWindowStart.getTime(), earliestYearStart.getTime()),
+  );
+
+  const weeks = buildWeeks(countsByDate, trackStart, today);
+  const totalWeeks = weeks.length;
+  const startIndex = Math.max(
+    weeks.findIndex(
+      (week) =>
+        week[0].date <= visibleRange.start &&
+        visibleRange.start <= week[6].date,
+    ),
+    0,
+  );
+  const trackWidthPercent = (totalWeeks / VISIBLE_WEEKS) * 100;
+  const translatePercent =
+    totalWeeks === 0 ? 0 : (startIndex / totalWeeks) * 100;
 
   const monthLabels: { startWeek: number; endWeek: number; label: string }[] =
     [];
   let lastMonth = -1;
   for (const [weekIndex, week] of weeks.entries()) {
-    const firstDay = week.find(
-      (day) =>
-        day.date >= visibleRange.start &&
-        day.date <= visibleRange.end &&
-        day.date.getUTCDate() <= 7,
-    );
+    const firstDay = week.find((day) => day.date.getUTCDate() <= 7);
     if (firstDay !== undefined && firstDay.date.getUTCMonth() !== lastMonth) {
       lastMonth = firstDay.date.getUTCMonth();
       const previousLabel = monthLabels.at(-1);
@@ -118,43 +143,49 @@ export function ContributionHeatmap({
     }
   }
 
-  const gridTemplateColumns = `repeat(${String(weeks.length)}, minmax(0, 1fr))`;
+  const gridTemplateColumns = `repeat(${String(totalWeeks)}, minmax(0, 1fr))`;
 
   return (
     <div className="min-w-0 space-y-1">
       <div className="min-w-0 overflow-hidden">
-        <div className="grid gap-1" style={{ gridTemplateColumns }}>
-          {monthLabels.map((monthLabel) => (
-            <span
-              key={monthLabel.startWeek}
-              className="text-muted-foreground truncate text-xs"
-              style={{
-                gridColumn: `${String(monthLabel.startWeek + 1)} / ${String(monthLabel.endWeek + 1)}`,
-              }}
-            >
-              {monthLabel.label}
-            </span>
-          ))}
-        </div>
-        <div className="grid gap-1" style={{ gridTemplateColumns }}>
-          {weeks.map((week) => (
-            <div key={week[0].date.toISOString()} className="grid gap-1">
-              {week.map((day) => (
-                <div
-                  key={day.date.toISOString()}
-                  title={`${day.date.toLocaleDateString("pl-PL", { timeZone: "UTC" })}: ${String(day.count)}`}
-                  className={cn(
-                    "aspect-square w-full rounded-sm",
-                    day.date < visibleRange.start ||
-                      day.date > visibleRange.end ||
-                      day.date > today
-                      ? "invisible"
-                      : LEVEL_CLASS[levelForCount(day.count)],
-                  )}
-                />
-              ))}
-            </div>
-          ))}
+        <div
+          className="transition-transform duration-500 ease-in-out"
+          style={{
+            width: `${String(trackWidthPercent)}%`,
+            transform: `translateX(-${String(translatePercent)}%)`,
+          }}
+        >
+          <div className="grid gap-1" style={{ gridTemplateColumns }}>
+            {monthLabels.map((monthLabel) => (
+              <span
+                key={monthLabel.startWeek}
+                className="text-muted-foreground truncate text-xs"
+                style={{
+                  gridColumn: `${String(monthLabel.startWeek + 1)} / ${String(monthLabel.endWeek + 1)}`,
+                }}
+              >
+                {monthLabel.label}
+              </span>
+            ))}
+          </div>
+          <div className="grid gap-1" style={{ gridTemplateColumns }}>
+            {weeks.map((week) => (
+              <div key={week[0].date.toISOString()} className="grid gap-1">
+                {week.map((day) => (
+                  <div
+                    key={day.date.toISOString()}
+                    title={`${day.date.toLocaleDateString("pl-PL", { timeZone: "UTC" })}: ${String(day.count)}`}
+                    className={cn(
+                      "aspect-square w-full rounded-sm",
+                      day.date < trackStart || day.date > today
+                        ? "invisible"
+                        : LEVEL_CLASS[levelForCount(day.count)],
+                    )}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
       <div className="text-muted-foreground flex items-center justify-end gap-1 text-xs">
