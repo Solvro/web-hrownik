@@ -95,6 +95,8 @@ export default async function AppLayout({
       <AppSidebar
         memberId={member.id}
         memberName={member.fullName}
+        memberPhotoUrl={member.photoUrl}
+        memberEmail={user.email}
         canManageRoles={canManageRoles}
       />
       <SidebarInset>
