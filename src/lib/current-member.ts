@@ -1,7 +1,8 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 
 import { db } from "@/db";
+import { account } from "@/db/auth-schema";
 import { member, memberEmail } from "@/db/schema/members";
 import { auth } from "@/lib/auth";
 
@@ -14,6 +15,33 @@ import { auth } from "@/lib/auth";
 export async function getSessionUser() {
   const session = await auth.api.getSession({ headers: await headers() });
   return session?.user ?? null;
+}
+
+export async function getSessionAuthIdentity() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (session === null) {
+    return null;
+  }
+
+  const linkedAccount = await db.query.account.findFirst({
+    where: eq(account.userId, session.user.id),
+  });
+  const providerId = linkedAccount?.providerId;
+  const isUsosUser =
+    session.user.usosId !== null && session.user.usosId !== undefined;
+
+  return {
+    email: session.user.email,
+    accountId: linkedAccount?.accountId ?? null,
+    providerName:
+      providerId === "keycloak"
+        ? "Solvro Auth"
+        : providerId === "usos" || isUsosUser
+          ? "USOS"
+          : "konto lokalne",
+    studentNumber: session.user.studentNumber ?? null,
+    usosId: session.user.usosId ?? null,
+  };
 }
 
 export async function getCurrentMember() {
@@ -37,25 +65,42 @@ async function linkMemberToUser(user: {
   email: string;
   studentNumber?: number | null;
 }) {
+  const normalizedEmail = user.email.toLowerCase();
   const byEmail = await db.query.memberEmail.findFirst({
-    where: eq(memberEmail.email, user.email),
+    where: and(
+      eq(memberEmail.kind, "login"),
+      sql`lower(${memberEmail.email}) = ${normalizedEmail}`,
+    ),
     with: { member: true },
   });
 
+  if (byEmail !== undefined) {
+    if (byEmail.member.userId === null) {
+      const [linked] = await db
+        .update(member)
+        .set({ userId: user.id })
+        .where(eq(member.id, byEmail.member.id))
+        .returning();
+
+      return linked;
+    }
+
+    return byEmail.member;
+  }
+
   const unlinkedCandidate =
-    byEmail?.member.userId === null
-      ? byEmail.member
-      : user.studentNumber === null || user.studentNumber === undefined
-        ? undefined
-        : await db.query.member.findFirst({
-            where: and(
-              eq(member.studentIndex, String(user.studentNumber)),
-              isNull(member.userId),
-            ),
-          });
+    user.studentNumber === null || user.studentNumber === undefined
+      ? undefined
+      : await db.query.member.findFirst({
+          where: eq(member.studentIndex, String(user.studentNumber)),
+        });
 
   if (unlinkedCandidate === undefined) {
     return null;
+  }
+
+  if (unlinkedCandidate.userId !== null) {
+    return unlinkedCandidate;
   }
 
   const [linked] = await db

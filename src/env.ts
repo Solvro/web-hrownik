@@ -7,6 +7,8 @@ export const env = createEnv({
   emptyStringAsUndefined: true,
   server: {
     DATABASE_URL: z.string().trim().min(1),
+    ADMIN_EMAIL: z.email(),
+    ADMIN_PASSWORD: z.string().trim().min(1),
 
     // Solvro Auth (self-hosted Keycloak) — OIDC login via better-auth generic-oauth.
     // Left optional: the plugin is only registered when all three are set.
@@ -39,6 +41,8 @@ export const env = createEnv({
   },
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
+    ADMIN_EMAIL: process.env.ADMIN_EMAIL,
+    ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
     OIDC_ISSUER_URL: process.env.OIDC_ISSUER_URL,
     OIDC_CLIENT_ID: process.env.OIDC_CLIENT_ID,
     OIDC_CLIENT_SECRET: process.env.OIDC_CLIENT_SECRET,
