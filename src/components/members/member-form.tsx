@@ -12,6 +12,7 @@ import { RolePickerFields } from "@/components/members/role-picker-fields";
 import { MultiSelect } from "@/components/multi-select";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Field,
   FieldDescription,
@@ -37,6 +38,11 @@ import {
 
 const emptySelectValue = "__empty";
 
+const studyDegreeOptions = [
+  { value: "1DEGREE", label: "I stopień" },
+  { value: "2DEGREE", label: "II stopień" },
+] as const;
+
 const memberStatusLabels: Record<(typeof memberStatusOptions)[number], string> =
   {
     new: "nowy",
@@ -60,8 +66,14 @@ export function MemberForm({
   sections: { id: string; name: string }[];
   roleDefinitions: RoleDefinitionOption[];
   universityInfoOptions: {
-    departments: { value: string; label: string }[];
-    fieldsOfStudy: { value: string; label: string; department: string }[];
+    departments: { id: string; value: string; label: string }[];
+    fieldsOfStudy: {
+      id: string;
+      value: string;
+      label: string;
+      department: string;
+      studiesType: string;
+    }[];
   };
   defaultValues: MemberFormInput;
 }) {
@@ -77,12 +89,31 @@ export function MemberForm({
     control: form.control,
     name: "roleAssignments",
   });
+  const [studyDegree, setStudyDegree] = useState<string>(() => {
+    const year = defaultValues.studyYear;
+    if (year !== undefined && year !== "") {
+      if (year.includes("inżynierski")) {
+        return "1DEGREE";
+      }
+      if (year.includes("magisterski")) {
+        return "2DEGREE";
+      }
+    }
+    return "";
+  });
   const selectedDepartment = form.watch("studyDepartment");
   const fieldOptions = universityInfoOptions.fieldsOfStudy.filter(
     (field) =>
-      selectedDepartment === undefined ||
-      selectedDepartment === "" ||
-      field.department === selectedDepartment,
+      (selectedDepartment === undefined ||
+        selectedDepartment === "" ||
+        field.department === selectedDepartment) &&
+      (studyDegree === "" || field.studiesType === studyDegree),
+  );
+  const yearOptions = studyYearOptions.filter(
+    (year) =>
+      studyDegree === "" ||
+      (studyDegree === "1DEGREE" && year.includes("inżynierski")) ||
+      (studyDegree === "2DEGREE" && year.includes("magisterski")),
   );
 
   async function onSubmit(values: MemberFormValues) {
@@ -315,7 +346,7 @@ export function MemberForm({
                 <SelectContent>
                   <SelectItem value={emptySelectValue}>Brak</SelectItem>
                   {universityInfoOptions.departments.map((department) => (
-                    <SelectItem key={department.value} value={department.value}>
+                    <SelectItem key={department.id} value={department.value}>
                       {department.label}
                     </SelectItem>
                   ))}
@@ -328,40 +359,75 @@ export function MemberForm({
           )}
         />
 
+        <Field>
+          <FieldLabel>Stopień studiów</FieldLabel>
+          <Select
+            value={studyDegree === "" ? emptySelectValue : studyDegree}
+            onValueChange={(value) => {
+              const nextValue = value === emptySelectValue ? "" : value;
+              setStudyDegree(nextValue);
+              form.setValue("studyField", "");
+              form.setValue("studyYear", "");
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Wybierz stopień" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={emptySelectValue}>Brak filtra</SelectItem>
+              {studyDegreeOptions.map((degree) => (
+                <SelectItem key={degree.value} value={degree.value}>
+                  {degree.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <FieldDescription>
+            Filtr list poniżej. Wybierany automatycznie po wybraniu kierunku lub
+            roku studiów.
+          </FieldDescription>
+        </Field>
+
         <Controller
           name="studyField"
           control={form.control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor={field.name}>Kierunek studiów</FieldLabel>
-              <Select
-                value={
-                  field.value === undefined || field.value === ""
-                    ? emptySelectValue
-                    : field.value
-                }
+              <Combobox
+                options={fieldOptions.map((f) => ({
+                  value: f.value,
+                  label: f.label,
+                }))}
+                value={field.value ?? ""}
                 onValueChange={(value) => {
-                  field.onChange(value === emptySelectValue ? "" : value);
+                  field.onChange(value);
+                  if (value !== "") {
+                    const selectedField = fieldOptions.find(
+                      (f) => f.value === value,
+                    );
+                    if (selectedField !== undefined) {
+                      if (
+                        selectedDepartment === undefined ||
+                        selectedDepartment === ""
+                      ) {
+                        form.setValue(
+                          "studyDepartment",
+                          selectedField.department,
+                        );
+                      }
+                      if (
+                        studyDegree === "" &&
+                        (selectedField.studiesType === "1DEGREE" ||
+                          selectedField.studiesType === "2DEGREE")
+                      ) {
+                        setStudyDegree(selectedField.studiesType);
+                      }
+                    }
+                  }
                 }}
-              >
-                <SelectTrigger
-                  id={field.name}
-                  aria-invalid={fieldState.invalid}
-                >
-                  <SelectValue placeholder="Wybierz kierunek" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={emptySelectValue}>Brak</SelectItem>
-                  {fieldOptions.map((studyField) => (
-                    <SelectItem
-                      key={`${studyField.department}:${studyField.value}`}
-                      value={studyField.value}
-                    >
-                      {studyField.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Wybierz kierunek"
+              />
               {fieldState.invalid ? (
                 <FieldError errors={[fieldState.error]} />
               ) : null}
@@ -393,7 +459,7 @@ export function MemberForm({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={emptySelectValue}>Brak</SelectItem>
-                  {studyYearOptions.map((year) => (
+                  {yearOptions.map((year) => (
                     <SelectItem key={year} value={year}>
                       {year}
                     </SelectItem>

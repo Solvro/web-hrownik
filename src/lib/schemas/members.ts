@@ -37,7 +37,7 @@ export const memberFormSchema = z.object({
   facebookUrl: z.url("Podaj poprawny adres URL").optional().or(z.literal("")),
   studentIndex: z.string().trim().max(32).optional().or(z.literal("")),
   studyDepartment: z.string().trim().max(160).optional().or(z.literal("")),
-  studyField: z.string().trim().max(120).optional().or(z.literal("")),
+  studyField: z.string().trim().max(160).optional().or(z.literal("")),
   studyYear: z.enum(studyYearOptions).optional().or(z.literal("")),
   bio: z.string().trim().max(2000).optional().or(z.literal("")),
   hrNotes: z.string().trim().max(5000).optional().or(z.literal("")),

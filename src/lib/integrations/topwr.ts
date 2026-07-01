@@ -21,8 +21,14 @@ interface TopwrDepartmentsResponse {
 }
 
 export interface UniversityInfoOptions {
-  departments: { value: string; label: string }[];
-  fieldsOfStudy: { value: string; label: string; department: string }[];
+  departments: { id: string; value: string; label: string }[];
+  fieldsOfStudy: {
+    id: string;
+    value: string;
+    label: string;
+    department: string;
+    studiesType: string;
+  }[];
 }
 
 export async function getUniversityInfoOptions(): Promise<UniversityInfoOptions> {
@@ -42,21 +48,30 @@ export async function getUniversityInfoOptions(): Promise<UniversityInfoOptions>
 
   const payload = (await response.json()) as TopwrDepartmentsResponse;
   const departments = payload.data.map((department) => ({
+    id: String(department.id),
     value: department.name,
     label: `${department.code} · ${department.name}`,
   }));
   const fieldsOfStudy = payload.data.flatMap((department) =>
     (department.fieldsOfStudy ?? []).map((field) => ({
-      value: formatFieldOfStudy(field),
+      id: String(field.id),
+      value: formatFieldOfStudy(field, department),
       label: formatFieldOfStudy(field),
       department: department.name,
+      studiesType: field.studiesType,
     })),
   );
 
   return { departments, fieldsOfStudy };
 }
 
-function formatFieldOfStudy(field: TopwrFieldOfStudy): string {
+function formatFieldOfStudy(
+  field: TopwrFieldOfStudy,
+  department?: TopwrDepartment,
+): string {
+  if (department !== undefined) {
+    return `${field.name} (${formatStudiesType(field.studiesType)}, ${department.code})`;
+  }
   return `${field.name} (${formatStudiesType(field.studiesType)})`;
 }
 
