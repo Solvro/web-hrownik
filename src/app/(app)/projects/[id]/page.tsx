@@ -77,7 +77,7 @@ export default async function ProjectPage({
   const [weeklyRanking, monthlyRanking, dailyActivity] = await Promise.all([
     getContributorRanking(id, new Date(now - 7 * DAY_MS)),
     getContributorRanking(id, new Date(now - 30 * DAY_MS)),
-    getProjectDailyActivity(id, new Date(now - 371 * DAY_MS)),
+    getProjectDailyActivity(id),
   ]);
 
   return (
@@ -173,7 +173,7 @@ export default async function ProjectPage({
         </div>
         <div className="space-y-2">
           <h3 className="text-muted-foreground text-sm font-medium">
-            Aktywność &middot; ostatnie 12 miesięcy
+            Aktywność &middot; cała historia
           </h3>
           <ContributionHeatmap counts={dailyActivity} />
         </div>

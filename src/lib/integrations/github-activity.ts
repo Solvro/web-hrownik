@@ -7,8 +7,6 @@ import { member } from "@/db/schema/members";
 
 import { getGithubOctokit } from "./github";
 
-const DEFAULT_LOOKBACK_DAYS = 90;
-
 export function isBotLogin(login: string): boolean {
   return login.toLowerCase().endsWith("[bot]");
 }
@@ -91,7 +89,7 @@ export async function reattributeActivityForMember(
   return updated.length;
 }
 
-async function getSinceDate(repoId: string): Promise<Date> {
+async function getSinceDate(repoId: string): Promise<Date | undefined> {
   const lastEvent = await db.query.githubActivityEvent.findFirst({
     where: eq(githubActivityEvent.projectRepositoryId, repoId),
     orderBy: desc(githubActivityEvent.occurredAt),
@@ -99,24 +97,25 @@ async function getSinceDate(repoId: string): Promise<Date> {
   if (lastEvent !== undefined) {
     return lastEvent.occurredAt;
   }
-  return new Date(Date.now() - DEFAULT_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+  return undefined;
 }
 
 export async function syncProjectRepositoryActivity(
   repo: RepoRef,
   octokit: Octokit,
   memberIdByLogin: Map<string, string>,
+  fullHistory = true,
 ): Promise<number> {
   const [owner, repoName] = repo.githubRepoFullName.split("/");
 
-  const since = await getSinceDate(repo.id);
+  const since = fullHistory ? undefined : await getSinceDate(repo.id);
   const events: NewActivityEvent[] = [];
 
   const commits = await octokit.paginate(octokit.rest.repos.listCommits, {
     owner,
     repo: repoName,
-    since: since.toISOString(),
     per_page: 100,
+    ...(since === undefined ? {} : { since: since.toISOString() }),
   });
   for (const commit of commits) {
     const login = commit.author?.login ?? commit.commit.author?.name ?? null;
@@ -144,8 +143,8 @@ export async function syncProjectRepositoryActivity(
     owner,
     repo: repoName,
     state: "all",
-    since: since.toISOString(),
     per_page: 100,
+    ...(since === undefined ? {} : { since: since.toISOString() }),
   });
   for (const item of issuesAndPrs) {
     const login = item.user?.login ?? null;
@@ -166,10 +165,15 @@ export async function syncProjectRepositoryActivity(
   }
 
   if (events.length > 0) {
-    await db.insert(githubActivityEvent).values(events).onConflictDoNothing();
+    const inserted = await db
+      .insert(githubActivityEvent)
+      .values(events)
+      .onConflictDoNothing()
+      .returning({ id: githubActivityEvent.id });
+    return inserted.length;
   }
 
-  return events.length;
+  return 0;
 }
 
 export interface SyncResult {
@@ -186,6 +190,7 @@ export interface SyncResult {
  */
 export async function syncRepositories(
   repos: RepoRef[],
+  options: { fullHistory?: boolean } = {},
 ): Promise<SyncResult[]> {
   if (repos.length === 0) {
     return [];
@@ -210,6 +215,7 @@ export async function syncRepositories(
   }
 
   const memberIdByLogin = await getMemberIdByGithubLogin();
+  const fullHistory = options.fullHistory ?? true;
 
   const results: SyncResult[] = [];
   for (const repo of repos) {
@@ -218,6 +224,7 @@ export async function syncRepositories(
         repo,
         octokit,
         memberIdByLogin,
+        fullHistory,
       );
       results.push({ repo: repo.githubRepoFullName, eventsFetched });
     } catch (error) {
@@ -241,7 +248,7 @@ export interface DailyActivityCount {
 
 export async function getProjectDailyActivity(
   projectId: string,
-  since: Date,
+  since?: Date,
 ): Promise<DailyActivityCount[]> {
   return db
     .select({
@@ -250,10 +257,12 @@ export async function getProjectDailyActivity(
     })
     .from(githubActivityEvent)
     .where(
-      and(
-        eq(githubActivityEvent.projectId, projectId),
-        gte(githubActivityEvent.occurredAt, since),
-      ),
+      since === undefined
+        ? eq(githubActivityEvent.projectId, projectId)
+        : and(
+            eq(githubActivityEvent.projectId, projectId),
+            gte(githubActivityEvent.occurredAt, since),
+          ),
     )
     .groupBy(sql`to_char(${githubActivityEvent.occurredAt}, 'YYYY-MM-DD')`);
 }
