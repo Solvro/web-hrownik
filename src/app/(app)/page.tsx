@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { appNavItems } from "@/components/app-nav-items";
 import { Button } from "@/components/ui/button";
 import { getCurrentMember } from "@/lib/current-member";
 
@@ -17,15 +18,18 @@ export default async function DashboardPage() {
         </p>
       </div>
       <div className="flex gap-3">
-        <Button asChild>
-          <Link href="/members">Członkowie</Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/sections">Sekcje</Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/projects">Projekty</Link>
-        </Button>
+        {appNavItems.map((item, index) => (
+          <Button
+            key={item.href}
+            asChild
+            variant={index === 0 ? "default" : "outline"}
+          >
+            <Link href={item.href}>
+              <item.icon data-icon="inline-start" />
+              {item.label}
+            </Link>
+          </Button>
+        ))}
       </div>
     </div>
   );
