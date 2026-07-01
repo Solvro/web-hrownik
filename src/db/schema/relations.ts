@@ -18,6 +18,12 @@ export const userRelations = relations(user, ({ one }) => ({
 
 export const memberRelations = relations(member, ({ many, one }) => ({
   user: one(user, { fields: [member.userId], references: [user.id] }),
+  parent: one(member, {
+    fields: [member.parentId],
+    references: [member.id],
+    relationName: "memberParent",
+  }),
+  children: many(member, { relationName: "memberParent" }),
   emails: many(memberEmail),
   sections: many(memberSection),
   roleAssignments: many(roleAssignment),

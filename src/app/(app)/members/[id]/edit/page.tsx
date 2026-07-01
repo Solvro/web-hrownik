@@ -50,15 +50,16 @@ export default async function EditMemberPage({
     );
   }
 
-  const [sections, roleDefinitions, universityInfoOptions] = fullAccess
+  const [sections, roleDefinitions, members, universityInfoOptions] = fullAccess
     ? await Promise.all([
         db.query.section.findMany({ orderBy: asc(section.name) }),
         db.query.roleDefinition.findMany({
           orderBy: asc(roleDefinition.name),
         }),
+        db.query.member.findMany({ orderBy: asc(member.fullName) }),
         getUniversityInfoOptions(),
       ])
-    : [[], [], await getUniversityInfoOptions()];
+    : [[], [], [], await getUniversityInfoOptions()];
 
   return (
     <div className="space-y-6">
@@ -69,9 +70,11 @@ export default async function EditMemberPage({
         fullAccess={fullAccess}
         sections={sections}
         roleDefinitions={roleDefinitions}
+        memberOptions={members}
         universityInfoOptions={universityInfoOptions}
         defaultValues={{
           fullName: profile.fullName,
+          parentId: profile.parentId ?? "",
           githubUsername: profile.githubUsername ?? "",
           discordId: profile.discordId ?? "",
           facebookUrl: profile.facebookUrl ?? "",

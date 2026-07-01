@@ -1,22 +1,34 @@
 "use server";
 
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { db } from "@/db";
 import { member, memberEmail } from "@/db/schema/members";
+import { teamMember } from "@/db/schema/projects";
 import { roleAssignment, roleDefinition } from "@/db/schema/roles";
-import { memberSection } from "@/db/schema/sections";
+import { memberSection, section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
 import { reattributeActivityForMember } from "@/lib/integrations/github-activity";
+import type { MemberImportSheetType } from "@/lib/member-import";
+import { emailPattern, parseMemberImportFile } from "@/lib/member-import";
 import { runOnboardingAutomations } from "@/lib/onboarding";
 import {
   canEditOwnProfile,
   canManageMembers,
   getMemberPermissions,
 } from "@/lib/permissions";
-import { memberFormSchema } from "@/lib/schemas/members";
-import type { MemberFormValues } from "@/lib/schemas/members";
+import {
+  memberFormSchema,
+  memberImportCommitSchema,
+} from "@/lib/schemas/members";
+import type {
+  MemberFormValues,
+  MemberImportCommitInput,
+  MemberStatus,
+} from "@/lib/schemas/members";
+import { revokeTeamAccess } from "@/lib/team-sync";
 
 export async function createMember(input: MemberFormValues) {
   const currentMember = await getCurrentMember();
@@ -34,6 +46,7 @@ export async function createMember(input: MemberFormValues) {
     .insert(member)
     .values({
       fullName: values.fullName,
+      parentId: emptyToNull(values.parentId),
       githubUsername: emptyToNull(values.githubUsername),
       discordId: emptyToNull(values.discordId),
       facebookUrl: emptyToNull(values.facebookUrl),
@@ -141,6 +154,10 @@ export async function updateMember(
 
   const values = memberFormSchema.partial().parse(input);
 
+  if (values.parentId !== undefined && values.parentId === memberId) {
+    throw new Error("Członek nie może być swoim własnym rodzicem.");
+  }
+
   // fullName, status, bio, HR notes, emails, sectionIds and roles are board-only;
   // everything else (socials + study data) is self-editable per FEATURES.md.
   await db
@@ -149,6 +166,10 @@ export async function updateMember(
       ...(isFullAccess &&
         values.fullName !== undefined && {
           fullName: values.fullName,
+        }),
+      ...(isFullAccess &&
+        values.parentId !== undefined && {
+          parentId: emptyToNull(values.parentId),
         }),
       ...(values.githubUsername !== undefined && {
         githubUsername: emptyToNull(values.githubUsername),
@@ -259,6 +280,414 @@ export async function updateMember(
   }
 
   redirect(`/members/${memberId}`);
+}
+
+export async function deleteMember(memberId: string): Promise<void> {
+  const currentMember = await getCurrentMember();
+  if (currentMember === null) {
+    throw new Error("Unauthorized");
+  }
+  const permissions = await getMemberPermissions(currentMember.id);
+  if (!canManageMembers(permissions)) {
+    throw new Error("Tylko zarząd może usuwać członków.");
+  }
+
+  const memberRow = await db.query.member.findFirst({
+    where: eq(member.id, memberId),
+  });
+  if (memberRow === undefined) {
+    throw new Error("Nie znaleziono członka.");
+  }
+
+  const activeMemberships = await db.query.teamMember.findMany({
+    where: and(eq(teamMember.memberId, memberId), isNull(teamMember.leftAt)),
+    with: { team: true },
+  });
+  for (const membership of activeMemberships) {
+    await revokeTeamAccess(membership.team, memberRow);
+  }
+
+  await db.delete(member).where(eq(member.id, memberId));
+  revalidatePath("/members");
+  redirect("/members");
+}
+
+export interface MemberImportPreviewRow {
+  key: string;
+  rowNumber: number;
+  include: boolean;
+  fullName: string;
+  status: MemberStatus;
+  email: string;
+  emailKind: "login" | "notification";
+  githubUsername: string;
+  discordId: string;
+  facebookUrl: string;
+  studentIndex: string;
+  studyDepartment: string;
+  studyField: string;
+  studyYear: string;
+  joinedAt: string;
+  sectionNames: string[];
+  parentId: string;
+  parentNameRaw: string;
+  noteLines: string[];
+  duplicateReason: string | null;
+}
+
+export interface MemberImportPreviewResult {
+  rows: MemberImportPreviewRow[];
+  blankRowsSkipped: number;
+  missingColumns: string[];
+  existingMembers: { id: string; fullName: string }[];
+  existingSections: { id: string; name: string }[];
+}
+
+export interface MemberImportRowResult {
+  rowNumber: number;
+  fullName: string;
+  outcome: "created" | "skipped_duplicate" | "error";
+  detail?: string;
+}
+
+export interface MemberImportSummary {
+  created: number;
+  skipped: number;
+  errors: number;
+  rows: MemberImportRowResult[];
+}
+
+async function assertCanManageMembers(action: string): Promise<void> {
+  const currentMember = await getCurrentMember();
+  if (currentMember === null) {
+    throw new Error("Unauthorized");
+  }
+  const permissions = await getMemberPermissions(currentMember.id);
+  if (!canManageMembers(permissions)) {
+    throw new Error(`Tylko zarząd może ${action}.`);
+  }
+}
+
+interface MemberLookupSource {
+  id: string;
+  fullName: string;
+  studentIndex: string | null;
+  emails: { email: string }[];
+}
+
+function buildNameIndex(members: MemberLookupSource[]): Map<string, string[]> {
+  const index = new Map<string, string[]>();
+  for (const existing of members) {
+    addToNameIndex(index, existing.fullName, existing.id);
+  }
+  return index;
+}
+
+function addToNameIndex(
+  index: Map<string, string[]>,
+  fullName: string,
+  id: string,
+): void {
+  const key = normalizeName(fullName);
+  index.set(key, [...(index.get(key) ?? []), id]);
+}
+
+function buildIndexIndex(members: MemberLookupSource[]): Map<string, string> {
+  const index = new Map<string, string>();
+  for (const existing of members) {
+    if (existing.studentIndex !== null) {
+      index.set(existing.studentIndex.trim().toLowerCase(), existing.id);
+    }
+  }
+  return index;
+}
+
+function buildEmailIndex(members: MemberLookupSource[]): Map<string, string> {
+  const index = new Map<string, string>();
+  for (const existing of members) {
+    for (const email of existing.emails) {
+      index.set(email.email.toLowerCase(), existing.id);
+    }
+  }
+  return index;
+}
+
+function normalizeName(name: string): string {
+  return name.trim().toLowerCase().replaceAll(/\s+/g, " ");
+}
+
+/**
+ * Parses the uploaded sheet and returns an editable preview: one row per
+ * person, with a best-effort duplicate check and parent suggestion, but
+ * nothing written to the database yet. The board reviews/edits the rows
+ * (parent, sections, contact info, whether to include a row at all) before
+ * calling commitMemberImport.
+ */
+export async function previewMemberImport(
+  sheetType: MemberImportSheetType,
+  fileContents: string,
+): Promise<MemberImportPreviewResult> {
+  await assertCanManageMembers("importować członków");
+
+  const { rows, missingColumns, blankRowsSkipped } = parseMemberImportFile(
+    sheetType,
+    fileContents,
+  );
+
+  const existingMembers = await db.query.member.findMany({
+    with: { emails: true },
+  });
+  const existingSections = await db.query.section.findMany();
+
+  const nameToIds = buildNameIndex(existingMembers);
+  const indexToId = buildIndexIndex(existingMembers);
+  const emailToId = buildEmailIndex(existingMembers);
+
+  const previewRows: MemberImportPreviewRow[] = rows.map((row) => {
+    const duplicateId =
+      (row.studentIndex === null
+        ? undefined
+        : indexToId.get(row.studentIndex.trim().toLowerCase())) ??
+      (row.email === null ? undefined : emailToId.get(row.email));
+
+    const parentCandidates =
+      row.parentName === null
+        ? []
+        : (nameToIds.get(normalizeName(row.parentName)) ?? []);
+
+    return {
+      key: String(row.rowNumber),
+      rowNumber: row.rowNumber,
+      include: duplicateId === undefined,
+      fullName: row.fullName,
+      status: row.status,
+      email: row.email ?? "",
+      emailKind: row.emailKind,
+      githubUsername: row.githubUsername ?? "",
+      discordId: row.discordId ?? "",
+      facebookUrl: row.facebookUrl ?? "",
+      studentIndex: row.studentIndex ?? "",
+      studyDepartment: row.studyDepartment ?? "",
+      studyField: row.studyField ?? "",
+      studyYear: row.studyYear ?? "",
+      joinedAt:
+        row.joinedAt === null ? "" : row.joinedAt.toISOString().slice(0, 10),
+      sectionNames: row.sectionNames,
+      parentId: parentCandidates.length === 1 ? parentCandidates[0] : "",
+      parentNameRaw: row.parentName ?? "",
+      noteLines: row.noteLines,
+      duplicateReason:
+        duplicateId === undefined
+          ? null
+          : "Członek z tym indeksem lub adresem e-mail już istnieje.",
+    };
+  });
+
+  return {
+    rows: previewRows,
+    blankRowsSkipped,
+    missingColumns,
+    existingMembers: existingMembers
+      .map((existing) => ({ id: existing.id, fullName: existing.fullName }))
+      .toSorted((a, b) => a.fullName.localeCompare(b.fullName)),
+    existingSections: existingSections
+      .map((existingSection) => ({
+        id: existingSection.id,
+        name: existingSection.name,
+      }))
+      .toSorted((a, b) => a.name.localeCompare(b.name)),
+  };
+}
+
+/**
+ * Creates the reviewed/edited rows from the import preview. Never sends
+ * onboarding invites (GitHub org / Discord) — those only make sense for
+ * genuinely new members going through onboarding, not a historical data
+ * migration.
+ */
+export async function commitMemberImport(
+  rowsInput: MemberImportCommitInput,
+): Promise<MemberImportSummary> {
+  await assertCanManageMembers("importować członków");
+
+  const rows = memberImportCommitSchema
+    .parse(rowsInput)
+    .filter((row) => row.include);
+
+  const existingMembers = await db.query.member.findMany({
+    with: { emails: true },
+  });
+  const existingSections = await db.query.section.findMany();
+
+  const nameToIds = buildNameIndex(existingMembers);
+  const indexToId = buildIndexIndex(existingMembers);
+  const emailToId = buildEmailIndex(existingMembers);
+  const sectionNameToId = new Map<string, string>();
+  for (const existingSection of existingSections) {
+    sectionNameToId.set(
+      existingSection.name.trim().toLowerCase(),
+      existingSection.id,
+    );
+  }
+
+  async function resolveSectionId(name: string): Promise<string> {
+    const key = name.trim().toLowerCase();
+    const existingId = sectionNameToId.get(key);
+    if (existingId !== undefined) {
+      return existingId;
+    }
+    const [created] = await db
+      .insert(section)
+      .values({ name: name.trim() })
+      .returning();
+    sectionNameToId.set(key, created.id);
+    return created.id;
+  }
+
+  const results: MemberImportRowResult[] = [];
+  const createdRows: {
+    id: string;
+    parentId: string | null;
+    parentNameRaw: string | null;
+    hrNotes: string | null;
+  }[] = [];
+
+  for (const row of rows) {
+    const email = row.email === "" ? null : row.email.toLowerCase();
+    if (email !== null && !emailPattern.test(email)) {
+      results.push({
+        rowNumber: row.rowNumber,
+        fullName: row.fullName,
+        outcome: "error",
+        detail: `Nieprawidłowy adres e-mail: ${email}`,
+      });
+      continue;
+    }
+    const studentIndex = row.studentIndex === "" ? null : row.studentIndex;
+
+    const duplicateId =
+      (studentIndex === null
+        ? undefined
+        : indexToId.get(studentIndex.toLowerCase())) ??
+      (email === null ? undefined : emailToId.get(email));
+    if (duplicateId !== undefined) {
+      results.push({
+        rowNumber: row.rowNumber,
+        fullName: row.fullName,
+        outcome: "skipped_duplicate",
+        detail: "Członek z tym indeksem lub adresem e-mail już istnieje.",
+      });
+      continue;
+    }
+
+    try {
+      const sectionIds = await Promise.all(
+        row.sectionNames.map(async (name) => resolveSectionId(name)),
+      );
+      const hrNotes =
+        row.noteLines.length > 0 ? row.noteLines.join("\n") : null;
+      const explicitParentId = row.parentId === "" ? null : row.parentId;
+
+      const [created] = await db
+        .insert(member)
+        .values({
+          fullName: row.fullName,
+          parentId: explicitParentId,
+          githubUsername: emptyToNull(row.githubUsername),
+          discordId: emptyToNull(row.discordId),
+          facebookUrl: emptyToNull(row.facebookUrl),
+          studentIndex,
+          studyDepartment: emptyToNull(row.studyDepartment),
+          studyField: emptyToNull(row.studyField),
+          studyYear: emptyToNull(row.studyYear),
+          status: row.status,
+          hrNotes,
+          ...(row.joinedAt !== "" && {
+            createdAt: new Date(`${row.joinedAt}T00:00:00`),
+          }),
+        })
+        .returning();
+
+      if (email !== null) {
+        await db
+          .insert(memberEmail)
+          .values({ memberId: created.id, email, kind: row.emailKind })
+          .onConflictDoNothing({ target: memberEmail.email });
+        emailToId.set(email, created.id);
+      }
+      if (sectionIds.length > 0) {
+        await db.insert(memberSection).values(
+          sectionIds.map((sectionId) => ({
+            memberId: created.id,
+            sectionId,
+          })),
+        );
+      }
+      if (studentIndex !== null) {
+        indexToId.set(studentIndex.toLowerCase(), created.id);
+      }
+      if (created.githubUsername !== null) {
+        await reattributeActivityForMember(created.id, created.githubUsername);
+      }
+      addToNameIndex(nameToIds, row.fullName, created.id);
+      createdRows.push({
+        id: created.id,
+        parentId: explicitParentId,
+        parentNameRaw: row.parentNameRaw === "" ? null : row.parentNameRaw,
+        hrNotes,
+      });
+      results.push({
+        rowNumber: row.rowNumber,
+        fullName: row.fullName,
+        outcome: "created",
+      });
+    } catch (error) {
+      results.push({
+        rowNumber: row.rowNumber,
+        fullName: row.fullName,
+        outcome: "error",
+        detail: error instanceof Error ? error.message : "Nieznany błąd.",
+      });
+    }
+  }
+
+  // Rows where the board left the parent field unset fall back to
+  // best-effort name matching across everyone just created plus the
+  // existing database, the same way the parser's suggestion was built.
+  for (const created of createdRows) {
+    if (created.parentId !== null || created.parentNameRaw === null) {
+      continue;
+    }
+    const candidates = (
+      nameToIds.get(normalizeName(created.parentNameRaw)) ?? []
+    ).filter((id) => id !== created.id);
+    if (candidates.length === 1) {
+      await db
+        .update(member)
+        .set({ parentId: candidates[0] })
+        .where(eq(member.id, created.id));
+    } else {
+      const note =
+        candidates.length === 0
+          ? `Rodzic (nie znaleziono w bazie): ${created.parentNameRaw}`
+          : `Rodzic (niejednoznaczny — kilku członków o tym imieniu i nazwisku): ${created.parentNameRaw}`;
+      await db
+        .update(member)
+        .set({
+          hrNotes: [created.hrNotes, note].filter(Boolean).join("\n"),
+        })
+        .where(eq(member.id, created.id));
+    }
+  }
+
+  revalidatePath("/members");
+
+  return {
+    created: results.filter((r) => r.outcome === "created").length,
+    skipped: results.filter((r) => r.outcome === "skipped_duplicate").length,
+    errors: results.filter((r) => r.outcome === "error").length,
+    rows: results,
+  };
 }
 
 function emptyToNull(value: string | undefined): string | null {

@@ -57,6 +57,7 @@ export function MemberForm({
   fullAccess,
   sections,
   roleDefinitions,
+  memberOptions,
   universityInfoOptions,
   defaultValues,
 }: {
@@ -65,6 +66,7 @@ export function MemberForm({
   fullAccess: boolean;
   sections: { id: string; name: string }[];
   roleDefinitions: RoleDefinitionOption[];
+  memberOptions: { id: string; fullName: string }[];
   universityInfoOptions: {
     departments: { id: string; value: string; label: string }[];
     fieldsOfStudy: {
@@ -190,6 +192,33 @@ export function MemberForm({
                       ))}
                     </SelectContent>
                   </Select>
+                  {fieldState.invalid ? (
+                    <FieldError errors={[fieldState.error]} />
+                  ) : null}
+                </Field>
+              )}
+            />
+
+            <Controller
+              name="parentId"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Rodzic</FieldLabel>
+                  <Combobox
+                    options={memberOptions
+                      .filter((option) => option.id !== memberId)
+                      .map((option) => ({
+                        value: option.id,
+                        label: option.fullName,
+                      }))}
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                    placeholder="Wybierz rodzica"
+                  />
+                  <FieldDescription>
+                    Osoba, która wprowadziła tego członka do koła.
+                  </FieldDescription>
                   {fieldState.invalid ? (
                     <FieldError errors={[fieldState.error]} />
                   ) : null}

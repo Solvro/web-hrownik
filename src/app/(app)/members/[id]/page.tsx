@@ -2,8 +2,10 @@ import { asc, desc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { deleteMember } from "@/actions/members";
 import { ActivityTimeline } from "@/components/activity-timeline";
 import { ContributionHeatmap } from "@/components/contribution-heatmap";
+import { DeleteButton } from "@/components/delete-button";
 import { RoleManager } from "@/components/members/role-manager";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,6 +51,7 @@ export default async function MemberProfilePage({
       emails: true,
       sections: { with: { section: true } },
       teamMemberships: { with: { team: { with: { project: true } } } },
+      parent: true,
     },
   });
   if (profile === undefined) {
@@ -127,11 +130,21 @@ export default async function MemberProfilePage({
             <p className="text-muted-foreground">{profile.bio}</p>
           )}
         </div>
-        {canEdit ? (
-          <Button asChild variant="outline">
-            <Link href={`/members/${id}/edit`}>Edytuj</Link>
-          </Button>
-        ) : null}
+        <div className="flex gap-2">
+          {canEdit ? (
+            <Button asChild variant="outline">
+              <Link href={`/members/${id}/edit`}>Edytuj</Link>
+            </Button>
+          ) : null}
+          {canManageRoles ? (
+            <DeleteButton
+              action={deleteMember.bind(null, id)}
+              confirmMessage={`Na pewno usunąć ${profile.fullName}? Tej operacji nie można cofnąć.`}
+            >
+              Usuń członka
+            </DeleteButton>
+          ) : null}
+        </div>
       </div>
 
       <section className="space-y-2">
@@ -146,6 +159,19 @@ export default async function MemberProfilePage({
           <Row label="Kierunek" value={profile.studyField} />
           <Row label="Rok" value={profile.studyYear} />
         </dl>
+        {profile.parent === null ? null : (
+          <div className="flex justify-between border-b py-1.5 text-sm last:border-0">
+            <dt className="text-muted-foreground">Rodzic</dt>
+            <dd>
+              <Link
+                href={`/members/${profile.parent.id}`}
+                className="hover:underline"
+              >
+                {profile.parent.fullName}
+              </Link>
+            </dd>
+          </div>
+        )}
       </section>
 
       {canViewHrNotes ? (

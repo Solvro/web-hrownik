@@ -1,3 +1,4 @@
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
 
 import { user } from "@/db/auth-schema";
@@ -10,6 +11,9 @@ export const member = pgTable("member", {
   userId: text("user_id")
     .unique()
     .references(() => user.id, { onDelete: "set null" }),
+  parentId: text("parent_id").references((): AnyPgColumn => member.id, {
+    onDelete: "set null",
+  }),
   fullName: text("full_name").notNull(),
   githubUsername: text("github_username"),
   discordId: text("discord_id"),
