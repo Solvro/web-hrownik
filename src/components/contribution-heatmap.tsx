@@ -1,3 +1,8 @@
+"use client";
+
+import { useState } from "react";
+
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export interface DailyActivityCount {
@@ -53,31 +58,46 @@ interface Day {
   count: number;
 }
 
-function buildWeeks(countsByDate: Map<string, number>): Day[][] {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+function dateFromParts(year: number, month: number, day: number): Date {
+  return new Date(Date.UTC(year, month, day));
+}
 
-  const firstActivityDate = [...countsByDate.keys()].toSorted().at(0);
-  const start =
-    firstActivityDate === undefined
-      ? new Date(today)
-      : new Date(firstActivityDate);
-  if (firstActivityDate === undefined) {
-    start.setDate(start.getDate() - 370);
+function yearFromDateKey(dateKey: string): number {
+  return Number(dateKey.slice(0, 4));
+}
+
+function buildAvailableYears(counts: DailyActivityCount[]): number[] {
+  const currentYear = new Date().getFullYear();
+  const years = new Set<number>([currentYear]);
+
+  for (const count of counts) {
+    const year = yearFromDateKey(count.date);
+    if (Number.isFinite(year)) {
+      years.add(year);
+    }
   }
-  start.setDate(start.getDate() - start.getDay());
+
+  return [...years].toSorted((a, b) => b - a);
+}
+
+function buildWeeks(countsByDate: Map<string, number>, year: number): Day[][] {
+  const firstDayOfYear = dateFromParts(year, 0, 1);
+  const lastDayOfYear = dateFromParts(year, 11, 31);
+  const start = new Date(firstDayOfYear);
+  start.setUTCDate(start.getUTCDate() - start.getUTCDay());
+  const end = new Date(lastDayOfYear);
+  end.setUTCDate(end.getUTCDate() + (6 - end.getUTCDay()));
 
   const weekCount =
-    Math.floor(
-      (today.getTime() - start.getTime()) / (7 * 24 * 60 * 60 * 1000),
-    ) + 1;
+    Math.floor((end.getTime() - start.getTime()) / (7 * 24 * 60 * 60 * 1000)) +
+    1;
 
   const weeks: Day[][] = [];
   for (let weekIndex = 0; weekIndex < weekCount; weekIndex++) {
     const week: Day[] = [];
     for (let day = 0; day < 7; day++) {
       const date = new Date(start);
-      date.setDate(start.getDate() + weekIndex * 7 + day);
+      date.setUTCDate(start.getUTCDate() + weekIndex * 7 + day);
       week.push({ date, count: countsByDate.get(toDateKey(date)) ?? 0 });
     }
     weeks.push(week);
@@ -91,17 +111,26 @@ export function ContributionHeatmap({
   counts: DailyActivityCount[];
 }) {
   const countsByDate = new Map(counts.map((c) => [c.date, c.count]));
-  const weeks = buildWeeks(countsByDate);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const availableYears = buildAvailableYears(counts);
+  const [selectedYear, setSelectedYear] = useState(availableYears[0]);
+  const weeks = buildWeeks(countsByDate, selectedYear);
+  const now = new Date();
+  const today = dateFromParts(now.getFullYear(), now.getMonth(), now.getDate());
+  const firstDayOfYear = dateFromParts(selectedYear, 0, 1);
+  const lastDayOfYear = dateFromParts(selectedYear, 11, 31);
 
   const monthLabels: { startWeek: number; endWeek: number; label: string }[] =
     [];
   let lastMonth = -1;
   for (const [weekIndex, week] of weeks.entries()) {
-    const firstDay = week[0];
-    if (firstDay.date.getMonth() !== lastMonth) {
-      lastMonth = firstDay.date.getMonth();
+    const firstDay = week.find(
+      (day) =>
+        day.date >= firstDayOfYear &&
+        day.date <= lastDayOfYear &&
+        day.date.getUTCDate() <= 7,
+    );
+    if (firstDay !== undefined && firstDay.date.getUTCMonth() !== lastMonth) {
+      lastMonth = firstDay.date.getUTCMonth();
       const previousLabel = monthLabels.at(-1);
       if (previousLabel !== undefined) {
         previousLabel.endWeek = weekIndex;
@@ -115,41 +144,44 @@ export function ContributionHeatmap({
   }
 
   const gridTemplateColumns = `repeat(${String(weeks.length)}, minmax(0, 1fr))`;
-  const minWidth = `${String(weeks.length * 14)}px`;
 
   return (
-    <div className="w-full overflow-x-auto">
-      <div className="flex flex-col gap-1" style={{ minWidth }}>
-        <div className="grid gap-1" style={{ gridTemplateColumns }}>
-          {monthLabels.map((monthLabel) => (
-            <span
-              key={monthLabel.startWeek}
-              className="text-muted-foreground truncate text-xs"
-              style={{
-                gridColumn: `${String(monthLabel.startWeek + 1)} / ${String(monthLabel.endWeek + 1)}`,
-              }}
-            >
-              {monthLabel.label}
-            </span>
-          ))}
-        </div>
-        <div className="grid gap-1" style={{ gridTemplateColumns }}>
-          {weeks.map((week) => (
-            <div key={week[0].date.toISOString()} className="grid gap-1">
-              {week.map((day) => (
-                <div
-                  key={day.date.toISOString()}
-                  title={`${day.date.toLocaleDateString("pl-PL")}: ${String(day.count)}`}
-                  className={cn(
-                    "aspect-square w-full rounded-sm",
-                    day.date > today
-                      ? "invisible"
-                      : LEVEL_CLASS[levelForCount(day.count)],
-                  )}
-                />
-              ))}
-            </div>
-          ))}
+    <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+      <div className="min-w-0 space-y-1">
+        <div className="min-w-0 overflow-hidden">
+          <div className="grid gap-1" style={{ gridTemplateColumns }}>
+            {monthLabels.map((monthLabel) => (
+              <span
+                key={monthLabel.startWeek}
+                className="text-muted-foreground truncate text-xs"
+                style={{
+                  gridColumn: `${String(monthLabel.startWeek + 1)} / ${String(monthLabel.endWeek + 1)}`,
+                }}
+              >
+                {monthLabel.label}
+              </span>
+            ))}
+          </div>
+          <div className="grid gap-1" style={{ gridTemplateColumns }}>
+            {weeks.map((week) => (
+              <div key={week[0].date.toISOString()} className="grid gap-1">
+                {week.map((day) => (
+                  <div
+                    key={day.date.toISOString()}
+                    title={`${day.date.toLocaleDateString("pl-PL", { timeZone: "UTC" })}: ${String(day.count)}`}
+                    className={cn(
+                      "aspect-square w-full rounded-sm",
+                      day.date < firstDayOfYear ||
+                        day.date > lastDayOfYear ||
+                        day.date > today
+                        ? "invisible"
+                        : LEVEL_CLASS[levelForCount(day.count)],
+                    )}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
         <div className="text-muted-foreground flex items-center justify-end gap-1 text-xs">
           <span>mniej</span>
@@ -161,6 +193,23 @@ export function ContributionHeatmap({
           ))}
           <span>więcej</span>
         </div>
+      </div>
+      <div className="flex flex-wrap gap-1 md:flex-col md:flex-nowrap">
+        {availableYears.map((year) => (
+          <Button
+            key={year}
+            type="button"
+            size="xs"
+            variant={year === selectedYear ? "default" : "ghost"}
+            onClick={() => {
+              setSelectedYear(year);
+            }}
+            aria-pressed={year === selectedYear}
+            className="justify-start"
+          >
+            {year}
+          </Button>
+        ))}
       </div>
     </div>
   );

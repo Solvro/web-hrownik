@@ -269,7 +269,7 @@ export async function getProjectDailyActivity(
 
 export async function getMemberDailyActivity(
   memberId: string,
-  since: Date,
+  since?: Date,
 ): Promise<DailyActivityCount[]> {
   return db
     .select({
@@ -278,10 +278,12 @@ export async function getMemberDailyActivity(
     })
     .from(githubActivityEvent)
     .where(
-      and(
-        eq(githubActivityEvent.memberId, memberId),
-        gte(githubActivityEvent.occurredAt, since),
-      ),
+      since === undefined
+        ? eq(githubActivityEvent.memberId, memberId)
+        : and(
+            eq(githubActivityEvent.memberId, memberId),
+            gte(githubActivityEvent.occurredAt, since),
+          ),
     )
     .groupBy(sql`to_char(${githubActivityEvent.occurredAt}, 'YYYY-MM-DD')`);
 }
