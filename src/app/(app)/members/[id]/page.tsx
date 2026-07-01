@@ -25,7 +25,6 @@ import {
   getMemberPermissions,
 } from "@/lib/permissions";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const RECENT_ACTIVITY_PREVIEW_LIMIT = 5;
 
 const memberStatusLabels = {
@@ -75,10 +74,7 @@ export default async function MemberProfilePage({
   });
   const hasMoreActivity = activityEvents.length > RECENT_ACTIVITY_PREVIEW_LIMIT;
   const recentActivity = activityEvents.slice(0, RECENT_ACTIVITY_PREVIEW_LIMIT);
-  const dailyActivity = await getMemberDailyActivity(
-    id,
-    new Date(Date.now() - 371 * DAY_MS),
-  );
+  const dailyActivity = await getMemberDailyActivity(id);
 
   const currentMember = await getCurrentMember();
   const permissions =
@@ -212,7 +208,7 @@ export default async function MemberProfilePage({
         <h2 className="font-medium">Aktywność na GitHubie</h2>
         <div className="space-y-2">
           <h3 className="text-muted-foreground text-sm font-medium">
-            Aktywność &middot; ostatnie 12 miesięcy
+            Aktywność &middot; cała historia
           </h3>
           <ContributionHeatmap counts={dailyActivity} />
         </div>
