@@ -19,13 +19,13 @@ const logoMonoSource = logoMono as unknown as string;
 export default function LoginPage() {
   return (
     <div className="flex flex-1 items-center justify-center p-6">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="items-center text-center">
-          <span className="bg-sidebar-primary text-sidebar-primary-foreground mb-2 flex size-12 shrink-0 items-center justify-center rounded-xl">
+      <Card className="bg-background w-full max-w-sm">
+        <CardHeader className="items-center justify-center text-center">
+          <span className="text-sidebar-primary-foreground mb-2 flex size-12 w-full shrink-0 items-center justify-center rounded-xl">
             <Image
               src={logoMonoSource}
               alt=""
-              className="size-7"
+              className="size-10"
               aria-hidden="true"
             />
           </span>
@@ -33,10 +33,10 @@ export default function LoginPage() {
           <CardDescription>Wybierz metodę logowania</CardDescription>
         </CardHeader>
         <CardContent>
-          <FieldGroup>
+          <FieldGroup className="gap-3">
             <Button
               type="button"
-              variant="outline"
+              variant="default"
               onClick={() => {
                 void authClient.signIn.oauth2({
                   providerId: "keycloak",
