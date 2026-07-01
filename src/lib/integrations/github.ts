@@ -19,7 +19,10 @@ function getGithubConfig(): GithubConfig | null {
   }
   return {
     appId: env.GITHUB_APP_ID,
-    privateKey: env.GITHUB_APP_PRIVATE_KEY,
+    privateKey: env.GITHUB_APP_PRIVATE_KEY.replaceAll(
+      String.raw`\n`,
+      "\n",
+    ).replaceAll(String.raw`\r`, ""),
     org: env.GITHUB_ORG,
   };
 }
