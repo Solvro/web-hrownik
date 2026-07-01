@@ -25,6 +25,11 @@ export const polishNouns = {
     paucal: "zdarzenia",
     plural: "zdarzeń",
   },
+  kontrybucja: {
+    singular: "kontrybucja",
+    paucal: "kontrybucje",
+    plural: "kontrybucji",
+  },
   issue: {
     singular: "issue",
     paucal: "issue",

@@ -5,8 +5,8 @@ import type { ReactNode } from "react";
 
 import { deleteMember } from "@/actions/members";
 import { ActivityTimeline } from "@/components/activity-timeline";
-import { ContributionHeatmap } from "@/components/contribution-heatmap";
 import { DeleteButton } from "@/components/delete-button";
+import { HeatmapWithRangePicker } from "@/components/heatmap-with-range-picker";
 import { RoleManager } from "@/components/members/role-manager";
 import { MemberStatusBadge } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -215,7 +215,7 @@ export default async function MemberProfilePage({
           <h3 className="text-muted-foreground text-sm font-medium">
             Aktywność &middot; cała historia
           </h3>
-          <ContributionHeatmap counts={dailyActivity} />
+          <HeatmapWithRangePicker counts={dailyActivity} />
         </div>
         <div className="space-y-2">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">

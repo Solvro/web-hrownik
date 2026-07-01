@@ -10,31 +10,36 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
-
-const TREND_DAYS = 60;
+import type { ActivityRange } from "@/lib/activity-range";
+import {
+  buildVisibleDateRange,
+  startOfToday,
+  toDateKey,
+} from "@/lib/activity-range";
 
 const chartConfig = {
   count: {
-    label: "Zdarzenia",
+    label: "Kontrybucje",
     color: "var(--chart-2)",
   },
 } satisfies ChartConfig;
 
-function toDateKey(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
 function buildTrendSeries(
   counts: DailyActivityCount[],
+  range: ActivityRange,
 ): { date: string; count: number }[] {
   const countsByDate = new Map(counts.map((c) => [c.date, c.count]));
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
+  const today = startOfToday();
+  const visibleRange = buildVisibleDateRange(range, today);
+  const endTime = Math.min(visibleRange.end.getTime(), today.getTime());
+  const totalDays = Math.floor(
+    (endTime - visibleRange.start.getTime()) / (24 * 60 * 60 * 1000),
+  );
 
   const series: { date: string; count: number }[] = [];
-  for (let offset = TREND_DAYS - 1; offset >= 0; offset--) {
-    const date = new Date(today);
-    date.setUTCDate(date.getUTCDate() - offset);
+  for (let offset = 0; offset <= totalDays; offset++) {
+    const date = new Date(visibleRange.start);
+    date.setUTCDate(date.getUTCDate() + offset);
     const key = toDateKey(date);
     series.push({ date: key, count: countsByDate.get(key) ?? 0 });
   }
@@ -43,10 +48,12 @@ function buildTrendSeries(
 
 export function ActivityTrendChart({
   counts,
+  range,
 }: {
   counts: DailyActivityCount[];
+  range: ActivityRange;
 }) {
-  const series = buildTrendSeries(counts);
+  const series = buildTrendSeries(counts, range);
 
   return (
     <ChartContainer config={chartConfig} className="aspect-auto h-32 w-full">
