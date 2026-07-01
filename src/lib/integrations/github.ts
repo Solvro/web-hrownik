@@ -131,6 +131,30 @@ export interface OrgRepo {
   fullName: string;
 }
 
+export interface GithubUserProfile {
+  login: string;
+  name: string | null;
+}
+
+export async function getGithubUserProfile(
+  username: string,
+): Promise<GithubUserProfile | null> {
+  const octokit = await getGithubOctokit();
+  if (octokit === null) {
+    return null;
+  }
+
+  try {
+    const { data: user } = await octokit.rest.users.getByUsername({
+      username,
+    });
+    return { login: user.login, name: user.name };
+  } catch (error) {
+    console.warn(`Failed to fetch GitHub profile for ${username}:`, error);
+    return null;
+  }
+}
+
 export async function listOrgRepos(): Promise<OrgRepo[]> {
   const config = getGithubConfig();
   if (config === null) {

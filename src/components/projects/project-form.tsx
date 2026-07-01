@@ -43,9 +43,17 @@ export function ProjectForm({
       visibility: "internal",
       productionUrl: "",
       driveFolderUrl: "",
+      projectCardDriveUrl: "",
+      reportDriveUrl: "",
       repositoryFullNames: [],
     },
   });
+  const slug = form.watch("slug");
+  const status = form.watch("status");
+  const suggestedRepoOptions = repoOptions.filter((repo) =>
+    repo.label.toLowerCase().includes(slug.toLowerCase()),
+  );
+  const suggestedRepoValues = suggestedRepoOptions.map((repo) => repo.value);
 
   async function onSubmit(values: ProjectFormValues) {
     setSubmitError(null);
@@ -185,6 +193,44 @@ export function ProjectForm({
           )}
         />
         <Controller
+          name="projectCardDriveUrl"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor={field.name}>Karta projektu</FieldLabel>
+              <Input
+                {...field}
+                id={field.name}
+                placeholder="https://drive.google.com/..."
+                aria-invalid={fieldState.invalid}
+              />
+              {fieldState.invalid ? (
+                <FieldError errors={[fieldState.error]} />
+              ) : null}
+            </Field>
+          )}
+        />
+        {status === "completed" ? (
+          <Controller
+            name="reportDriveUrl"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor={field.name}>Sprawozdanie</FieldLabel>
+                <Input
+                  {...field}
+                  id={field.name}
+                  placeholder="https://drive.google.com/..."
+                  aria-invalid={fieldState.invalid}
+                />
+                {fieldState.invalid ? (
+                  <FieldError errors={[fieldState.error]} />
+                ) : null}
+              </Field>
+            )}
+          />
+        ) : null}
+        <Controller
           name="repositoryFullNames"
           control={form.control}
           render={({ field }) => (
@@ -196,12 +242,43 @@ export function ProjectForm({
                   nie ma repozytoriów — repozytoria można podłączyć później.
                 </FieldDescription>
               ) : (
-                <MultiSelect
-                  options={repoOptions}
-                  value={field.value}
-                  onChange={field.onChange}
-                  placeholder="Wybierz repozytoria"
-                />
+                <div className="space-y-2">
+                  {slug.trim() !== "" && suggestedRepoOptions.length > 0 ? (
+                    <div className="bg-muted/40 rounded-md border p-2 text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span>
+                          Sugerowane dla slugu: {suggestedRepoOptions.length}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            field.onChange([
+                              ...new Set([
+                                ...field.value,
+                                ...suggestedRepoValues,
+                              ]),
+                            ]);
+                          }}
+                        >
+                          Wybierz wszystkie
+                        </Button>
+                      </div>
+                      <p className="text-muted-foreground mt-1 truncate">
+                        {suggestedRepoOptions
+                          .map((repo) => repo.label)
+                          .join(", ")}
+                      </p>
+                    </div>
+                  ) : null}
+                  <MultiSelect
+                    options={repoOptions}
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="Wybierz repozytoria"
+                  />
+                </div>
               )}
             </Field>
           )}

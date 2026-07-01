@@ -43,9 +43,18 @@ export async function assignRole(memberId: string, input: RoleAssignmentDraft) {
     roleDefinitionId: values.roleDefinitionId,
     sectionId: role.scope === "section" ? (values.sectionId ?? null) : null,
     projectId: role.scope === "project" ? (values.projectId ?? null) : null,
+    startedAt: parseDate(values.startedAt) ?? new Date(),
+    endedAt: parseDate(values.endedAt),
   });
 
   revalidatePath(`/members/${memberId}`);
+}
+
+function parseDate(value: string | undefined): Date | null {
+  if (value === undefined || value === "") {
+    return null;
+  }
+  return new Date(`${value}T00:00:00`);
 }
 
 export async function endRoleAssignment(roleAssignmentId: string) {

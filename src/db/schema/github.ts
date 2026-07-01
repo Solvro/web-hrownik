@@ -3,7 +3,7 @@ import { pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
 import { id } from "./columns.helpers";
 import { activityTypeEnum } from "./enums";
 import { member } from "./members";
-import { project } from "./projects";
+import { project, team } from "./projects";
 
 export const projectRepository = pgTable(
   "project_repository",
@@ -51,6 +51,25 @@ export const githubActivityEvent = pgTable(
       table.projectRepositoryId,
       table.type,
       table.externalId,
+    ),
+  ],
+);
+
+export const teamRepository = pgTable(
+  "team_repository",
+  {
+    id: id(),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => team.id, { onDelete: "cascade" }),
+    projectRepositoryId: text("project_repository_id")
+      .notNull()
+      .references(() => projectRepository.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    unique("team_repository_team_repo_unique").on(
+      table.teamId,
+      table.projectRepositoryId,
     ),
   ],
 );

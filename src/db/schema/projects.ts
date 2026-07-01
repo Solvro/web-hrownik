@@ -12,6 +12,7 @@ export const project = pgTable("project", {
   visibility: projectVisibilityEnum("visibility").notNull().default("internal"),
   productionUrl: text("production_url"),
   driveFolderUrl: text("drive_folder_url"),
+  projectCardDriveUrl: text("project_card_drive_url"),
   reportDriveUrl: text("report_drive_url"),
   endedAt: timestamp("ended_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

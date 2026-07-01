@@ -88,6 +88,8 @@ export async function createMember(input: MemberFormValues) {
             definition.scope === "section" ? (role.sectionId ?? null) : null,
           projectId:
             definition.scope === "project" ? (role.projectId ?? null) : null,
+          startedAt: parseDate(role.startedAt) ?? new Date(),
+          endedAt: parseDate(role.endedAt),
         };
       }),
     );
@@ -195,6 +197,42 @@ export async function updateMember(
     }
   }
 
+  if (isFullAccess && values.roleAssignments !== undefined) {
+    await db
+      .delete(roleAssignment)
+      .where(eq(roleAssignment.memberId, memberId));
+    if (values.roleAssignments.length > 0) {
+      const roleDefinitions = await db.query.roleDefinition.findMany({
+        where: inArray(
+          roleDefinition.id,
+          values.roleAssignments.map((role) => role.roleDefinitionId),
+        ),
+      });
+      const roleDefinitionById = new Map(
+        roleDefinitions.map((role) => [role.id, role]),
+      );
+
+      await db.insert(roleAssignment).values(
+        values.roleAssignments.map((role) => {
+          const definition = roleDefinitionById.get(role.roleDefinitionId);
+          if (definition === undefined) {
+            throw new Error("Nie znaleziono wybranej roli.");
+          }
+          return {
+            memberId,
+            roleDefinitionId: role.roleDefinitionId,
+            sectionId:
+              definition.scope === "section" ? (role.sectionId ?? null) : null,
+            projectId:
+              definition.scope === "project" ? (role.projectId ?? null) : null,
+            startedAt: parseDate(role.startedAt) ?? new Date(),
+            endedAt: parseDate(role.endedAt),
+          };
+        }),
+      );
+    }
+  }
+
   if (values.githubUsername !== undefined) {
     const githubUsername = emptyToNull(values.githubUsername);
     if (githubUsername !== null) {
@@ -211,4 +249,11 @@ function emptyToNull(value: string | undefined): string | null {
 
 function normalizeEmail(email: string): string {
   return email.toLowerCase();
+}
+
+function parseDate(value: string | undefined): Date | null {
+  if (value === undefined || value === "") {
+    return null;
+  }
+  return new Date(`${value}T00:00:00`);
 }

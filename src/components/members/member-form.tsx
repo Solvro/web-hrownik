@@ -339,50 +339,51 @@ export function MemberForm({
               )}
             />
 
-            {mode === "create" ? (
-              <Field>
-                <FieldLabel>Role</FieldLabel>
-                <div className="flex flex-col gap-2">
-                  {roleFields.fields.map((roleField, index) => (
-                    <div key={roleField.id} className="flex gap-2">
-                      <Controller
-                        name={`roleAssignments.${index}`}
-                        control={form.control}
-                        render={({ field }) => (
-                          <RolePickerFields
-                            roleDefinitions={roleDefinitions}
-                            sections={sections}
-                            projects={projects}
-                            value={field.value}
-                            onChange={field.onChange}
-                          />
-                        )}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          roleFields.remove(index);
-                        }}
-                      >
-                        <Trash2 />
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      roleFields.append({ roleDefinitionId: "" });
-                    }}
-                  >
-                    <Plus /> Dodaj rolę
-                  </Button>
-                </div>
-              </Field>
-            ) : null}
+            <Field>
+              <FieldLabel>Role</FieldLabel>
+              <div className="flex flex-col gap-2">
+                {roleFields.fields.map((roleField, index) => (
+                  <div key={roleField.id} className="flex gap-2">
+                    <Controller
+                      name={`roleAssignments.${index}`}
+                      control={form.control}
+                      render={({ field }) => (
+                        <RolePickerFields
+                          roleDefinitions={roleDefinitions}
+                          sections={sections}
+                          projects={projects}
+                          value={field.value}
+                          onChange={field.onChange}
+                        />
+                      )}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        roleFields.remove(index);
+                      }}
+                    >
+                      <Trash2 />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    roleFields.append({
+                      roleDefinitionId: "",
+                      startedAt: "",
+                    });
+                  }}
+                >
+                  <Plus /> Dodaj rolę
+                </Button>
+              </div>
+            </Field>
 
             <Field>
               <FieldLabel>Adresy e-mail</FieldLabel>

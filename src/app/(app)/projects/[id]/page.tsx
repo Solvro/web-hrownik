@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { ActivityTimeline } from "@/components/activity-timeline";
 import { ContributionHeatmap } from "@/components/contribution-heatmap";
 import { NewTeamForm } from "@/components/projects/new-team-form";
+import { ProjectRoleAssignmentForm } from "@/components/projects/project-role-assignment-form";
 import { SyncActivityButton } from "@/components/projects/sync-activity-button";
 import { TeamPanel } from "@/components/projects/team-panel";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +19,11 @@ import {
   getContributorRanking,
   getProjectDailyActivity,
 } from "@/lib/integrations/github-activity";
-import { canManageProject, getMemberPermissions } from "@/lib/permissions";
+import {
+  canManageMembers,
+  canManageProject,
+  getMemberPermissions,
+} from "@/lib/permissions";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RECENT_ACTIVITY_PREVIEW_LIMIT = 5;
@@ -34,7 +39,13 @@ export default async function ProjectPage({
     where: eq(project.id, id),
     with: {
       repositories: true,
-      teams: { with: { members: { with: { member: true } } } },
+      teams: {
+        with: {
+          members: { with: { member: true } },
+          repositories: { with: { projectRepository: true } },
+        },
+      },
+      roleAssignments: { with: { member: true, roleDefinition: true } },
     },
   });
   if (projectRow === undefined) {
@@ -47,6 +58,22 @@ export default async function ProjectPage({
       ? null
       : await getMemberPermissions(currentMember.id);
   const canManage = permissions !== null && canManageProject(permissions, id);
+  const canAddMembers = permissions !== null && canManageMembers(permissions);
+  const projectRolesByMemberId = new Map<string, string[]>();
+  const projectLeads = projectRow.roleAssignments.filter(
+    (assignment) => assignment.endedAt === null,
+  );
+  for (const assignment of projectLeads) {
+    const roles = projectRolesByMemberId.get(assignment.memberId) ?? [];
+    roles.push(assignment.roleDefinition.name);
+    projectRolesByMemberId.set(assignment.memberId, roles);
+  }
+  const pmAssignments = projectLeads.filter(
+    (assignment) => assignment.roleDefinition.name === "PM",
+  );
+  const poAssignments = projectLeads.filter(
+    (assignment) => assignment.roleDefinition.name === "PO",
+  );
 
   const allMembers = canManage
     ? await db.query.member.findMany({ orderBy: asc(member.fullName) })
@@ -89,8 +116,33 @@ export default async function ProjectPage({
         <dl className="text-sm">
           <LinkRow label="Produkcja" url={projectRow.productionUrl} />
           <LinkRow label="Google Drive" url={projectRow.driveFolderUrl} />
-          <LinkRow label="Sprawozdanie" url={projectRow.reportDriveUrl} />
+          {projectRow.status === "completed" ? (
+            <LinkRow label="Sprawozdanie" url={projectRow.reportDriveUrl} />
+          ) : (
+            <LinkRow
+              label="Karta projektu"
+              url={projectRow.projectCardDriveUrl}
+            />
+          )}
         </dl>
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="font-medium">Prowadzenie projektu</h2>
+        <ProjectRoleRow
+          label="PM"
+          assignments={pmAssignments}
+          canManage={canManage}
+          projectId={id}
+          allMembers={allMembers}
+        />
+        <ProjectRoleRow
+          label="PO"
+          assignments={poAssignments}
+          canManage={canManage}
+          projectId={id}
+          allMembers={allMembers}
+        />
       </section>
 
       <section className="space-y-2">
@@ -117,8 +169,16 @@ export default async function ProjectPage({
       <section className="space-y-2">
         <h2 className="font-medium">Ranking kontrybutorów</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <RankingList title="Ostatni tydzień" entries={weeklyRanking} />
-          <RankingList title="Ostatni miesiąc" entries={monthlyRanking} />
+          <RankingList
+            title="Ostatni tydzień"
+            entries={weeklyRanking}
+            canAddMembers={canAddMembers}
+          />
+          <RankingList
+            title="Ostatni miesiąc"
+            entries={monthlyRanking}
+            canAddMembers={canAddMembers}
+          />
         </div>
       </section>
 
@@ -154,7 +214,16 @@ export default async function ProjectPage({
               url: event.url,
               occurredAt: event.occurredAt,
               title: event.title ?? fallbackActivityTitle(event),
-              subtitle: `${event.member?.fullName ?? event.githubLogin} · ${event.projectRepository.githubRepoFullName}`,
+              actorName: event.member?.fullName ?? event.githubLogin,
+              actorHref:
+                event.member === null
+                  ? undefined
+                  : `/members/${event.member.id}`,
+              addMemberHref:
+                canAddMembers && event.member === null
+                  ? `/members/new?githubUsername=${encodeURIComponent(event.githubLogin)}`
+                  : undefined,
+              subtitle: event.projectRepository.githubRepoFullName,
             }))}
           />
         </div>
@@ -172,7 +241,16 @@ export default async function ProjectPage({
                 teamMemberId: teamMembership.id,
                 memberId: teamMembership.memberId,
                 fullName: teamMembership.member.fullName,
+                projectRoles:
+                  projectRolesByMemberId.get(teamMembership.memberId) ?? [],
               }))}
+              repositories={projectRow.repositories.map((repo) => ({
+                id: repo.id,
+                name: repo.githubRepoFullName,
+              }))}
+              selectedRepositoryIds={teamRow.repositories.map(
+                (repo) => repo.projectRepositoryId,
+              )}
               availableMembers={
                 canManage
                   ? allMembers.filter(
@@ -193,9 +271,58 @@ export default async function ProjectPage({
   );
 }
 
+function ProjectRoleRow({
+  label,
+  assignments,
+  canManage,
+  projectId,
+  allMembers,
+}: {
+  label: "PM" | "PO";
+  assignments: {
+    member: { id: string; fullName: string };
+  }[];
+  canManage: boolean;
+  projectId: string;
+  allMembers: { id: string; fullName: string }[];
+}) {
+  return (
+    <div className="rounded-md border p-3 text-sm">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="text-muted-foreground text-xs">{label}</div>
+          {assignments.length === 0 ? (
+            <p className="text-muted-foreground">Nie przypisano</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {assignments.map((assignment) => (
+                <Link
+                  key={assignment.member.id}
+                  href={`/members/${assignment.member.id}`}
+                  className="hover:underline"
+                >
+                  {assignment.member.fullName}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+        {canManage && assignments.length === 0 ? (
+          <ProjectRoleAssignmentForm
+            projectId={projectId}
+            roleName={label}
+            members={allMembers}
+          />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function RankingList({
   title,
   entries,
+  canAddMembers,
 }: {
   title: string;
   entries: {
@@ -204,6 +331,7 @@ function RankingList({
     githubLogin: string;
     eventCount: number;
   }[];
+  canAddMembers: boolean;
 }) {
   return (
     <div className="space-y-1 rounded-md border p-3">
@@ -220,7 +348,17 @@ function RankingList({
               <span>
                 {index + 1}.{" "}
                 {entry.memberId === null ? (
-                  (entry.fullName ?? entry.githubLogin)
+                  <span className="inline-flex items-center gap-2">
+                    {entry.fullName ?? entry.githubLogin}
+                    {canAddMembers ? (
+                      <Link
+                        href={`/members/new?githubUsername=${encodeURIComponent(entry.githubLogin)}`}
+                        className="text-xs underline"
+                      >
+                        Dodaj członka
+                      </Link>
+                    ) : null}
+                  </span>
                 ) : (
                   <Link
                     href={`/members/${entry.memberId}`}

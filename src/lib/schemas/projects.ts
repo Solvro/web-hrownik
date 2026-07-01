@@ -15,6 +15,14 @@ export const projectFormSchema = z.object({
     .url("Podaj poprawny adres URL")
     .optional()
     .or(z.literal("")),
+  projectCardDriveUrl: z
+    .url("Podaj poprawny adres URL")
+    .optional()
+    .or(z.literal("")),
+  reportDriveUrl: z
+    .url("Podaj poprawny adres URL")
+    .optional()
+    .or(z.literal("")),
   repositoryFullNames: z.array(z.string().trim()),
 });
 
