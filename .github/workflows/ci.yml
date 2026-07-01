@@ -54,9 +54,15 @@ jobs:
 
       - name: Prepare database
         run: pnpm run db:migrate
+        env:
+          ADMIN_EMAIL: test@solvro.pl
+          ADMIN_PASSWORD: test-password-for-CI
 
       - name: Seed database
         run: pnpm exec tsx src/db/seed.ts
+        env:
+          ADMIN_EMAIL: test@solvro.pl
+          ADMIN_PASSWORD: test-password-for-CI
 
       - name: Check commit name
         if: github.event_name == 'pull_request'
@@ -74,6 +80,9 @@ jobs:
         run: pnpm run types:check
         if: always()
 
-      # - name: Build
-      #   run: pnpm run build
-      #   if: always()
+      - name: Build
+        run: pnpm run build
+        if: always()
+        env:
+          ADMIN_EMAIL: test@solvro.pl
+          ADMIN_PASSWORD: test-password-for-CI
