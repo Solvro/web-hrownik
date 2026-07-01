@@ -57,9 +57,14 @@ function buildWeeks(countsByDate: Map<string, number>): Day[][] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const totalDays = 371;
-  const start = new Date(today);
-  start.setDate(start.getDate() - (totalDays - 1));
+  const firstActivityDate = [...countsByDate.keys()].toSorted().at(0);
+  const start =
+    firstActivityDate === undefined
+      ? new Date(today)
+      : new Date(firstActivityDate);
+  if (firstActivityDate === undefined) {
+    start.setDate(start.getDate() - 370);
+  }
   start.setDate(start.getDate() - start.getDay());
 
   const weekCount =
@@ -110,49 +115,52 @@ export function ContributionHeatmap({
   }
 
   const gridTemplateColumns = `repeat(${String(weeks.length)}, minmax(0, 1fr))`;
+  const minWidth = `${String(weeks.length * 14)}px`;
 
   return (
-    <div className="flex w-full flex-col gap-1">
-      <div className="grid gap-1" style={{ gridTemplateColumns }}>
-        {monthLabels.map((monthLabel) => (
-          <span
-            key={monthLabel.startWeek}
-            className="text-muted-foreground truncate text-xs"
-            style={{
-              gridColumn: `${String(monthLabel.startWeek + 1)} / ${String(monthLabel.endWeek + 1)}`,
-            }}
-          >
-            {monthLabel.label}
-          </span>
-        ))}
-      </div>
-      <div className="grid gap-1" style={{ gridTemplateColumns }}>
-        {weeks.map((week) => (
-          <div key={week[0].date.toISOString()} className="grid gap-1">
-            {week.map((day) => (
-              <div
-                key={day.date.toISOString()}
-                title={`${day.date.toLocaleDateString("pl-PL")}: ${String(day.count)}`}
-                className={cn(
-                  "aspect-square w-full rounded-sm",
-                  day.date > today
-                    ? "invisible"
-                    : LEVEL_CLASS[levelForCount(day.count)],
-                )}
-              />
-            ))}
-          </div>
-        ))}
-      </div>
-      <div className="text-muted-foreground flex items-center justify-end gap-1 text-xs">
-        <span>mniej</span>
-        {LEVEL_CLASS.map((levelClass) => (
-          <div
-            key={levelClass}
-            className={cn("size-3 rounded-sm", levelClass)}
-          />
-        ))}
-        <span>więcej</span>
+    <div className="w-full overflow-x-auto">
+      <div className="flex flex-col gap-1" style={{ minWidth }}>
+        <div className="grid gap-1" style={{ gridTemplateColumns }}>
+          {monthLabels.map((monthLabel) => (
+            <span
+              key={monthLabel.startWeek}
+              className="text-muted-foreground truncate text-xs"
+              style={{
+                gridColumn: `${String(monthLabel.startWeek + 1)} / ${String(monthLabel.endWeek + 1)}`,
+              }}
+            >
+              {monthLabel.label}
+            </span>
+          ))}
+        </div>
+        <div className="grid gap-1" style={{ gridTemplateColumns }}>
+          {weeks.map((week) => (
+            <div key={week[0].date.toISOString()} className="grid gap-1">
+              {week.map((day) => (
+                <div
+                  key={day.date.toISOString()}
+                  title={`${day.date.toLocaleDateString("pl-PL")}: ${String(day.count)}`}
+                  className={cn(
+                    "aspect-square w-full rounded-sm",
+                    day.date > today
+                      ? "invisible"
+                      : LEVEL_CLASS[levelForCount(day.count)],
+                  )}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="text-muted-foreground flex items-center justify-end gap-1 text-xs">
+          <span>mniej</span>
+          {LEVEL_CLASS.map((levelClass) => (
+            <div
+              key={levelClass}
+              className={cn("size-3 rounded-sm", levelClass)}
+            />
+          ))}
+          <span>więcej</span>
+        </div>
       </div>
     </div>
   );
