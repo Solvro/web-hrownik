@@ -12,6 +12,7 @@ import { RolePickerFields } from "@/components/members/role-picker-fields";
 import { MultiSelect } from "@/components/multi-select";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Field,
   FieldDescription,
@@ -27,30 +28,53 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import type { MemberFormInput, MemberFormValues } from "@/lib/schemas/members";
-import { memberFormSchema } from "@/lib/schemas/members";
+import {
+  memberFormSchema,
+  memberStatusOptions,
+  studyYearOptions,
+} from "@/lib/schemas/members";
 
-function toInputValue(value: unknown): string {
-  return typeof value === "number" || typeof value === "string"
-    ? String(value)
-    : "";
-}
+const emptySelectValue = "__empty";
+
+const studyDegreeOptions = [
+  { value: "1DEGREE", label: "I stopień" },
+  { value: "2DEGREE", label: "II stopień" },
+] as const;
+
+const memberStatusLabels: Record<(typeof memberStatusOptions)[number], string> =
+  {
+    new: "nowy",
+    active: "aktywny",
+    inactive: "nieaktywny",
+    honorary: "honorowy",
+  };
 
 export function MemberForm({
   mode,
   memberId,
   fullAccess,
   sections,
-  projects,
   roleDefinitions,
+  universityInfoOptions,
   defaultValues,
 }: {
   mode: "create" | "edit";
   memberId?: string;
   fullAccess: boolean;
   sections: { id: string; name: string }[];
-  projects: { id: string; name: string }[];
   roleDefinitions: RoleDefinitionOption[];
+  universityInfoOptions: {
+    departments: { id: string; value: string; label: string }[];
+    fieldsOfStudy: {
+      id: string;
+      value: string;
+      label: string;
+      department: string;
+      studiesType: string;
+    }[];
+  };
   defaultValues: MemberFormInput;
 }) {
   const router = useRouter();
@@ -65,6 +89,32 @@ export function MemberForm({
     control: form.control,
     name: "roleAssignments",
   });
+  const [studyDegree, setStudyDegree] = useState<string>(() => {
+    const year = defaultValues.studyYear;
+    if (year !== undefined && year !== "") {
+      if (year.includes("inżynierski")) {
+        return "1DEGREE";
+      }
+      if (year.includes("magisterski")) {
+        return "2DEGREE";
+      }
+    }
+    return "";
+  });
+  const selectedDepartment = form.watch("studyDepartment");
+  const fieldOptions = universityInfoOptions.fieldsOfStudy.filter(
+    (field) =>
+      (selectedDepartment === undefined ||
+        selectedDepartment === "" ||
+        field.department === selectedDepartment) &&
+      (studyDegree === "" || field.studiesType === studyDegree),
+  );
+  const yearOptions = studyYearOptions.filter(
+    (year) =>
+      studyDegree === "" ||
+      (studyDegree === "1DEGREE" && year.includes("inżynierski")) ||
+      (studyDegree === "2DEGREE" && year.includes("magisterski")),
+  );
 
   async function onSubmit(values: MemberFormValues) {
     setSubmitError(null);
@@ -100,23 +150,53 @@ export function MemberForm({
     >
       <FieldGroup>
         {fullAccess ? (
-          <Controller
-            name="fullName"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor={field.name}>Imię i nazwisko</FieldLabel>
-                <Input
-                  {...field}
-                  id={field.name}
-                  aria-invalid={fieldState.invalid}
-                />
-                {fieldState.invalid ? (
-                  <FieldError errors={[fieldState.error]} />
-                ) : null}
-              </Field>
-            )}
-          />
+          <>
+            <Controller
+              name="fullName"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Imię i nazwisko</FieldLabel>
+                  <Input
+                    {...field}
+                    id={field.name}
+                    aria-invalid={fieldState.invalid}
+                  />
+                  {fieldState.invalid ? (
+                    <FieldError errors={[fieldState.error]} />
+                  ) : null}
+                </Field>
+              )}
+            />
+
+            <Controller
+              name="status"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Status</FieldLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger
+                      id={field.name}
+                      aria-invalid={fieldState.invalid}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {memberStatusOptions.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {memberStatusLabels[status]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {fieldState.invalid ? (
+                    <FieldError errors={[fieldState.error]} />
+                  ) : null}
+                </Field>
+              )}
+            />
+          </>
         ) : null}
 
         <Controller
@@ -241,15 +321,112 @@ export function MemberForm({
         />
 
         <Controller
+          name="studyDepartment"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor={field.name}>Wydział</FieldLabel>
+              <Select
+                value={
+                  field.value === undefined || field.value === ""
+                    ? emptySelectValue
+                    : field.value
+                }
+                onValueChange={(value) => {
+                  field.onChange(value === emptySelectValue ? "" : value);
+                  form.setValue("studyField", "");
+                }}
+              >
+                <SelectTrigger
+                  id={field.name}
+                  aria-invalid={fieldState.invalid}
+                >
+                  <SelectValue placeholder="Wybierz wydział" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={emptySelectValue}>Brak</SelectItem>
+                  {universityInfoOptions.departments.map((department) => (
+                    <SelectItem key={department.id} value={department.value}>
+                      {department.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {fieldState.invalid ? (
+                <FieldError errors={[fieldState.error]} />
+              ) : null}
+            </Field>
+          )}
+        />
+
+        <Field>
+          <FieldLabel>Stopień studiów</FieldLabel>
+          <Select
+            value={studyDegree === "" ? emptySelectValue : studyDegree}
+            onValueChange={(value) => {
+              const nextValue = value === emptySelectValue ? "" : value;
+              setStudyDegree(nextValue);
+              form.setValue("studyField", "");
+              form.setValue("studyYear", "");
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Wybierz stopień" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={emptySelectValue}>Brak filtra</SelectItem>
+              {studyDegreeOptions.map((degree) => (
+                <SelectItem key={degree.value} value={degree.value}>
+                  {degree.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <FieldDescription>
+            Filtr list poniżej. Wybierany automatycznie po wybraniu kierunku lub
+            roku studiów.
+          </FieldDescription>
+        </Field>
+
+        <Controller
           name="studyField"
           control={form.control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor={field.name}>Kierunek studiów</FieldLabel>
-              <Input
-                {...field}
-                id={field.name}
-                aria-invalid={fieldState.invalid}
+              <Combobox
+                options={fieldOptions.map((f) => ({
+                  value: f.value,
+                  label: f.label,
+                }))}
+                value={field.value ?? ""}
+                onValueChange={(value) => {
+                  field.onChange(value);
+                  if (value !== "") {
+                    const selectedField = fieldOptions.find(
+                      (f) => f.value === value,
+                    );
+                    if (selectedField !== undefined) {
+                      if (
+                        selectedDepartment === undefined ||
+                        selectedDepartment === ""
+                      ) {
+                        form.setValue(
+                          "studyDepartment",
+                          selectedField.department,
+                        );
+                      }
+                      if (
+                        studyDegree === "" &&
+                        (selectedField.studiesType === "1DEGREE" ||
+                          selectedField.studiesType === "2DEGREE")
+                      ) {
+                        setStudyDegree(selectedField.studiesType);
+                      }
+                    }
+                  }
+                }}
+                placeholder="Wybierz kierunek"
               />
               {fieldState.invalid ? (
                 <FieldError errors={[fieldState.error]} />
@@ -258,46 +435,43 @@ export function MemberForm({
           )}
         />
 
-        <div className="grid grid-cols-2 gap-4">
-          <Controller
-            name="studyYear"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor={field.name}>Rok studiów</FieldLabel>
-                <Input
-                  {...field}
-                  value={toInputValue(field.value)}
+        <Controller
+          name="studyYear"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor={field.name}>Rok studiów</FieldLabel>
+              <Select
+                value={
+                  field.value === undefined || field.value === ""
+                    ? emptySelectValue
+                    : field.value
+                }
+                onValueChange={(value) => {
+                  field.onChange(value === emptySelectValue ? "" : value);
+                }}
+              >
+                <SelectTrigger
                   id={field.name}
-                  type="number"
                   aria-invalid={fieldState.invalid}
-                />
-                {fieldState.invalid ? (
-                  <FieldError errors={[fieldState.error]} />
-                ) : null}
-              </Field>
-            )}
-          />
-          <Controller
-            name="studySemester"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor={field.name}>Semestr</FieldLabel>
-                <Input
-                  {...field}
-                  value={toInputValue(field.value)}
-                  id={field.name}
-                  type="number"
-                  aria-invalid={fieldState.invalid}
-                />
-                {fieldState.invalid ? (
-                  <FieldError errors={[fieldState.error]} />
-                ) : null}
-              </Field>
-            )}
-          />
-        </div>
+                >
+                  <SelectValue placeholder="Wybierz rok" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={emptySelectValue}>Brak</SelectItem>
+                  {yearOptions.map((year) => (
+                    <SelectItem key={year} value={year}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {fieldState.invalid ? (
+                <FieldError errors={[fieldState.error]} />
+              ) : null}
+            </Field>
+          )}
+        />
 
         {fullAccess ? (
           <>
@@ -313,6 +487,28 @@ export function MemberForm({
                     placeholder="np. wiceprezes ds. technologii"
                     aria-invalid={fieldState.invalid}
                   />
+                  {fieldState.invalid ? (
+                    <FieldError errors={[fieldState.error]} />
+                  ) : null}
+                </Field>
+              )}
+            />
+
+            <Controller
+              name="hrNotes"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Notatki HR</FieldLabel>
+                  <Textarea
+                    {...field}
+                    id={field.name}
+                    placeholder="Doświadczenie zawodowe, hackathony, rozmowy, preferencje..."
+                    aria-invalid={fieldState.invalid}
+                  />
+                  <FieldDescription>
+                    Widoczne tylko dla zarządu.
+                  </FieldDescription>
                   {fieldState.invalid ? (
                     <FieldError errors={[fieldState.error]} />
                   ) : null}
@@ -351,7 +547,6 @@ export function MemberForm({
                         <RolePickerFields
                           roleDefinitions={roleDefinitions}
                           sections={sections}
-                          projects={projects}
                           value={field.value}
                           onChange={field.onChange}
                         />

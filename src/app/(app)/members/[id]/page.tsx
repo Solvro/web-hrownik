@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { db } from "@/db";
 import { githubActivityEvent } from "@/db/schema/github";
 import { member } from "@/db/schema/members";
-import { project } from "@/db/schema/projects";
 import { roleAssignment, roleDefinition } from "@/db/schema/roles";
 import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
@@ -27,6 +26,13 @@ import {
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RECENT_ACTIVITY_PREVIEW_LIMIT = 5;
 
+const memberStatusLabels = {
+  new: "nowy",
+  active: "aktywny",
+  inactive: "nieaktywny",
+  honorary: "honorowy",
+} as const;
+
 export default async function MemberProfilePage({
   params,
   searchParams,
@@ -42,17 +48,21 @@ export default async function MemberProfilePage({
     with: {
       emails: true,
       sections: { with: { section: true } },
+      teamMemberships: { with: { team: { with: { project: true } } } },
     },
   });
   if (profile === undefined) {
     notFound();
   }
 
-  const roles = await db.query.roleAssignment.findMany({
+  const roleAssignments = await db.query.roleAssignment.findMany({
     where: eq(roleAssignment.memberId, id),
     orderBy: desc(roleAssignment.startedAt),
     with: { roleDefinition: true, section: true, project: true },
   });
+  const roles = roleAssignments.filter(
+    (assignment) => assignment.roleDefinition.scope !== "project",
+  );
 
   const activityEvents = await db.query.githubActivityEvent.findMany({
     where: eq(githubActivityEvent.memberId, id),
@@ -76,14 +86,14 @@ export default async function MemberProfilePage({
     permissions !== null &&
     (canManageMembers(permissions) || canEditOwnProfile(permissions, id));
   const canManageRoles = permissions !== null && canManageMembers(permissions);
+  const canViewHrNotes = canManageRoles;
 
-  const [roleDefinitions, sections, projects] = canManageRoles
+  const [roleDefinitions, sections] = canManageRoles
     ? await Promise.all([
         db.query.roleDefinition.findMany({ orderBy: asc(roleDefinition.name) }),
         db.query.section.findMany({ orderBy: asc(section.name) }),
-        db.query.project.findMany({ orderBy: asc(project.name) }),
       ])
-    : [[], [], []];
+    : [[], []];
 
   return (
     <div className="max-w-2xl space-y-8">
@@ -130,18 +140,22 @@ export default async function MemberProfilePage({
           <Row label="GitHub" value={profile.githubUsername} />
           <Row label="Discord" value={profile.discordId} />
           <Row label="Facebook" value={profile.facebookUrl} />
+          <Row label="Status" value={memberStatusLabels[profile.status]} />
           <Row label="Indeks" value={profile.studentIndex} />
+          <Row label="Wydział" value={profile.studyDepartment} />
           <Row label="Kierunek" value={profile.studyField} />
-          <Row
-            label="Rok / semestr"
-            value={
-              profile.studyYear === null && profile.studySemester === null
-                ? null
-                : `${profile.studyYear ?? "?"} / ${profile.studySemester ?? "?"}`
-            }
-          />
+          <Row label="Rok" value={profile.studyYear} />
         </dl>
       </section>
+
+      {canViewHrNotes ? (
+        <section className="space-y-2">
+          <h2 className="font-medium">Notatki HR</h2>
+          <p className="text-muted-foreground text-sm whitespace-pre-wrap">
+            {profile.hrNotes ?? "—"}
+          </p>
+        </section>
+      ) : null}
 
       <section className="space-y-2">
         <h2 className="font-medium">Adresy e-mail</h2>
@@ -218,13 +232,44 @@ export default async function MemberProfilePage({
               }))}
             roleDefinitions={roleDefinitions}
             sections={sections}
-            projects={projects}
           />
         </section>
       ) : null}
 
       <section className="space-y-2">
-        <h2 className="font-medium">Historia ról</h2>
+        <h2 className="font-medium">Projekty</h2>
+        <ul className="space-y-2">
+          {profile.teamMemberships
+            .toSorted((a, b) => b.joinedAt.getTime() - a.joinedAt.getTime())
+            .map((membership) => (
+              <li key={membership.id} className="rounded-md border p-3 text-sm">
+                <div className="font-medium">
+                  <Link
+                    href={`/projects/${membership.team.project.id}`}
+                    className="hover:underline"
+                  >
+                    {membership.team.project.name}
+                  </Link>
+                </div>
+                <div className="text-muted-foreground">
+                  {membership.team.name} · {membership.role}
+                </div>
+                <div className="text-muted-foreground text-xs">
+                  {membership.joinedAt.toLocaleDateString("pl-PL")} –{" "}
+                  {membership.leftAt === null
+                    ? "obecnie"
+                    : membership.leftAt.toLocaleDateString("pl-PL")}
+                </div>
+              </li>
+            ))}
+          {profile.teamMemberships.length === 0 ? (
+            <li className="text-muted-foreground text-sm">Brak projektów</li>
+          ) : null}
+        </ul>
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="font-medium">Historia ról organizacyjnych</h2>
         <ul className="space-y-2">
           {roles.map((assignment) => (
             <li key={assignment.id} className="rounded-md border p-3 text-sm">

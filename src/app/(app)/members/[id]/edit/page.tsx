@@ -4,15 +4,16 @@ import { notFound } from "next/navigation";
 import { MemberForm } from "@/components/members/member-form";
 import { db } from "@/db";
 import { member } from "@/db/schema/members";
-import { project } from "@/db/schema/projects";
 import { roleDefinition } from "@/db/schema/roles";
 import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
+import { getUniversityInfoOptions } from "@/lib/integrations/topwr";
 import {
   canEditOwnProfile,
   canManageMembers,
   getMemberPermissions,
 } from "@/lib/permissions";
+import { studyYearOptions } from "@/lib/schemas/members";
 
 export default async function EditMemberPage({
   params,
@@ -49,13 +50,15 @@ export default async function EditMemberPage({
     );
   }
 
-  const [sections, projects, roleDefinitions] = fullAccess
+  const [sections, roleDefinitions, universityInfoOptions] = fullAccess
     ? await Promise.all([
         db.query.section.findMany({ orderBy: asc(section.name) }),
-        db.query.project.findMany({ orderBy: asc(project.name) }),
-        db.query.roleDefinition.findMany({ orderBy: asc(roleDefinition.name) }),
+        db.query.roleDefinition.findMany({
+          orderBy: asc(roleDefinition.name),
+        }),
+        getUniversityInfoOptions(),
       ])
-    : [[], [], []];
+    : [[], [], await getUniversityInfoOptions()];
 
   return (
     <div className="space-y-6">
@@ -65,18 +68,20 @@ export default async function EditMemberPage({
         memberId={id}
         fullAccess={fullAccess}
         sections={sections}
-        projects={projects}
         roleDefinitions={roleDefinitions}
+        universityInfoOptions={universityInfoOptions}
         defaultValues={{
           fullName: profile.fullName,
           githubUsername: profile.githubUsername ?? "",
           discordId: profile.discordId ?? "",
           facebookUrl: profile.facebookUrl ?? "",
           studentIndex: profile.studentIndex ?? "",
+          studyDepartment: profile.studyDepartment ?? "",
           studyField: profile.studyField ?? "",
-          studyYear: profile.studyYear ?? undefined,
-          studySemester: profile.studySemester ?? undefined,
+          studyYear: toStudyYearInput(profile.studyYear),
           bio: profile.bio ?? "",
+          hrNotes: fullAccess ? (profile.hrNotes ?? "") : "",
+          status: profile.status,
           emails: profile.emails.map((email) => ({
             email: email.email,
             kind: email.kind,
@@ -102,4 +107,8 @@ export default async function EditMemberPage({
 
 function toDateInput(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+function toStudyYearInput(value: string | null) {
+  return studyYearOptions.find((option) => option === value) ?? "";
 }

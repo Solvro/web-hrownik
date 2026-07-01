@@ -24,18 +24,16 @@ const scopeLabels: Record<RoleDefinitionOption["scope"], string> = {
   project: "Projekt",
 };
 
-const scopeOrder = ["board", "section", "project"] as const;
+const scopeOrder = ["board", "section"] as const;
 
 export function RolePickerFields({
   roleDefinitions,
   sections,
-  projects,
   value,
   onChange,
 }: {
   roleDefinitions: RoleDefinitionOption[];
   sections: { id: string; name: string }[];
-  projects: { id: string; name: string }[];
   value: RoleAssignmentDraft;
   onChange: (value: RoleAssignmentDraft) => void;
 }) {
@@ -87,26 +85,6 @@ export function RolePickerFields({
             {sections.map((section) => (
               <SelectItem key={section.id} value={section.id}>
                 {section.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      ) : null}
-
-      {selectedRole?.scope === "project" ? (
-        <Select
-          value={value.projectId ?? ""}
-          onValueChange={(projectId) => {
-            onChange({ ...value, projectId });
-          }}
-        >
-          <SelectTrigger className="flex-1">
-            <SelectValue placeholder="Wybierz projekt" />
-          </SelectTrigger>
-          <SelectContent>
-            {projects.map((project) => (
-              <SelectItem key={project.id} value={project.id}>
-                {project.name}
               </SelectItem>
             ))}
           </SelectContent>

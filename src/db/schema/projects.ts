@@ -37,6 +37,7 @@ export const teamMember = pgTable("team_member", {
   memberId: text("member_id")
     .notNull()
     .references(() => member.id, { onDelete: "cascade" }),
+  role: text("role").notNull().default("członek zespołu"),
   joinedAt: timestamp("joined_at").defaultNow().notNull(),
   leftAt: timestamp("left_at"),
 });

@@ -5,10 +5,12 @@ import { useState } from "react";
 import {
   addTeamMember,
   removeTeamMember,
+  updateTeamMemberDetails,
   updateTeamRepositories,
 } from "@/actions/projects";
 import { MultiSelect } from "@/components/multi-select";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -21,7 +23,23 @@ interface TeamMemberRow {
   teamMemberId: string;
   memberId: string;
   fullName: string;
-  projectRoles: string[];
+  role: string;
+  joinedAt: Date;
+  leftAt: Date | null;
+}
+
+const projectRoleOptions = [
+  "PM",
+  "PO",
+  "techlead",
+  "TS",
+  "programista",
+  "UI/UX designer",
+  "członek zespołu",
+] as const;
+
+function toDateInput(date: Date | null): string {
+  return date?.toISOString().slice(0, 10) ?? "";
 }
 
 export function TeamPanel({
@@ -40,6 +58,7 @@ export function TeamPanel({
   canManage: boolean;
 }) {
   const [selectedMemberId, setSelectedMemberId] = useState<string>("");
+  const [selectedRole, setSelectedRole] = useState<string>("członek zespołu");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,8 +69,9 @@ export function TeamPanel({
     setPending(true);
     setError(null);
     try {
-      await addTeamMember(teamId, selectedMemberId);
+      await addTeamMember(teamId, selectedMemberId, selectedRole);
       setSelectedMemberId("");
+      setSelectedRole("członek zespołu");
     } catch (error_) {
       setError(error_ instanceof Error ? error_.message : "Błąd");
     } finally {
@@ -83,6 +103,25 @@ export function TeamPanel({
     }
   }
 
+  async function handleMemberDetailsChange(
+    memberRow: TeamMemberRow,
+    values: Partial<{ role: string; joinedAt: string; leftAt: string }>,
+  ) {
+    setPending(true);
+    setError(null);
+    try {
+      await updateTeamMemberDetails(memberRow.teamMemberId, {
+        role: values.role ?? memberRow.role,
+        joinedAt: values.joinedAt ?? toDateInput(memberRow.joinedAt),
+        leftAt: values.leftAt ?? toDateInput(memberRow.leftAt),
+      });
+    } catch (error_) {
+      setError(error_ instanceof Error ? error_.message : "Błąd");
+    } finally {
+      setPending(false);
+    }
+  }
+
   return (
     <div className="space-y-2">
       <ul className="divide-y rounded-md border">
@@ -91,25 +130,69 @@ export function TeamPanel({
             key={memberRow.teamMemberId}
             className="flex items-center justify-between p-2 text-sm"
           >
-            <span>
-              {memberRow.fullName}
-              {memberRow.projectRoles.length === 0 ? null : (
-                <span className="text-muted-foreground ml-2">
-                  {memberRow.projectRoles.join(", ")}
-                </span>
-              )}
-            </span>
+            <div>
+              <span>{memberRow.fullName}</span>
+              <span className="text-muted-foreground ml-2">
+                {memberRow.joinedAt.toLocaleDateString("pl-PL")} –{" "}
+                {memberRow.leftAt?.toLocaleDateString("pl-PL") ?? "obecnie"}
+              </span>
+            </div>
             {canManage ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={pending}
-                onClick={() => void handleRemove(memberRow.teamMemberId)}
-              >
-                Usuń
-              </Button>
-            ) : null}
+              <div className="flex items-center gap-2">
+                <Select
+                  value={memberRow.role}
+                  onValueChange={(role) =>
+                    void handleMemberDetailsChange(memberRow, { role })
+                  }
+                >
+                  <SelectTrigger className="w-44">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projectRoleOptions.map((role) => (
+                      <SelectItem key={role} value={role}>
+                        {role}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="date"
+                  value={toDateInput(memberRow.joinedAt)}
+                  aria-label={`Data dołączenia: ${memberRow.fullName}`}
+                  className="w-40"
+                  onChange={(event) =>
+                    void handleMemberDetailsChange(memberRow, {
+                      joinedAt: event.target.value,
+                    })
+                  }
+                />
+                <Input
+                  type="date"
+                  value={toDateInput(memberRow.leftAt)}
+                  aria-label={`Data zakończenia: ${memberRow.fullName}`}
+                  className="w-40"
+                  onChange={(event) =>
+                    void handleMemberDetailsChange(memberRow, {
+                      leftAt: event.target.value,
+                    })
+                  }
+                />
+                {memberRow.leftAt === null ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={pending}
+                    onClick={() => void handleRemove(memberRow.teamMemberId)}
+                  >
+                    Zakończ
+                  </Button>
+                ) : null}
+              </div>
+            ) : (
+              <span className="text-muted-foreground">{memberRow.role}</span>
+            )}
           </li>
         ))}
         {members.length === 0 ? (
@@ -151,6 +234,18 @@ export function TeamPanel({
               {availableMembers.map((option) => (
                 <SelectItem key={option.id} value={option.id}>
                   {option.fullName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={selectedRole} onValueChange={setSelectedRole}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Rola" />
+            </SelectTrigger>
+            <SelectContent>
+              {projectRoleOptions.map((role) => (
+                <SelectItem key={role} value={role}>
+                  {role}
                 </SelectItem>
               ))}
             </SelectContent>

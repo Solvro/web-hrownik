@@ -38,10 +38,12 @@ export async function createMember(input: MemberFormValues) {
       discordId: emptyToNull(values.discordId),
       facebookUrl: emptyToNull(values.facebookUrl),
       studentIndex: emptyToNull(values.studentIndex),
+      studyDepartment: emptyToNull(values.studyDepartment),
       studyField: emptyToNull(values.studyField),
-      studyYear: values.studyYear ?? null,
-      studySemester: values.studySemester ?? null,
+      studyYear: emptyToNull(values.studyYear),
       bio: emptyToNull(values.bio),
+      hrNotes: emptyToNull(values.hrNotes),
+      status: values.status,
     })
     .returning();
 
@@ -81,13 +83,17 @@ export async function createMember(input: MemberFormValues) {
         if (definition === undefined) {
           throw new Error("Nie znaleziono wybranej roli.");
         }
+        if (definition.scope === "project") {
+          throw new Error(
+            "Role projektowe są zarządzane w zespołach projektu.",
+          );
+        }
         return {
           memberId: created.id,
           roleDefinitionId: role.roleDefinitionId,
           sectionId:
             definition.scope === "section" ? (role.sectionId ?? null) : null,
-          projectId:
-            definition.scope === "project" ? (role.projectId ?? null) : null,
+          projectId: null,
           startedAt: parseDate(role.startedAt) ?? new Date(),
           endedAt: parseDate(role.endedAt),
         };
@@ -135,8 +141,8 @@ export async function updateMember(
 
   const values = memberFormSchema.partial().parse(input);
 
-  // fullName, bio, emails and sectionIds are board-only; everything else
-  // (socials + study data) is self-editable per FEATURES.md.
+  // fullName, status, bio, HR notes, emails, sectionIds and roles are board-only;
+  // everything else (socials + study data) is self-editable per FEATURES.md.
   await db
     .update(member)
     .set({
@@ -156,18 +162,26 @@ export async function updateMember(
       ...(values.studentIndex !== undefined && {
         studentIndex: emptyToNull(values.studentIndex),
       }),
+      ...(values.studyDepartment !== undefined && {
+        studyDepartment: emptyToNull(values.studyDepartment),
+      }),
       ...(values.studyField !== undefined && {
         studyField: emptyToNull(values.studyField),
       }),
       ...(values.studyYear !== undefined && {
-        studyYear: values.studyYear ?? null,
-      }),
-      ...(values.studySemester !== undefined && {
-        studySemester: values.studySemester ?? null,
+        studyYear: emptyToNull(values.studyYear),
       }),
       ...(isFullAccess &&
         values.bio !== undefined && {
           bio: emptyToNull(values.bio),
+        }),
+      ...(isFullAccess &&
+        values.hrNotes !== undefined && {
+          hrNotes: emptyToNull(values.hrNotes),
+        }),
+      ...(isFullAccess &&
+        values.status !== undefined && {
+          status: values.status,
         }),
       updatedAt: new Date(),
     })
@@ -218,13 +232,17 @@ export async function updateMember(
           if (definition === undefined) {
             throw new Error("Nie znaleziono wybranej roli.");
           }
+          if (definition.scope === "project") {
+            throw new Error(
+              "Role projektowe są zarządzane w zespołach projektu.",
+            );
+          }
           return {
             memberId,
             roleDefinitionId: role.roleDefinitionId,
             sectionId:
               definition.scope === "section" ? (role.sectionId ?? null) : null,
-            projectId:
-              definition.scope === "project" ? (role.projectId ?? null) : null,
+            projectId: null,
             startedAt: parseDate(role.startedAt) ?? new Date(),
             endedAt: parseDate(role.endedAt),
           };

@@ -16,6 +16,13 @@ import { member } from "@/db/schema/members";
 import { getCurrentMember } from "@/lib/current-member";
 import { canManageMembers, getMemberPermissions } from "@/lib/permissions";
 
+const memberStatusLabels = {
+  new: "nowy",
+  active: "aktywny",
+  inactive: "nieaktywny",
+  honorary: "honorowy",
+} as const;
+
 export default async function MembersPage() {
   const currentMember = await getCurrentMember();
   const permissions =
@@ -72,10 +79,12 @@ export default async function MembersPage() {
               <TableCell>
                 <Badge
                   variant={
-                    memberRow.status === "active" ? "default" : "secondary"
+                    memberRow.status === "active" || memberRow.status === "new"
+                      ? "default"
+                      : "secondary"
                   }
                 >
-                  {memberRow.status}
+                  {memberStatusLabels[memberRow.status]}
                 </Badge>
               </TableCell>
             </TableRow>

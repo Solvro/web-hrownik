@@ -2,11 +2,11 @@ import { asc } from "drizzle-orm";
 
 import { MemberForm } from "@/components/members/member-form";
 import { db } from "@/db";
-import { project } from "@/db/schema/projects";
 import { roleDefinition } from "@/db/schema/roles";
 import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
 import { getGithubUserProfile } from "@/lib/integrations/github";
+import { getUniversityInfoOptions } from "@/lib/integrations/topwr";
 import { canManageMembers, getMemberPermissions } from "@/lib/permissions";
 import type { MemberFormInput } from "@/lib/schemas/members";
 
@@ -16,10 +16,12 @@ const emptyValues: MemberFormInput = {
   discordId: "",
   facebookUrl: "",
   studentIndex: "",
+  studyDepartment: "",
   studyField: "",
-  studyYear: undefined,
-  studySemester: undefined,
+  studyYear: "",
   bio: "",
+  hrNotes: "",
+  status: "new",
   emails: [{ email: "", kind: "login" }],
   sectionIds: [],
   roleAssignments: [],
@@ -47,10 +49,10 @@ export default async function NewMemberPage({
     );
   }
 
-  const [sections, projects, roleDefinitions] = await Promise.all([
+  const [sections, roleDefinitions, universityInfoOptions] = await Promise.all([
     db.query.section.findMany({ orderBy: asc(section.name) }),
-    db.query.project.findMany({ orderBy: asc(project.name) }),
     db.query.roleDefinition.findMany({ orderBy: asc(roleDefinition.name) }),
+    getUniversityInfoOptions(),
   ]);
   const githubProfile =
     githubUsername === undefined || fullName !== undefined
@@ -69,8 +71,8 @@ export default async function NewMemberPage({
         mode="create"
         fullAccess
         sections={sections}
-        projects={projects}
         roleDefinitions={roleDefinitions}
+        universityInfoOptions={universityInfoOptions}
         defaultValues={defaultValues}
       />
     </div>

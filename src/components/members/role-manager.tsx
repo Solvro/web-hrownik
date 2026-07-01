@@ -20,13 +20,11 @@ export function RoleManager({
   activeRoles,
   roleDefinitions,
   sections,
-  projects,
 }: {
   memberId: string;
   activeRoles: ActiveRole[];
   roleDefinitions: RoleDefinitionOption[];
   sections: { id: string; name: string }[];
-  projects: { id: string; name: string }[];
 }) {
   const [draft, setDraft] = useState<RoleAssignmentDraft>({
     roleDefinitionId: "",
@@ -95,7 +93,6 @@ export function RoleManager({
         <RolePickerFields
           roleDefinitions={roleDefinitions}
           sections={sections}
-          projects={projects}
           value={draft}
           onChange={setDraft}
         />
