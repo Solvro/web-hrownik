@@ -2,15 +2,23 @@
 
 import { RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { syncProjectActivity } from "@/actions/projects";
+import { ActivityRangePicker } from "@/components/activity-range-picker";
 import { ContributionHeatmap } from "@/components/contribution-heatmap";
 import type { DailyActivityCount } from "@/components/contribution-heatmap";
 import { ActivityTrendChart } from "@/components/projects/activity-trend-chart";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { ActivityRange } from "@/lib/activity-range";
+import {
+  buildAvailableYears,
+  buildVisibleDateRange,
+  startOfToday,
+  sumCountsInRange,
+} from "@/lib/activity-range";
 import type { SyncResult } from "@/lib/integrations/github-activity";
 import { declineNumeric } from "@/lib/polish";
 
@@ -30,6 +38,9 @@ export function ProjectActivityPanel({
   const [pending, setPending] = useState(false);
   const [results, setResults] = useState<SyncResult[] | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
+  const [selectedRange, setSelectedRange] = useState<ActivityRange>({
+    type: "last-year",
+  });
 
   const runSync = useCallback(
     async (clearAutoSyncUrl = false) => {
@@ -65,13 +76,25 @@ export function ProjectActivityPanel({
     void runSync(true);
   }, [autoSync, runSync]);
 
+  const availableYears = useMemo(() => buildAvailableYears(counts), [counts]);
+  const totalInRange = useMemo(() => {
+    const today = startOfToday();
+    const visibleRange = buildVisibleDateRange(selectedRange, today);
+    return sumCountsInRange(counts, visibleRange, today);
+  }, [counts, selectedRange]);
+
   const failed = results?.filter((result) => result.error !== undefined) ?? [];
 
   return (
     <Card size="sm">
       <CardHeader>
-        <div className="flex items-center justify-between gap-3">
-          <CardTitle>Aktywność</CardTitle>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-baseline gap-2">
+            <CardTitle>Aktywność</CardTitle>
+            <span className="text-muted-foreground text-sm">
+              {declineNumeric(totalInRange, "kontrybucja")}
+            </span>
+          </div>
           {canManage ? (
             <Button
               type="button"
@@ -87,11 +110,22 @@ export function ProjectActivityPanel({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {counts.length > 0 ? <ActivityTrendChart counts={counts} /> : null}
         {pending ? (
           <ActivityHeatmapSkeleton />
         ) : (
-          <ContributionHeatmap counts={counts} />
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="min-w-0 space-y-4">
+              {counts.length > 0 ? (
+                <ActivityTrendChart counts={counts} range={selectedRange} />
+              ) : null}
+              <ContributionHeatmap counts={counts} range={selectedRange} />
+            </div>
+            <ActivityRangePicker
+              selected={selectedRange}
+              availableYears={availableYears}
+              onSelect={setSelectedRange}
+            />
+          </div>
         )}
         {summary === null ? null : (
           <div className="text-muted-foreground space-y-1 text-sm">
@@ -115,9 +149,9 @@ export function ProjectActivityPanel({
 
 function ActivityHeatmapSkeleton() {
   return (
-    <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto]">
       <div className="min-w-0 space-y-2">
-        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-32 w-full" />
         <div
           className="grid gap-1"
           style={{ gridTemplateColumns: "repeat(53, minmax(0, 1fr))" }}

@@ -1,9 +1,9 @@
-"use client";
-
-import { useState } from "react";
-
-import { Button } from "@/components/ui/button";
-import { declineNumeric } from "@/lib/polish";
+import type { ActivityRange } from "@/lib/activity-range";
+import {
+  buildVisibleDateRange,
+  startOfToday,
+  toDateKey,
+} from "@/lib/activity-range";
 import { cn } from "@/lib/utils";
 
 export interface DailyActivityCount {
@@ -50,37 +50,9 @@ function levelForCount(count: number): 0 | 1 | 2 | 3 | 4 {
   return 4;
 }
 
-function toDateKey(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
 interface Day {
   date: Date;
   count: number;
-}
-
-type HeatmapRange = { type: "last-year" } | { type: "year"; year: number };
-
-function dateFromParts(year: number, month: number, day: number): Date {
-  return new Date(Date.UTC(year, month, day));
-}
-
-function yearFromDateKey(dateKey: string): number {
-  return Number(dateKey.slice(0, 4));
-}
-
-function buildAvailableYears(counts: DailyActivityCount[]): number[] {
-  const currentYear = new Date().getFullYear();
-  const years = new Set<number>([currentYear]);
-
-  for (const count of counts) {
-    const year = yearFromDateKey(count.date);
-    if (Number.isFinite(year)) {
-      years.add(year);
-    }
-  }
-
-  return [...years].toSorted((a, b) => b - a);
 }
 
 function buildWeeks(
@@ -110,42 +82,17 @@ function buildWeeks(
   return weeks;
 }
 
-function buildLastYearRange(today: Date): { start: Date; end: Date } {
-  return {
-    start: dateFromParts(today.getUTCFullYear(), today.getUTCMonth() - 11, 1),
-    end: today,
-  };
-}
-
 export function ContributionHeatmap({
   counts,
+  range,
 }: {
   counts: DailyActivityCount[];
+  range: ActivityRange;
 }) {
   const countsByDate = new Map(counts.map((c) => [c.date, c.count]));
-  const availableYears = buildAvailableYears(counts);
-  const now = new Date();
-  const today = dateFromParts(now.getFullYear(), now.getMonth(), now.getDate());
-  const [selectedRange, setSelectedRange] = useState<HeatmapRange>({
-    type: "last-year",
-  });
-  const visibleRange =
-    selectedRange.type === "last-year"
-      ? buildLastYearRange(today)
-      : {
-          start: dateFromParts(selectedRange.year, 0, 1),
-          end: dateFromParts(selectedRange.year, 11, 31),
-        };
+  const today = startOfToday();
+  const visibleRange = buildVisibleDateRange(range, today);
   const weeks = buildWeeks(countsByDate, visibleRange.start, visibleRange.end);
-  const totalInRange = weeks
-    .flat()
-    .filter(
-      (day) =>
-        day.date >= visibleRange.start &&
-        day.date <= visibleRange.end &&
-        day.date <= today,
-    )
-    .reduce((sum, day) => sum + day.count, 0);
 
   const monthLabels: { startWeek: number; endWeek: number; label: string }[] =
     [];
@@ -174,101 +121,51 @@ export function ContributionHeatmap({
   const gridTemplateColumns = `repeat(${String(weeks.length)}, minmax(0, 1fr))`;
 
   return (
-    <div className="space-y-2">
-      <p className="text-sm">
-        <span className="font-medium">
-          {declineNumeric(totalInRange, "zdarzenie")}
-        </span>{" "}
-        <span className="text-muted-foreground">
-          &middot;{" "}
-          {selectedRange.type === "last-year"
-            ? "ostatni rok"
-            : selectedRange.year}
-        </span>
-      </p>
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-        <div className="min-w-0 space-y-1">
-          <div className="min-w-0 overflow-hidden">
-            <div className="grid gap-1" style={{ gridTemplateColumns }}>
-              {monthLabels.map((monthLabel) => (
-                <span
-                  key={monthLabel.startWeek}
-                  className="text-muted-foreground truncate text-xs"
-                  style={{
-                    gridColumn: `${String(monthLabel.startWeek + 1)} / ${String(monthLabel.endWeek + 1)}`,
-                  }}
-                >
-                  {monthLabel.label}
-                </span>
-              ))}
-            </div>
-            <div className="grid gap-1" style={{ gridTemplateColumns }}>
-              {weeks.map((week) => (
-                <div key={week[0].date.toISOString()} className="grid gap-1">
-                  {week.map((day) => (
-                    <div
-                      key={day.date.toISOString()}
-                      title={`${day.date.toLocaleDateString("pl-PL", { timeZone: "UTC" })}: ${String(day.count)}`}
-                      className={cn(
-                        "aspect-square w-full rounded-sm",
-                        day.date < visibleRange.start ||
-                          day.date > visibleRange.end ||
-                          day.date > today
-                          ? "invisible"
-                          : LEVEL_CLASS[levelForCount(day.count)],
-                      )}
-                    />
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="text-muted-foreground flex items-center justify-end gap-1 text-xs">
-            <span>mniej</span>
-            {LEVEL_CLASS.map((levelClass) => (
-              <div
-                key={levelClass}
-                className={cn("size-3 rounded-sm", levelClass)}
-              />
-            ))}
-            <span>więcej</span>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-1 md:flex-col md:flex-nowrap">
-          <Button
-            type="button"
-            size="xs"
-            variant={selectedRange.type === "last-year" ? "default" : "ghost"}
-            onClick={() => {
-              setSelectedRange({ type: "last-year" });
-            }}
-            aria-pressed={selectedRange.type === "last-year"}
-            className="justify-start"
-          >
-            Ostatni rok
-          </Button>
-          {availableYears.map((year) => (
-            <Button
-              key={year}
-              type="button"
-              size="xs"
-              variant={
-                selectedRange.type === "year" && year === selectedRange.year
-                  ? "default"
-                  : "ghost"
-              }
-              onClick={() => {
-                setSelectedRange({ type: "year", year });
+    <div className="min-w-0 space-y-1">
+      <div className="min-w-0 overflow-hidden">
+        <div className="grid gap-1" style={{ gridTemplateColumns }}>
+          {monthLabels.map((monthLabel) => (
+            <span
+              key={monthLabel.startWeek}
+              className="text-muted-foreground truncate text-xs"
+              style={{
+                gridColumn: `${String(monthLabel.startWeek + 1)} / ${String(monthLabel.endWeek + 1)}`,
               }}
-              aria-pressed={
-                selectedRange.type === "year" && year === selectedRange.year
-              }
-              className="justify-start"
             >
-              {year}
-            </Button>
+              {monthLabel.label}
+            </span>
           ))}
         </div>
+        <div className="grid gap-1" style={{ gridTemplateColumns }}>
+          {weeks.map((week) => (
+            <div key={week[0].date.toISOString()} className="grid gap-1">
+              {week.map((day) => (
+                <div
+                  key={day.date.toISOString()}
+                  title={`${day.date.toLocaleDateString("pl-PL", { timeZone: "UTC" })}: ${String(day.count)}`}
+                  className={cn(
+                    "aspect-square w-full rounded-sm",
+                    day.date < visibleRange.start ||
+                      day.date > visibleRange.end ||
+                      day.date > today
+                      ? "invisible"
+                      : LEVEL_CLASS[levelForCount(day.count)],
+                  )}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="text-muted-foreground flex items-center justify-end gap-1 text-xs">
+        <span>mniej</span>
+        {LEVEL_CLASS.map((levelClass) => (
+          <div
+            key={levelClass}
+            className={cn("size-3 rounded-sm", levelClass)}
+          />
+        ))}
+        <span>więcej</span>
       </div>
     </div>
   );
