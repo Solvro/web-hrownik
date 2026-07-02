@@ -1,4 +1,5 @@
 import {
+  Building2,
   FolderKanban,
   KeyRound,
   Shapes,
@@ -15,6 +16,7 @@ export const appNavItems: {
   requiredGrant?: { resource: PermissionResourceKey; action: string };
 }[] = [
   { href: "/members", label: "Członkowie", icon: Users },
+  { href: "/boards", label: "Zarządy", icon: Building2 },
   { href: "/sections", label: "Sekcje", icon: Shapes },
   { href: "/projects", label: "Projekty", icon: FolderKanban },
   {

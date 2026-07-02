@@ -28,11 +28,13 @@ const scopeOrder = ["board", "section"] as const;
 
 export function RolePickerFields({
   roleDefinitions,
+  boardTerms,
   sections,
   value,
   onChange,
 }: {
   roleDefinitions: RoleDefinitionOption[];
+  boardTerms: { id: string; name: string }[];
   sections: { id: string; name: string }[];
   value: RoleAssignmentDraft;
   onChange: (value: RoleAssignmentDraft) => void;
@@ -70,6 +72,26 @@ export function RolePickerFields({
           })}
         </SelectContent>
       </Select>
+
+      {selectedRole?.scope === "board" ? (
+        <Select
+          value={value.boardTermId ?? ""}
+          onValueChange={(boardTermId) => {
+            onChange({ ...value, boardTermId });
+          }}
+        >
+          <SelectTrigger className="flex-1">
+            <SelectValue placeholder="Wybierz kadencję" />
+          </SelectTrigger>
+          <SelectContent>
+            {boardTerms.map((term) => (
+              <SelectItem key={term.id} value={term.id}>
+                {term.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : null}
 
       {selectedRole?.scope === "section" ? (
         <Select

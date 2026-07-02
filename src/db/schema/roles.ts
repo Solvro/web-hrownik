@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { check, pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
 
+import { boardTerm } from "./boards";
 import { id } from "./columns.helpers";
 import { roleScopeEnum } from "./enums";
 import { member } from "./members";
@@ -75,10 +76,12 @@ export const roleAssignment = pgTable(
     roleDefinitionId: text("role_definition_id")
       .notNull()
       .references(() => roleDefinition.id, { onDelete: "restrict" }),
-    // Exactly one of these is set, matching roleDefinition.scope ("section" |
-    // "project" | "board"); both null means a board-scoped role. Postgres
-    // CHECK constraints can't reach across tables to validate this against
+    // Exactly one of these is set, matching roleDefinition.scope. Postgres CHECK
+    // constraints can't reach across tables to validate this against
     // roleDefinition.scope, so that part is enforced in the application layer.
+    boardTermId: text("board_term_id").references(() => boardTerm.id, {
+      onDelete: "cascade",
+    }),
     sectionId: text("section_id").references(() => section.id, {
       onDelete: "cascade",
     }),
@@ -91,7 +94,7 @@ export const roleAssignment = pgTable(
   (table) => [
     check(
       "role_assignment_single_target_check",
-      sql`NOT (${table.sectionId} IS NOT NULL AND ${table.projectId} IS NOT NULL)`,
+      sql`num_nonnulls(${table.boardTermId}, ${table.sectionId}, ${table.projectId}) <= 1`,
     ),
   ],
 );

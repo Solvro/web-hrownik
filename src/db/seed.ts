@@ -3,6 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db";
 import { account, user } from "@/db/auth-schema";
+import { boardSettings, boardTerm } from "@/db/schema/boards";
 import { member, memberEmail } from "@/db/schema/members";
 import { env } from "@/env";
 
@@ -72,6 +73,19 @@ async function seed() {
     .onConflictDoNothing({
       target: [roleDefinition.scope, roleDefinition.name],
     });
+  const [currentBoardTerm] = await db
+    .insert(boardTerm)
+    .values({ name: "Aktualna kadencja" })
+    .onConflictDoUpdate({
+      target: boardTerm.name,
+      set: { updatedAt: new Date() },
+    })
+    .returning();
+  await db
+    .insert(boardSettings)
+    .values({ id: "singleton", activeBoardTermId: currentBoardTerm.id })
+    .onConflictDoNothing({ target: boardSettings.id });
+
   await db
     .insert(permissionGroup)
     .values(permissionGroups)
@@ -294,11 +308,23 @@ async function seedAdminUser(zarzadGroupId: string) {
       id: crypto.randomUUID(),
       memberId: adminMember.id,
       roleDefinitionId: boardRole.id,
+      boardTermId: await getActiveBoardTermId(),
       startedAt: now,
     });
   }
 
   return adminUser;
+}
+
+async function getActiveBoardTermId(): Promise<string> {
+  const settings = await db.query.boardSettings.findFirst();
+  if (
+    settings?.activeBoardTermId === undefined ||
+    settings.activeBoardTermId === null
+  ) {
+    throw new Error("Board term was not seeded.");
+  }
+  return settings.activeBoardTermId;
 }
 
 await seed();
