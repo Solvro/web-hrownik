@@ -5,6 +5,7 @@
  */
 export const PERMISSION_RESOURCES = [
   { key: "members", label: "Członkowie", actions: ["read", "write"] },
+  { key: "boards", label: "Kadencje", actions: ["read", "write"] },
   { key: "sections", label: "Sekcje", actions: ["read", "write"] },
   { key: "projects", label: "Projekty", actions: ["read", "write"] },
   { key: "roles", label: "Role i uprawnienia", actions: ["read", "write"] },
