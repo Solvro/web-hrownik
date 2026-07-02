@@ -18,11 +18,11 @@ export default async function ProjectActivityPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  const { id: slug } = await params;
 
   const projectRow = await db.query.project.findFirst({
-    where: eq(project.id, id),
-    columns: { id: true, name: true },
+    where: eq(project.slug, slug),
+    columns: { id: true, name: true, slug: true },
     with: { teams: { with: { members: true } } },
   });
   if (projectRow === undefined) {
@@ -30,7 +30,7 @@ export default async function ProjectActivityPage({
   }
 
   const activityEvents = await db.query.githubActivityEvent.findMany({
-    where: eq(githubActivityEvent.projectId, id),
+    where: eq(githubActivityEvent.projectId, projectRow.id),
     orderBy: desc(githubActivityEvent.occurredAt),
     limit: ACTIVITY_LIMIT,
     with: { member: true, projectRepository: true },
@@ -42,7 +42,8 @@ export default async function ProjectActivityPage({
       : await getMemberPermissions(currentMember.id);
   const canAddMembers =
     permissions !== null && can(permissions, "members", "write");
-  const canManage = permissions !== null && canManageProject(permissions, id);
+  const canManage =
+    permissions !== null && canManageProject(permissions, projectRow.id);
   const teamOptions = projectRow.teams.map((teamRow) => ({
     id: teamRow.id,
     name: teamRow.name,
@@ -65,7 +66,8 @@ export default async function ProjectActivityPage({
     <div className="max-w-3xl space-y-4">
       <div>
         <Link
-          href={`/projects/${id}`}
+          href={`/projects/${projectRow.slug}`}
+          transitionTypes={["nav-back"]}
           className="text-muted-foreground text-sm break-words hover:underline"
         >
           ← {projectRow.name}
@@ -92,7 +94,7 @@ export default async function ProjectActivityPage({
             event.member !== null &&
             !activeProjectMemberIds.has(event.member.id)
               ? {
-                  projectId: id,
+                  projectId: projectRow.id,
                   memberId: event.member.id,
                   teams: teamOptions,
                   roleDefinitions: projectRoleDefinitions.map((role) => ({

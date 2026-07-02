@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Outfit } from "next/font/google";
+import { ViewTransition } from "react";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
@@ -48,7 +49,21 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <ViewTransition
+            enter={{
+              "nav-forward": "nav-forward",
+              "nav-back": "nav-back",
+              default: "none",
+            }}
+            exit={{
+              "nav-forward": "nav-forward",
+              "nav-back": "nav-back",
+              default: "none",
+            }}
+            default="none"
+          >
+            {children}
+          </ViewTransition>
         </ThemeProvider>
       </body>
     </html>

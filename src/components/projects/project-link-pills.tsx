@@ -1,7 +1,8 @@
-import { FolderGit2, Globe } from "lucide-react";
+import { ExternalLink, GitBranch } from "lucide-react";
 import Link from "next/link";
 import type { ComponentType } from "react";
 
+import { GithubIcon } from "@/components/social-icons";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +39,8 @@ function GoogleDriveIcon({ className }: { className?: string }) {
 
 const DRIVE_PILL_CLASS =
   "border-blue-200 bg-blue-50 text-blue-800 [a]:hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-300 dark:[a]:hover:bg-blue-950/60";
+const PRODUCTION_PILL_CLASS =
+  "border-emerald-200 bg-emerald-50 text-emerald-800 [a]:hover:bg-emerald-100 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-300 dark:[a]:hover:bg-emerald-950/60";
 
 interface ExternalLinkPill {
   href: string;
@@ -57,19 +60,24 @@ export function ProjectLinkPills({
   reportUrl,
   reportLabel,
   repositories,
-  projectId,
+  projectSlug,
 }: {
   productionUrl: string | null;
   driveFolderUrl: string | null;
   reportUrl: string | null;
   reportLabel: string;
   repositories: RepoPill[];
-  projectId: string;
+  projectSlug: string;
 }) {
   const externalLinks: ExternalLinkPill[] = [
     productionUrl === null
       ? null
-      : { href: productionUrl, label: "Produkcja", icon: Globe },
+      : {
+          href: productionUrl,
+          label: "Produkcja",
+          icon: ExternalLink,
+          className: PRODUCTION_PILL_CLASS,
+        },
     driveFolderUrl === null
       ? null
       : {
@@ -114,8 +122,15 @@ export function ProjectLinkPills({
       ))}
       {repositories.map((repo) => (
         <Badge key={repo.id} variant="outline" asChild className="h-7 px-3">
-          <Link href={`/projects/${projectId}/repos/${repo.id}`}>
-            <FolderGit2 className="size-3.5" data-icon="inline-start" />
+          <Link
+            href={`/projects/${projectSlug}/repos/${repo.id}`}
+            transitionTypes={["nav-forward"]}
+          >
+            {repo.label.startsWith("Solvro/") ? (
+              <GithubIcon className="size-3.5" data-icon="inline-start" />
+            ) : (
+              <GitBranch className="size-3.5" data-icon="inline-start" />
+            )}
             {repo.label}
           </Link>
         </Badge>

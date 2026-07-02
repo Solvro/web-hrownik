@@ -1,5 +1,6 @@
 "use client";
 
+import { FileWarning } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -26,9 +27,12 @@ type SortMode = "name-asc" | "name-desc" | "status-asc" | "visibility-asc";
 
 export interface ProjectListItem {
   id: string;
+  slug: string;
   name: string;
   status: ProjectStatus;
   visibility: ProjectVisibility;
+  projectCardDriveUrl: string | null;
+  reportDriveUrl: string | null;
 }
 
 const pageSizeOptions = [12, 24, 48] as const;
@@ -186,14 +190,25 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
           {paginated.map((project) => (
             <Link
               key={project.id}
-              href={`/projects/${project.id}`}
+              href={`/projects/${project.slug}`}
+              transitionTypes={["nav-forward"]}
               className="hover:bg-accent min-w-0 rounded-lg border p-4"
             >
               <div className="flex items-start justify-between gap-2">
                 <h2 className="min-w-0 font-medium break-words">
                   {project.name}
                 </h2>
-                <ProjectStatusBadge status={project.status} />
+                <div className="flex shrink-0 items-center gap-1">
+                  {project.projectCardDriveUrl === null ||
+                  (project.status === "completed" &&
+                    project.reportDriveUrl === null) ? (
+                    <FileWarning
+                      className="text-destructive size-4"
+                      aria-label="Braki w dokumentacji projektu"
+                    />
+                  ) : null}
+                  <ProjectStatusBadge status={project.status} />
+                </div>
               </div>
               <p className="text-muted-foreground mt-1 text-sm">
                 {visibilityLabels[project.visibility]}

@@ -83,6 +83,43 @@
   --foreground: oklch(0.148 0.004 228.8);
 }
 
+::view-transition-old(.nav-forward) {
+  animation: nav-fade-out 160ms ease both;
+}
+
+::view-transition-new(.nav-forward) {
+  animation: nav-fade-in 180ms ease both;
+}
+
+::view-transition-old(.nav-back) {
+  animation: nav-fade-out 120ms ease both;
+}
+
+::view-transition-new(.nav-back) {
+  animation: nav-fade-in 140ms ease both;
+}
+
+@keyframes nav-fade-out {
+  to {
+    opacity: 0;
+    transform: translateY(0.25rem);
+  }
+}
+
+@keyframes nav-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.25rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 1ms;
+  }
+}
+
 .dark {
   --background: oklch(0.148 0.004 228.8);
   --foreground: oklch(0.987 0.002 197.1);
