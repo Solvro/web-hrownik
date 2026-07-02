@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
+import { boardTerm } from "@/db/schema/boards";
 import { githubActivityEvent } from "@/db/schema/github";
 import { member } from "@/db/schema/members";
 import { roleAssignment, roleDefinition } from "@/db/schema/roles";
@@ -60,7 +61,12 @@ export default async function MemberProfilePage({
   const roleAssignments = await db.query.roleAssignment.findMany({
     where: eq(roleAssignment.memberId, id),
     orderBy: desc(roleAssignment.startedAt),
-    with: { roleDefinition: true, section: true, project: true },
+    with: {
+      roleDefinition: true,
+      boardTerm: true,
+      section: true,
+      project: true,
+    },
   });
   const roles = roleAssignments.filter(
     (assignment) => assignment.roleDefinition.scope !== "project",
@@ -90,12 +96,13 @@ export default async function MemberProfilePage({
     permissions !== null && can(permissions, "roles", "write");
   const canViewHrNotes = canManageMembers;
 
-  const [roleDefinitions, sections] = canManageRoles
+  const [roleDefinitions, boardTerms, sections] = canManageRoles
     ? await Promise.all([
         db.query.roleDefinition.findMany({ orderBy: asc(roleDefinition.name) }),
+        db.query.boardTerm.findMany({ orderBy: asc(boardTerm.startsAt) }),
         db.query.section.findMany({ orderBy: asc(section.name) }),
       ])
-    : [[], []];
+    : [[], [], []];
 
   const initials = profile.fullName
     .trim()
@@ -288,9 +295,11 @@ export default async function MemberProfilePage({
                   targetLabel:
                     assignment.section?.name ??
                     assignment.project?.name ??
+                    assignment.boardTerm?.name ??
                     null,
                 }))}
               roleDefinitions={roleDefinitions}
+              boardTerms={boardTerms}
               sections={sections}
             />
           </CardContent>
@@ -364,8 +373,13 @@ export default async function MemberProfilePage({
                       {assignment.project.name}
                     </Link>
                   )}
-                  {assignment.section === null && assignment.project === null
-                    ? "Zarząd"
+                  {assignment.boardTerm === null
+                    ? null
+                    : assignment.boardTerm.name}
+                  {assignment.section === null &&
+                  assignment.project === null &&
+                  assignment.boardTerm === null
+                    ? "Zarząd bez kadencji"
                     : null}
                 </div>
                 <div className="text-muted-foreground text-xs">

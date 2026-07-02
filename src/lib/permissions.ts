@@ -1,7 +1,8 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { cache } from "react";
 
 import { db } from "@/db";
+import { boardSettings } from "@/db/schema/boards";
 import { project, team, teamMember } from "@/db/schema/projects";
 import {
   permissionGrant,
@@ -52,6 +53,10 @@ export const getMemberPermissions = cache(
           and(
             eq(roleAssignment.memberId, memberId),
             isNull(roleAssignment.endedAt),
+            or(
+              sql`${roleDefinition.scope} <> 'board'`,
+              sql`${roleAssignment.boardTermId} = (SELECT ${boardSettings.activeBoardTermId} FROM ${boardSettings} WHERE ${boardSettings.id} = 'singleton')`,
+            ),
           ),
         ),
       db

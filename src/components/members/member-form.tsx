@@ -65,6 +65,7 @@ export function MemberForm({
   fullAccess,
   sections,
   roleDefinitions,
+  boardTerms,
   memberOptions,
   universityInfoOptions,
   defaultValues,
@@ -74,6 +75,7 @@ export function MemberForm({
   fullAccess: boolean;
   sections: { id: string; name: string }[];
   roleDefinitions: RoleDefinitionOption[];
+  boardTerms: { id: string; name: string }[];
   memberOptions: { id: string; fullName: string }[];
   universityInfoOptions: {
     departments: { id: string; value: string; label: string }[];
@@ -649,6 +651,7 @@ export function MemberForm({
                         render={({ field }) => (
                           <RolePickerFields
                             roleDefinitions={roleDefinitions}
+                            boardTerms={boardTerms}
                             sections={sections}
                             value={field.value}
                             onChange={field.onChange}

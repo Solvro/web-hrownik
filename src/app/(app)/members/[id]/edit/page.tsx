@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { MemberForm } from "@/components/members/member-form";
 import { db } from "@/db";
+import { boardTerm } from "@/db/schema/boards";
 import { member } from "@/db/schema/members";
 import { roleDefinition } from "@/db/schema/roles";
 import { section } from "@/db/schema/sections";
@@ -51,16 +52,23 @@ export default async function EditMemberPage({
     );
   }
 
-  const [sections, roleDefinitions, members, universityInfoOptions] = fullAccess
+  const [
+    sections,
+    roleDefinitions,
+    boardTerms,
+    members,
+    universityInfoOptions,
+  ] = fullAccess
     ? await Promise.all([
         db.query.section.findMany({ orderBy: asc(section.name) }),
         db.query.roleDefinition.findMany({
           orderBy: asc(roleDefinition.name),
         }),
+        db.query.boardTerm.findMany({ orderBy: asc(boardTerm.startsAt) }),
         db.query.member.findMany({ orderBy: asc(member.fullName) }),
         getUniversityInfoOptions(),
       ])
-    : [[], [], [], await getUniversityInfoOptions()];
+    : [[], [], [], [], await getUniversityInfoOptions()];
 
   return (
     <div className="space-y-6">
@@ -73,6 +81,7 @@ export default async function EditMemberPage({
         fullAccess={fullAccess}
         sections={sections}
         roleDefinitions={roleDefinitions}
+        boardTerms={boardTerms}
         memberOptions={members}
         universityInfoOptions={universityInfoOptions}
         defaultValues={{
@@ -100,6 +109,7 @@ export default async function EditMemberPage({
           ),
           roleAssignments: profile.roleAssignments.map((assignment) => ({
             roleDefinitionId: assignment.roleDefinitionId,
+            boardTermId: assignment.boardTermId ?? undefined,
             sectionId: assignment.sectionId ?? undefined,
             projectId: assignment.projectId ?? undefined,
             startedAt: toDateInput(assignment.startedAt),
