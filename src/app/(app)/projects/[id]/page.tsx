@@ -1,5 +1,5 @@
 import { asc, desc, eq } from "drizzle-orm";
-import { Pencil } from "lucide-react";
+import { FileWarning, Pencil } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -37,11 +37,11 @@ export default async function ProjectPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ ingestActivity?: string }>;
 }) {
-  const { id } = await params;
+  const { id: slug } = await params;
   const { ingestActivity } = await searchParams;
 
   const projectRow = await db.query.project.findFirst({
-    where: eq(project.id, id),
+    where: eq(project.slug, slug),
     with: {
       repositories: true,
       roleAssignments: { with: { member: true, roleDefinition: true } },
@@ -56,13 +56,15 @@ export default async function ProjectPage({
   if (projectRow === undefined) {
     notFound();
   }
+  const projectId = projectRow.id;
 
   const currentMember = await getCurrentMember();
   const permissions =
     currentMember === null
       ? null
       : await getMemberPermissions(currentMember.id);
-  const canManage = permissions !== null && canManageProject(permissions, id);
+  const canManage =
+    permissions !== null && canManageProject(permissions, projectId);
   const canAddMembers =
     permissions !== null && can(permissions, "members", "write");
   const canDeleteProject =
@@ -83,7 +85,7 @@ export default async function ProjectPage({
   );
 
   const activityEvents = await db.query.githubActivityEvent.findMany({
-    where: eq(githubActivityEvent.projectId, id),
+    where: eq(githubActivityEvent.projectId, projectId),
     orderBy: desc(githubActivityEvent.occurredAt),
     limit: RECENT_ACTIVITY_PREVIEW_LIMIT + 1,
     with: { member: true, projectRepository: true },
@@ -105,10 +107,10 @@ export default async function ProjectPage({
   const now = Date.now();
   const [weeklyRanking, monthlyRanking, allTimeRanking, dailyActivity] =
     await Promise.all([
-      getContributorRanking(id, new Date(now - 7 * DAY_MS)),
-      getContributorRanking(id, new Date(now - 30 * DAY_MS)),
-      getContributorRanking(id),
-      getProjectDailyActivity(id),
+      getContributorRanking(projectId, new Date(now - 7 * DAY_MS)),
+      getContributorRanking(projectId, new Date(now - 30 * DAY_MS)),
+      getContributorRanking(projectId),
+      getProjectDailyActivity(projectId),
     ]);
 
   return (
@@ -120,6 +122,14 @@ export default async function ProjectPage({
               {projectRow.name}
             </h1>
             <ProjectStatusBadge status={projectRow.status} />
+            {projectRow.projectCardDriveUrl === null ||
+            (projectRow.status === "completed" &&
+              projectRow.reportDriveUrl === null) ? (
+              <FileWarning
+                className="text-destructive size-5"
+                aria-label="Braki w dokumentacji projektu"
+              />
+            ) : null}
           </div>
           <p className="text-muted-foreground text-sm">
             {projectRow.visibility === "public" ? "publiczny" : "wewnętrzny"}
@@ -128,7 +138,10 @@ export default async function ProjectPage({
         <div className="flex flex-col gap-2 min-[360px]:flex-row sm:flex-row">
           {canManage ? (
             <Button asChild variant="outline">
-              <Link href={`/projects/${id}/edit`}>
+              <Link
+                href={`/projects/${projectRow.slug}/edit`}
+                transitionTypes={["nav-forward"]}
+              >
                 <Pencil />
                 Edytuj
               </Link>
@@ -136,7 +149,7 @@ export default async function ProjectPage({
           ) : null}
           {canDeleteProject ? (
             <DeleteButton
-              action={deleteProject.bind(null, id)}
+              action={deleteProject.bind(null, projectId)}
               confirmMessage={`Na pewno usunąć projekt "${projectRow.name}"? Tej operacji nie można cofnąć.`}
             >
               Usuń projekt
@@ -160,7 +173,7 @@ export default async function ProjectPage({
           id: repo.id,
           label: repo.githubRepoFullName,
         }))}
-        projectId={id}
+        projectSlug={projectRow.slug}
       />
 
       <ContributorLeaderboardCard
@@ -200,7 +213,8 @@ export default async function ProjectPage({
 
       <div className="space-y-4">
         <ProjectActivityPanel
-          projectId={id}
+          projectId={projectId}
+          projectSlug={projectRow.slug}
           canManage={canManage}
           counts={dailyActivity}
           autoSync={canManage ? ingestActivity === "1" : false}
@@ -211,7 +225,8 @@ export default async function ProjectPage({
               <CardTitle>Ostatnia aktywność</CardTitle>
               {hasMoreActivity ? (
                 <Link
-                  href={`/projects/${id}/activity`}
+                  href={`/projects/${projectRow.slug}/activity`}
+                  transitionTypes={["nav-forward"]}
                   className="text-sm hover:underline"
                 >
                   Zobacz całą aktywność →
@@ -241,7 +256,7 @@ export default async function ProjectPage({
                   event.member !== null &&
                   !activeProjectMemberIds.has(event.member.id)
                     ? {
-                        projectId: id,
+                        projectId,
                         memberId: event.member.id,
                         teams: teamOptions,
                         roleDefinitions: projectRoleDefinitions.map((role) => ({
@@ -303,7 +318,7 @@ export default async function ProjectPage({
               />
             </div>
           ))}
-          {canManage ? <NewTeamForm projectId={id} /> : null}
+          {canManage ? <NewTeamForm projectId={projectId} /> : null}
         </CardContent>
       </Card>
     </div>

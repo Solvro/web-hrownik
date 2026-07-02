@@ -14,10 +14,10 @@ export default async function EditProjectPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  const { id: slug } = await params;
 
   const projectRow = await db.query.project.findFirst({
-    where: eq(project.id, id),
+    where: eq(project.slug, slug),
     with: { roleAssignments: { with: { roleDefinition: true } } },
   });
   if (projectRow === undefined) {
@@ -29,7 +29,7 @@ export default async function EditProjectPage({
     currentMember === null
       ? null
       : await getMemberPermissions(currentMember.id);
-  if (permissions === null || !canManageProject(permissions, id)) {
+  if (permissions === null || !canManageProject(permissions, projectRow.id)) {
     return (
       <p className="text-muted-foreground">
         Brak uprawnień do edycji tego projektu.
@@ -52,7 +52,7 @@ export default async function EditProjectPage({
       </h1>
       <ProjectForm
         mode="edit"
-        projectId={id}
+        projectId={projectRow.id}
         repoOptions={[]}
         memberOptions={members.map((memberRow) => ({
           id: memberRow.id,
@@ -76,7 +76,7 @@ export default async function EditProjectPage({
             .filter(
               (assignment) =>
                 assignment.roleDefinition.scope === "project" &&
-                assignment.projectId === id,
+                assignment.projectId === projectRow.id,
             )
             .map((assignment) => ({
               memberId: assignment.memberId,

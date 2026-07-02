@@ -82,7 +82,7 @@ export async function createProject(input: ProjectFormValues) {
   }
 
   redirect(
-    `/projects/${created.id}${linkedRepositoryCount > 0 ? "?ingestActivity=1" : ""}`,
+    `/projects/${created.slug}${linkedRepositoryCount > 0 ? "?ingestActivity=1" : ""}`,
   );
 }
 
@@ -142,8 +142,8 @@ export async function updateProject(
     );
   }
 
-  revalidatePath(`/projects/${projectId}`);
-  redirect(`/projects/${projectId}`);
+  revalidatePath(`/projects/${values.slug}`);
+  redirect(`/projects/${values.slug}`);
 }
 
 export async function createTeam(projectId: string, name: string) {

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { db } from "@/db";
 import { projectRepository } from "@/db/schema/github";
 import { member } from "@/db/schema/members";
+import { project } from "@/db/schema/projects";
 import { getCurrentMember } from "@/lib/current-member";
 import { listOpenIssuesAndPulls } from "@/lib/integrations/github";
 import { can, canManageProject, getMemberPermissions } from "@/lib/permissions";
@@ -18,12 +19,19 @@ export default async function ProjectRepositoryPage({
 }: {
   params: Promise<{ id: string; repoId: string }>;
 }) {
-  const { id, repoId } = await params;
+  const { id: slug, repoId } = await params;
+
+  const projectRow = await db.query.project.findFirst({
+    where: eq(project.slug, slug),
+  });
+  if (projectRow === undefined) {
+    notFound();
+  }
 
   const repo = await db.query.projectRepository.findFirst({
     where: eq(projectRepository.id, repoId),
   });
-  if (repo === undefined) {
+  if (repo?.projectId !== projectRow.id) {
     notFound();
   }
 
@@ -36,7 +44,8 @@ export default async function ProjectRepositoryPage({
     currentMember === null
       ? null
       : await getMemberPermissions(currentMember.id);
-  const canManage = permissions !== null && canManageProject(permissions, id);
+  const canManage =
+    permissions !== null && canManageProject(permissions, projectRow.id);
   const canAddMembers =
     permissions !== null && can(permissions, "members", "write");
 
