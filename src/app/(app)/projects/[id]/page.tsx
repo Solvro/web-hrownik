@@ -44,6 +44,7 @@ export default async function ProjectPage({
     where: eq(project.id, id),
     with: {
       repositories: true,
+      roleAssignments: { with: { member: true, roleDefinition: true } },
       teams: {
         with: {
           members: { with: { member: true, roleDefinition: true } },
@@ -71,10 +72,15 @@ export default async function ProjectPage({
       ? db.query.member.findMany({ orderBy: asc(member.fullName) })
       : Promise.resolve([]),
     db.query.roleDefinition.findMany({
-      where: eq(roleDefinition.scope, "project"),
+      where: eq(roleDefinition.scope, "project_team"),
       orderBy: asc(roleDefinition.name),
     }),
   ]);
+  const activeProjectRoles = projectRow.roleAssignments.filter(
+    (assignment) =>
+      assignment.endedAt === null &&
+      assignment.roleDefinition.scope === "project",
+  );
 
   const activityEvents = await db.query.githubActivityEvent.findMany({
     where: eq(githubActivityEvent.projectId, id),
@@ -163,6 +169,34 @@ export default async function ProjectPage({
         allTime={allTimeRanking}
         canAddMembers={canAddMembers}
       />
+
+      {activeProjectRoles.length > 0 ? (
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle>Role projektowe</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              {activeProjectRoles.map((assignment) => (
+                <li
+                  key={assignment.id}
+                  className="rounded-md border p-3 text-sm"
+                >
+                  <Link
+                    href={`/members/${assignment.member.id}`}
+                    className="font-medium hover:underline"
+                  >
+                    {assignment.member.fullName}
+                  </Link>
+                  <div className="text-muted-foreground">
+                    {assignment.roleDefinition.name}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="space-y-4">
         <ProjectActivityPanel

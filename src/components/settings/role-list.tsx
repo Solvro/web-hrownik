@@ -14,6 +14,7 @@ import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 const scopeLabels = {
   board: "Zarząd",
   section: "Sekcja",
+  project_team: "Zespół projektu",
   project: "Projekt",
 } as const;
 

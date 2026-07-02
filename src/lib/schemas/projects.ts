@@ -24,6 +24,14 @@ export const projectFormSchema = z.object({
     .optional()
     .or(z.literal("")),
   repositoryFullNames: z.array(z.string().trim()),
+  projectRoles: z.array(
+    z.object({
+      memberId: z.string().trim().min(1, "Wybierz osobę"),
+      roleDefinitionId: z.string().trim().min(1, "Wybierz rolę"),
+      startedAt: z.string().trim().optional(),
+      endedAt: z.string().trim().optional(),
+    }),
+  ),
 });
 
 export type ProjectFormValues = z.infer<typeof projectFormSchema>;

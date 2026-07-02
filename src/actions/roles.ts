@@ -54,8 +54,8 @@ export async function assignRole(memberId: string, input: RoleAssignmentDraft) {
   ) {
     throw new Error("Ta rola wymaga wskazania kadencji zarządu.");
   }
-  if (role.scope === "project") {
-    throw new Error("Role projektowe są zarządzane w zespołach projektu.");
+  if (role.scope === "project_team" || role.scope === "project") {
+    throw new Error("Role projektowe są zarządzane przy projekcie.");
   }
 
   await db.insert(roleAssignment).values({

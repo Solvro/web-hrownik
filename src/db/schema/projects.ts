@@ -38,8 +38,8 @@ export const teamMember = pgTable("team_member", {
   memberId: text("member_id")
     .notNull()
     .references(() => member.id, { onDelete: "cascade" }),
-  // Must point at a role_definition with scope = "project" — enforced in the
-  // application layer, same convention as role_assignment's scope matching.
+  // Must point at a role_definition with scope = "project_team" — enforced in
+  // the application layer, same convention as role_assignment's scope matching.
   roleDefinitionId: text("role_definition_id")
     .notNull()
     .references(() => roleDefinition.id, { onDelete: "restrict" }),

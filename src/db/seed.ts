@@ -26,20 +26,19 @@ const roleDefinitions: (typeof roleDefinition.$inferInsert)[] = [
   { scope: "board", name: "wiceprezes" },
   { scope: "board", name: "sekretarz" },
 
-  // Projekt — pełne nazwy, bez skrótów; admin może dodać własne w panelu.
-  { scope: "project", name: "Project Manager" },
+  // Zespół projektu — pełne nazwy, bez skrótów; admin może dodać własne w panelu.
+  { scope: "project_team", name: "Project Manager" },
+  { scope: "project_team", name: "Tech Lead" },
+  { scope: "project_team", name: "programista" },
+  { scope: "project_team", name: "UI/UX designer" },
+  { scope: "project_team", name: "członek zespołu" },
+
+  // Cały projekt.
   { scope: "project", name: "Product Owner" },
-  { scope: "project", name: "Tech Lead" },
-  { scope: "project", name: "programista" },
-  { scope: "project", name: "UI/UX designer" },
-  { scope: "project", name: "członek zespołu" },
 ];
 
-const PROJECT_LEAD_ROLE_NAMES = [
-  "Project Manager",
-  "Product Owner",
-  "Tech Lead",
-];
+const PROJECT_TEAM_LEAD_ROLE_NAMES = ["Project Manager", "Tech Lead"];
+const PROJECT_LEAD_ROLE_NAMES = ["Product Owner"];
 
 const permissionGroups: (typeof permissionGroup.$inferInsert)[] = [
   {
@@ -50,6 +49,10 @@ const permissionGroups: (typeof permissionGroup.$inferInsert)[] = [
     name: "Liderzy projektów",
     description:
       "Prowadzenie własnego projektu (nadawane przez rolę w zespole).",
+  },
+  {
+    name: "Właściciele projektów",
+    description: "Zarządzanie całym projektem (nadawane rolą projektu).",
   },
 ];
 
@@ -97,7 +100,14 @@ async function seed() {
   const projectLeadGroup = await db.query.permissionGroup.findFirst({
     where: eq(permissionGroup.name, "Liderzy projektów"),
   });
-  if (zarzadGroup === undefined || projectLeadGroup === undefined) {
+  const projectOwnerGroup = await db.query.permissionGroup.findFirst({
+    where: eq(permissionGroup.name, "Właściciele projektów"),
+  });
+  if (
+    zarzadGroup === undefined ||
+    projectLeadGroup === undefined ||
+    projectOwnerGroup === undefined
+  ) {
     throw new Error("Permission groups were not seeded.");
   }
 
@@ -131,6 +141,21 @@ async function seed() {
         permissionGrant.action,
       ],
     });
+  await db
+    .insert(permissionGrant)
+    .values(
+      PROJECT_LEAD_GRANTS.map((grant) => ({
+        ...grant,
+        permissionGroupId: projectOwnerGroup.id,
+      })),
+    )
+    .onConflictDoNothing({
+      target: [
+        permissionGrant.permissionGroupId,
+        permissionGrant.resource,
+        permissionGrant.action,
+      ],
+    });
 
   const boardRoles = await db.query.roleDefinition.findMany({
     where: eq(roleDefinition.scope, "board"),
@@ -141,6 +166,27 @@ async function seed() {
       boardRoles.map((role) => ({
         roleDefinitionId: role.id,
         permissionGroupId: zarzadGroup.id,
+      })),
+    )
+    .onConflictDoNothing({
+      target: [
+        roleDefinitionPermissionGroup.roleDefinitionId,
+        roleDefinitionPermissionGroup.permissionGroupId,
+      ],
+    });
+
+  const projectTeamLeadRoles = await db.query.roleDefinition.findMany({
+    where: and(
+      eq(roleDefinition.scope, "project_team"),
+      inArray(roleDefinition.name, PROJECT_TEAM_LEAD_ROLE_NAMES),
+    ),
+  });
+  await db
+    .insert(roleDefinitionPermissionGroup)
+    .values(
+      projectTeamLeadRoles.map((role) => ({
+        roleDefinitionId: role.id,
+        permissionGroupId: projectLeadGroup.id,
       })),
     )
     .onConflictDoNothing({
@@ -161,7 +207,7 @@ async function seed() {
     .values(
       projectLeadRoles.map((role) => ({
         roleDefinitionId: role.id,
-        permissionGroupId: projectLeadGroup.id,
+        permissionGroupId: projectOwnerGroup.id,
       })),
     )
     .onConflictDoNothing({

@@ -15,12 +15,13 @@ import type { RoleAssignmentDraft } from "@/lib/schemas/roles";
 export interface RoleDefinitionOption {
   id: string;
   name: string;
-  scope: "section" | "project" | "board";
+  scope: "section" | "project_team" | "project" | "board";
 }
 
 const scopeLabels: Record<RoleDefinitionOption["scope"], string> = {
   board: "Zarząd",
   section: "Sekcja",
+  project_team: "Zespół projektu",
   project: "Projekt",
 };
 
