@@ -101,7 +101,7 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
   }
 
   return (
-    <div className="flex min-h-full flex-col gap-4">
+    <div className="flex flex-1 flex-col gap-4">
       <div className="grid gap-2 lg:grid-cols-[minmax(14rem,1fr)_auto]">
         <ListFilters
           query={query}

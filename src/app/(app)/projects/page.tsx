@@ -21,7 +21,7 @@ export default async function ProjectsPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-1 flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">Projekty</h1>
         {permissions !== null && can(permissions, "projects", "write") ? (
