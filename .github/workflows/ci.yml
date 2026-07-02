@@ -56,6 +56,15 @@ jobs:
           ADMIN_EMAIL: test@solvro.pl
           ADMIN_PASSWORD: test-password-for-CI
 
+      - name: Check migrations are up to date
+        run: |
+          pnpm run db:generate
+          git diff --exit-code
+          test -z "$(git status --short)"
+        env:
+          ADMIN_EMAIL: test@solvro.pl
+          ADMIN_PASSWORD: test-password-for-CI
+
       - name: Seed database
         run: pnpm exec tsx src/db/seed.ts
         env:
