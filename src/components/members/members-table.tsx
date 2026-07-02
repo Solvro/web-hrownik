@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 import { ListFilters } from "@/components/list-filters";
 import { MemberStatusBadge } from "@/components/status-badge";
@@ -42,14 +43,65 @@ const statusLabels: Record<MemberStatus, string> = {
 };
 
 const pageSizeOptions = [10, 25, 50, 100] as const;
+type SortMode = "name-asc" | "name-desc" | "status-asc";
+
+const defaultPageSize = 25;
 
 export function MembersTable({ members }: { members: MembersTableRow[] }) {
-  const [query, setQuery] = useState("");
-  const [sectionId, setSectionId] = useState("all");
-  const [roleId, setRoleId] = useState("all");
-  const [status, setStatus] = useState<MemberStatus | "all">("all");
-  const [pageSize, setPageSize] = useState<number>(25);
-  const [page, setPage] = useState(1);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParameters = useSearchParams();
+  const [query, setQuery] = useState(searchParameters.get("q") ?? "");
+  const [sectionId, setSectionId] = useState(
+    searchParameters.get("section") ?? "all",
+  );
+  const [roleId, setRoleId] = useState(searchParameters.get("role") ?? "all");
+  const [status, setStatus] = useState<MemberStatus | "all">(
+    (searchParameters.get("status") as MemberStatus | "all" | null) ?? "all",
+  );
+  const [sort, setSort] = useState<SortMode>(
+    (searchParameters.get("sort") as SortMode | null) ?? "name-asc",
+  );
+  const [pageSize, setPageSize] = useState<number>(() => {
+    const fromUrl = Number(searchParameters.get("pageSize"));
+    return Number.isFinite(fromUrl) && fromUrl > 0 ? fromUrl : defaultPageSize;
+  });
+  const [page, setPage] = useState(() =>
+    Math.max(1, Number(searchParameters.get("page") ?? 1)),
+  );
+
+  useEffect(() => {
+    if (searchParameters.has("pageSize")) {
+      return;
+    }
+    const stored = Number(localStorage.getItem("members-page-size"));
+    if (Number.isFinite(stored) && stored > 0) {
+      setPageSize(stored);
+    }
+  }, [searchParameters]);
+
+  function updateUrl(updates: Record<string, string | number>) {
+    const parameters = new URLSearchParams(searchParameters.toString());
+    for (const [key, value] of Object.entries(updates)) {
+      const stringValue = String(value);
+      const isDefault =
+        (key === "q" && stringValue === "") ||
+        (["section", "role", "status"].includes(key) &&
+          stringValue === "all") ||
+        (key === "sort" && stringValue === "name-asc") ||
+        (key === "page" && stringValue === "1") ||
+        (key === "pageSize" && stringValue === String(defaultPageSize));
+      if (isDefault) {
+        parameters.delete(key);
+      } else {
+        parameters.set(key, stringValue);
+      }
+    }
+    router.replace(
+      parameters.size === 0 ? pathname : `${pathname}?${parameters.toString()}`,
+      { scroll: false },
+    );
+  }
 
   const sectionOptions = useMemo(
     () =>
@@ -77,28 +129,42 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    return members.filter((memberRow) => {
-      const matchesQuery =
-        normalizedQuery === "" ||
-        memberRow.fullName.toLowerCase().includes(normalizedQuery) ||
-        (memberRow.githubUsername?.toLowerCase().includes(normalizedQuery) ??
-          false) ||
-        memberRow.sections.some((section) =>
-          section.name.toLowerCase().includes(normalizedQuery),
-        ) ||
-        memberRow.roles.some((role) =>
-          role.name.toLowerCase().includes(normalizedQuery),
-        );
-      const matchesSection =
-        sectionId === "all" ||
-        memberRow.sections.some((section) => section.id === sectionId);
-      const matchesRole =
-        roleId === "all" || memberRow.roles.some((role) => role.id === roleId);
-      const matchesStatus = status === "all" || memberRow.status === status;
+    return members
+      .filter((memberRow) => {
+        const matchesQuery =
+          normalizedQuery === "" ||
+          memberRow.fullName.toLowerCase().includes(normalizedQuery) ||
+          (memberRow.githubUsername?.toLowerCase().includes(normalizedQuery) ??
+            false) ||
+          memberRow.sections.some((section) =>
+            section.name.toLowerCase().includes(normalizedQuery),
+          ) ||
+          memberRow.roles.some((role) =>
+            role.name.toLowerCase().includes(normalizedQuery),
+          );
+        const matchesSection =
+          sectionId === "all" ||
+          memberRow.sections.some((section) => section.id === sectionId);
+        const matchesRole =
+          roleId === "all" ||
+          memberRow.roles.some((role) => role.id === roleId);
+        const matchesStatus = status === "all" || memberRow.status === status;
 
-      return matchesQuery && matchesSection && matchesRole && matchesStatus;
-    });
-  }, [members, query, roleId, sectionId, status]);
+        return matchesQuery && matchesSection && matchesRole && matchesStatus;
+      })
+      .toSorted((first, second) => {
+        if (sort === "name-desc") {
+          return second.fullName.localeCompare(first.fullName, "pl");
+        }
+        if (sort === "status-asc") {
+          return statusLabels[first.status].localeCompare(
+            statusLabels[second.status],
+            "pl",
+          );
+        }
+        return first.fullName.localeCompare(second.fullName, "pl");
+      });
+  }, [members, query, roleId, sectionId, sort, status]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, pageCount);
@@ -107,10 +173,6 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
     currentPage * pageSize,
   );
 
-  function resetPage() {
-    setPage(1);
-  }
-
   return (
     <div className="flex flex-1 flex-col gap-3">
       <div className="grid gap-2 lg:grid-cols-[minmax(14rem,1fr)_auto]">
@@ -118,7 +180,8 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
           query={query}
           onQueryChange={(value) => {
             setQuery(value);
-            resetPage();
+            setPage(1);
+            updateUrl({ q: value, page: 1 });
           }}
           queryPlaceholder="Szukaj po imieniu, nazwisku, GitHubie, sekcji lub roli…"
           selects={[
@@ -126,7 +189,8 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
               value: sectionId,
               onValueChange: (value) => {
                 setSectionId(value);
-                resetPage();
+                setPage(1);
+                updateUrl({ section: value, page: 1 });
               },
               placeholder: "Sekcja",
               options: [
@@ -141,7 +205,8 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
               value: roleId,
               onValueChange: (value) => {
                 setRoleId(value);
-                resetPage();
+                setPage(1);
+                updateUrl({ role: value, page: 1 });
               },
               placeholder: "Rola",
               options: [
@@ -156,7 +221,8 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
               value: status,
               onValueChange: (value) => {
                 setStatus(value as MemberStatus | "all");
-                resetPage();
+                setPage(1);
+                updateUrl({ status: value, page: 1 });
               },
               placeholder: "Status",
               options: [
@@ -168,13 +234,30 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
               ],
               className: "md:w-40",
             },
+            {
+              value: sort,
+              onValueChange: (value) => {
+                setSort(value as SortMode);
+                updateUrl({ sort: value });
+              },
+              placeholder: "Sortowanie",
+              kind: "sort",
+              options: [
+                { value: "name-asc", label: "nazwa A-Z" },
+                { value: "name-desc", label: "nazwa Z-A" },
+                { value: "status-asc", label: "status" },
+              ],
+              className: "md:w-44",
+            },
           ]}
         />
         <Select
           value={String(pageSize)}
           onValueChange={(value) => {
             setPageSize(Number(value));
-            resetPage();
+            localStorage.setItem("members-page-size", value);
+            setPage(1);
+            updateUrl({ pageSize: value, page: 1 });
           }}
         >
           <SelectTrigger className="w-full md:w-36">
@@ -252,7 +335,9 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
             size="sm"
             disabled={currentPage === 1}
             onClick={() => {
-              setPage((value) => Math.max(1, value - 1));
+              const nextPage = Math.max(1, currentPage - 1);
+              setPage(nextPage);
+              updateUrl({ page: nextPage });
             }}
           >
             Poprzednia
@@ -266,7 +351,9 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
             size="sm"
             disabled={currentPage === pageCount}
             onClick={() => {
-              setPage((value) => Math.min(pageCount, value + 1));
+              const nextPage = Math.min(pageCount, currentPage + 1);
+              setPage(nextPage);
+              updateUrl({ page: nextPage });
             }}
           >
             Następna

@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 import { declineNumeric } from "@/lib/polish";
 import type { ProjectFormValues } from "@/lib/schemas/projects";
 import { projectFormSchema } from "@/lib/schemas/projects";
@@ -69,6 +70,9 @@ export function ProjectForm({
       projectRoles: [],
     },
   });
+  useUnsavedChangesWarning(
+    form.formState.isDirty && !form.formState.isSubmitting,
+  );
   const projectRoles = useFieldArray({
     control: form.control,
     name: "projectRoles",
