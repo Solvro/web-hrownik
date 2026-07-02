@@ -9,6 +9,7 @@ export const projectFormSchema = z.object({
     .max(160)
     .regex(/^[a-z0-9-]+$/, "Tylko małe litery, cyfry i myślniki"),
   status: z.enum(["active", "completed", "suspended"]),
+  startedAt: z.string().trim().optional(),
   visibility: z.enum(["internal", "public"]),
   productionUrl: z.url("Podaj poprawny adres URL").optional().or(z.literal("")),
   driveFolderUrl: z
