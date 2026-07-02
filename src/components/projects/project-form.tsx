@@ -13,6 +13,7 @@ import {
 } from "@/actions/projects";
 import { MultiSelect } from "@/components/multi-select";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
   FieldDescription,
@@ -73,6 +74,9 @@ export function ProjectForm({
       driveFolderUrl: "",
       projectCardDriveUrl: "",
       reportDriveUrl: "",
+      leaderboardLimit: 5,
+      leaderboardIncludeExternal: true,
+      leaderboardIncludeBots: false,
       repositoryFullNames: [],
       projectRoles: [],
     },
@@ -418,6 +422,66 @@ export function ProjectForm({
             </div>
           </Field>
         ) : null}
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Controller
+            name="leaderboardLimit"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor={field.name}>Top kontrybutorów</FieldLabel>
+                <Input
+                  {...field}
+                  id={field.name}
+                  type="number"
+                  min={1}
+                  max={50}
+                  aria-invalid={fieldState.invalid}
+                />
+                {fieldState.invalid ? (
+                  <FieldError errors={[fieldState.error]} />
+                ) : null}
+              </Field>
+            )}
+          />
+          <Controller
+            name="leaderboardIncludeExternal"
+            control={form.control}
+            render={({ field }) => (
+              <label
+                htmlFor={field.name}
+                className="flex items-center gap-2 text-sm sm:mt-7"
+              >
+                <Checkbox
+                  id={field.name}
+                  checked={field.value}
+                  onCheckedChange={(checked) => {
+                    field.onChange(checked === true);
+                  }}
+                />
+                Zewnętrzni
+              </label>
+            )}
+          />
+          <Controller
+            name="leaderboardIncludeBots"
+            control={form.control}
+            render={({ field }) => (
+              <label
+                htmlFor={field.name}
+                className="flex items-center gap-2 text-sm sm:mt-7"
+              >
+                <Checkbox
+                  id={field.name}
+                  checked={field.value}
+                  onCheckedChange={(checked) => {
+                    field.onChange(checked === true);
+                  }}
+                />
+                Boty
+              </label>
+            )}
+          />
+        </div>
         {mode === "edit" ? (
           <Field>
             <FieldLabel>Role w całym projekcie</FieldLabel>

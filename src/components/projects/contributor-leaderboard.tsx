@@ -93,12 +93,22 @@ function LeaderboardRow({
 
 function LeaderboardList({
   entries,
+  includeExternal,
+  includeBots,
   canAddMembers,
 }: {
   entries: LeaderboardEntry[];
+  includeExternal: boolean;
+  includeBots: boolean;
   canAddMembers: boolean;
 }) {
-  if (entries.length === 0) {
+  const visibleEntries = entries.filter(
+    (entry) =>
+      (includeExternal || entry.memberId !== null) &&
+      (includeBots || !entry.githubLogin.toLowerCase().includes("bot")),
+  );
+
+  if (visibleEntries.length === 0) {
     return (
       <p className="text-muted-foreground py-6 text-center text-sm">
         Brak aktywności w tym okresie.
@@ -106,11 +116,11 @@ function LeaderboardList({
     );
   }
 
-  const maxCount = Math.max(...entries.map((entry) => entry.eventCount));
+  const maxCount = Math.max(...visibleEntries.map((entry) => entry.eventCount));
 
   return (
     <ol className="space-y-1">
-      {entries.map((entry, index) => (
+      {visibleEntries.map((entry, index) => (
         <LeaderboardRow
           key={entry.memberId ?? entry.githubLogin}
           entry={entry}
@@ -127,11 +137,15 @@ export function ContributorLeaderboardCard({
   weekly,
   monthly,
   allTime,
+  includeExternal,
+  includeBots,
   canAddMembers,
 }: {
   weekly: LeaderboardEntry[];
   monthly: LeaderboardEntry[];
   allTime: LeaderboardEntry[];
+  includeExternal: boolean;
+  includeBots: boolean;
   canAddMembers: boolean;
 }) {
   return (
@@ -150,13 +164,28 @@ export function ContributorLeaderboardCard({
             <TabsTrigger value="all">Cały czas</TabsTrigger>
           </TabsList>
           <TabsContent value="week">
-            <LeaderboardList entries={weekly} canAddMembers={canAddMembers} />
+            <LeaderboardList
+              entries={weekly}
+              includeExternal={includeExternal}
+              includeBots={includeBots}
+              canAddMembers={canAddMembers}
+            />
           </TabsContent>
           <TabsContent value="month">
-            <LeaderboardList entries={monthly} canAddMembers={canAddMembers} />
+            <LeaderboardList
+              entries={monthly}
+              includeExternal={includeExternal}
+              includeBots={includeBots}
+              canAddMembers={canAddMembers}
+            />
           </TabsContent>
           <TabsContent value="all">
-            <LeaderboardList entries={allTime} canAddMembers={canAddMembers} />
+            <LeaderboardList
+              entries={allTime}
+              includeExternal={includeExternal}
+              includeBots={includeBots}
+              canAddMembers={canAddMembers}
+            />
           </TabsContent>
         </Tabs>
       </CardContent>

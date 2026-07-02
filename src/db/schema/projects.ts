@@ -1,4 +1,10 @@
-import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 import { id } from "./columns.helpers";
 import { projectStatusEnum, projectVisibilityEnum } from "./enums";
@@ -16,6 +22,13 @@ export const project = pgTable("project", {
   projectCardDriveUrl: text("project_card_drive_url"),
   reportDriveUrl: text("report_drive_url"),
   startedAt: timestamp("started_at"),
+  leaderboardLimit: integer("leaderboard_limit").notNull().default(5),
+  leaderboardIncludeExternal: boolean("leaderboard_include_external")
+    .notNull()
+    .default(true),
+  leaderboardIncludeBots: boolean("leaderboard_include_bots")
+    .notNull()
+    .default(false),
   endedAt: timestamp("ended_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

@@ -85,6 +85,9 @@ export default async function EditProjectPage({
           driveFolderUrl: projectRow.driveFolderUrl ?? "",
           projectCardDriveUrl: projectRow.projectCardDriveUrl ?? "",
           reportDriveUrl: projectRow.reportDriveUrl ?? "",
+          leaderboardLimit: projectRow.leaderboardLimit,
+          leaderboardIncludeExternal: projectRow.leaderboardIncludeExternal,
+          leaderboardIncludeBots: projectRow.leaderboardIncludeBots,
           repositoryFullNames: [],
           projectRoles: projectRow.roleAssignments
             .filter(
