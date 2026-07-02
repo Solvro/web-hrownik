@@ -1,4 +1,4 @@
-import { eq, isNull } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -7,6 +7,7 @@ import { DeleteButton } from "@/components/delete-button";
 import { SectionMembersBrowser } from "@/components/sections/section-members-browser";
 import { Button } from "@/components/ui/button";
 import { db } from "@/db";
+import { roleAssignment } from "@/db/schema/roles";
 import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
 import { can, getMemberPermissions } from "@/lib/permissions";
@@ -20,37 +21,57 @@ export default async function SectionPage({
 
   const sectionRow = await db.query.section.findFirst({
     where: eq(section.id, id),
-    with: {
-      members: {
-        with: {
-          member: {
-            with: {
-              teamMemberships: {
-                where: (teamMember, operators) =>
-                  operators.isNull(teamMember.leftAt),
-                with: { team: { with: { project: true } } },
-              },
-            },
-          },
-        },
-      },
-    },
   });
   if (sectionRow === undefined) {
     notFound();
   }
 
   const activeRoles = await db.query.roleAssignment.findMany({
-    where: (assignment, { and }) =>
-      and(eq(assignment.sectionId, id), isNull(assignment.endedAt)),
-    with: { roleDefinition: true },
+    where: and(
+      eq(roleAssignment.sectionId, id),
+      isNull(roleAssignment.endedAt),
+    ),
+    with: {
+      roleDefinition: true,
+      member: {
+        with: {
+          teamMemberships: {
+            where: (teamMember, operators) =>
+              operators.isNull(teamMember.leftAt),
+            with: { team: { with: { project: true } } },
+          },
+        },
+      },
+    },
   });
-  const roleByMemberId = new Map(
-    activeRoles.map((assignment) => [
-      assignment.memberId,
-      assignment.roleDefinition.name,
-    ]),
-  );
+  const memberRows = activeRoles.reduce<
+    Map<
+      string,
+      {
+        assignment: (typeof activeRoles)[number];
+        roleNames: string[];
+        joinedAt: Date;
+      }
+    >
+  >((members, assignment) => {
+    if (assignment.roleDefinition.scope !== "section") {
+      return members;
+    }
+    const existing = members.get(assignment.memberId);
+    if (existing === undefined) {
+      members.set(assignment.memberId, {
+        assignment,
+        roleNames: [assignment.roleDefinition.name],
+        joinedAt: assignment.startedAt,
+      });
+      return members;
+    }
+    existing.roleNames.push(assignment.roleDefinition.name);
+    if (assignment.startedAt < existing.joinedAt) {
+      existing.joinedAt = assignment.startedAt;
+    }
+    return members;
+  }, new Map());
 
   const currentMember = await getCurrentMember();
   const permissions =
@@ -89,14 +110,14 @@ export default async function SectionPage({
       <section className="space-y-3">
         <h2 className="font-medium">Członkowie</h2>
         <SectionMembersBrowser
-          members={sectionRow.members.map((membership) => ({
-            id: membership.member.id,
-            fullName: membership.member.fullName,
-            githubUsername: membership.member.githubUsername,
-            status: membership.member.status,
+          members={[...memberRows.values()].map((membership) => ({
+            id: membership.assignment.member.id,
+            fullName: membership.assignment.member.fullName,
+            githubUsername: membership.assignment.member.githubUsername,
+            status: membership.assignment.member.status,
             joinedAt: membership.joinedAt,
-            role: roleByMemberId.get(membership.memberId) ?? null,
-            projectBadges: membership.member.teamMemberships.map(
+            role: membership.roleNames.join(", "),
+            projectBadges: membership.assignment.member.teamMemberships.map(
               (teamMembership) => ({
                 id: teamMembership.team.project.id,
                 name: teamMembership.team.project.name,

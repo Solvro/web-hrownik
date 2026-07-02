@@ -36,12 +36,13 @@ import { roleDefinitionFormSchema } from "@/lib/schemas/roles";
 const scopeLabels = {
   board: "Zarząd",
   section: "Sekcja",
+  project_team: "Zespół projektu",
   project: "Projekt",
 } as const;
 
 export interface RoleDefinitionData {
   id: string;
-  scope: "board" | "section" | "project";
+  scope: "board" | "section" | "project_team" | "project";
   name: string;
   githubTeamSlug: string | null;
   discordRoleId: string | null;
@@ -137,8 +138,8 @@ export function RoleForm({
                   </SelectContent>
                 </Select>
                 <FieldDescription>
-                  Zarząd i sekcja przypisywane są członkom bezpośrednio; projekt
-                  — w zespołach projektu.
+                  Zarząd i sekcja przypisywane są członkom bezpośrednio; zespół
+                  projektu — w zespołach, a projekt — do całego projektu.
                 </FieldDescription>
               </Field>
             )}

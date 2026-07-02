@@ -11,6 +11,7 @@ export const emailKindEnum = pgEnum("email_kind", ["login", "notification"]);
 
 export const roleScopeEnum = pgEnum("role_scope", [
   "section",
+  "project_team",
   "project",
   "board",
 ]);

@@ -47,7 +47,6 @@ export default async function MemberProfilePage({
     where: eq(member.id, id),
     with: {
       emails: true,
-      sections: { with: { section: true } },
       teamMemberships: {
         with: { team: { with: { project: true } }, roleDefinition: true },
       },
@@ -69,8 +68,11 @@ export default async function MemberProfilePage({
     },
   });
   const roles = roleAssignments.filter(
-    (assignment) => assignment.roleDefinition.scope !== "project",
+    (assignment) =>
+      assignment.roleDefinition.scope !== "project" &&
+      assignment.roleDefinition.scope !== "project_team",
   );
+  const activeSections = activeSectionMemberships(roleAssignments);
 
   const activityEvents = await db.query.githubActivityEvent.findMany({
     where: eq(githubActivityEvent.memberId, id),
@@ -206,11 +208,11 @@ export default async function MemberProfilePage({
               />
             )}
           </dl>
-          {profile.sections.length > 0 ? (
+          {activeSections.length > 0 ? (
             <div className="flex flex-wrap gap-1">
-              {profile.sections.map((membership) => (
-                <Badge key={membership.id} variant="outline">
-                  {membership.section.name}
+              {activeSections.map((sectionRow) => (
+                <Badge key={sectionRow.id} variant="outline">
+                  {sectionRow.name}
                 </Badge>
               ))}
             </div>
@@ -395,6 +397,26 @@ export default async function MemberProfilePage({
       </Card>
     </div>
   );
+}
+
+function activeSectionMemberships(
+  assignments: {
+    endedAt: Date | null;
+    roleDefinition: { scope: string };
+    section: { id: string; name: string } | null;
+  }[],
+) {
+  const sections = new Map<string, { id: string; name: string }>();
+  for (const assignment of assignments) {
+    if (
+      assignment.endedAt === null &&
+      assignment.roleDefinition.scope === "section" &&
+      assignment.section !== null
+    ) {
+      sections.set(assignment.section.id, assignment.section);
+    }
+  }
+  return [...sections.values()];
 }
 
 function Row({ label, value }: { label: string; value: ReactNode }) {

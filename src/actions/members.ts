@@ -8,7 +8,7 @@ import { db } from "@/db";
 import { member, memberEmail } from "@/db/schema/members";
 import { teamMember } from "@/db/schema/projects";
 import { roleAssignment, roleDefinition } from "@/db/schema/roles";
-import { memberSection, section } from "@/db/schema/sections";
+import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
 import { reattributeActivityForMember } from "@/lib/integrations/github-activity";
 import type { MemberImportSheetType } from "@/lib/member-import";
@@ -73,36 +73,46 @@ export async function createMember(input: MemberFormValues) {
     );
   }
 
-  if (values.sectionIds.length > 0) {
-    await db.insert(memberSection).values(
-      values.sectionIds.map((sectionId) => ({
-        memberId: created.id,
-        sectionId,
-      })),
-    );
-  }
-
-  if (values.roleAssignments.length > 0) {
-    const roleDefinitions = await db.query.roleDefinition.findMany({
-      where: inArray(
-        roleDefinition.id,
-        values.roleAssignments.map((role) => role.roleDefinitionId),
-      ),
-    });
+  const sectionMemberRole =
+    values.sectionIds.length === 0 ? null : await getSectionMemberRole();
+  if (values.roleAssignments.length > 0 || values.sectionIds.length > 0) {
+    const roleDefinitions =
+      values.roleAssignments.length === 0
+        ? []
+        : await db.query.roleDefinition.findMany({
+            where: inArray(
+              roleDefinition.id,
+              values.roleAssignments.map((role) => role.roleDefinitionId),
+            ),
+          });
     const roleDefinitionById = new Map(
       roleDefinitions.map((role) => [role.id, role]),
     );
 
-    await db.insert(roleAssignment).values(
-      values.roleAssignments.map((role) => {
+    const sectionRoleAssignments =
+      sectionMemberRole === null
+        ? []
+        : values.sectionIds.map((sectionId) => ({
+            memberId: created.id,
+            roleDefinitionId: sectionMemberRole.id,
+            boardTermId: null,
+            sectionId,
+            projectId: null,
+            startedAt: new Date(),
+            endedAt: null,
+          }));
+
+    await db.insert(roleAssignment).values([
+      ...values.roleAssignments.map((role) => {
         const definition = roleDefinitionById.get(role.roleDefinitionId);
         if (definition === undefined) {
           throw new Error("Nie znaleziono wybranej roli.");
         }
-        if (definition.scope === "project") {
-          throw new Error(
-            "Role projektowe są zarządzane w zespołach projektu.",
-          );
+        if (
+          definition.scope === "project_team" ||
+          definition.scope === "project"
+        ) {
+          throw new Error("Role projektowe są zarządzane przy projekcie.");
         }
         if (
           definition.scope === "board" &&
@@ -121,7 +131,8 @@ export async function createMember(input: MemberFormValues) {
           endedAt: parseDate(role.endedAt),
         };
       }),
-    );
+      ...sectionRoleAssignments,
+    ]);
   }
 
   if (created.githubUsername !== null) {
@@ -240,42 +251,66 @@ export async function updateMember(
     }
   }
 
-  if (isFullAccess && values.sectionIds !== undefined) {
-    await db.delete(memberSection).where(eq(memberSection.memberId, memberId));
-    if (values.sectionIds.length > 0) {
-      await db
-        .insert(memberSection)
-        .values(
-          values.sectionIds.map((sectionId) => ({ memberId, sectionId })),
-        );
-    }
-  }
-
   if (isFullAccess && values.roleAssignments !== undefined) {
-    await db
-      .delete(roleAssignment)
-      .where(eq(roleAssignment.memberId, memberId));
-    if (values.roleAssignments.length > 0) {
-      const roleDefinitions = await db.query.roleDefinition.findMany({
-        where: inArray(
-          roleDefinition.id,
-          values.roleAssignments.map((role) => role.roleDefinitionId),
-        ),
-      });
+    const existingAssignments = await db.query.roleAssignment.findMany({
+      where: eq(roleAssignment.memberId, memberId),
+      with: { roleDefinition: true },
+    });
+    const replacedAssignmentIds = existingAssignments
+      .filter(
+        (assignment) =>
+          assignment.roleDefinition.scope !== "project" &&
+          assignment.roleDefinition.scope !== "project_team",
+      )
+      .map((assignment) => assignment.id);
+    if (replacedAssignmentIds.length > 0) {
+      await db
+        .delete(roleAssignment)
+        .where(inArray(roleAssignment.id, replacedAssignmentIds));
+    }
+
+    const sectionMemberRole =
+      values.sectionIds === undefined || values.sectionIds.length === 0
+        ? null
+        : await getSectionMemberRole();
+    if (values.roleAssignments.length > 0 || values.sectionIds !== undefined) {
+      const roleDefinitions =
+        values.roleAssignments.length === 0
+          ? []
+          : await db.query.roleDefinition.findMany({
+              where: inArray(
+                roleDefinition.id,
+                values.roleAssignments.map((role) => role.roleDefinitionId),
+              ),
+            });
       const roleDefinitionById = new Map(
         roleDefinitions.map((role) => [role.id, role]),
       );
 
-      await db.insert(roleAssignment).values(
-        values.roleAssignments.map((role) => {
+      const sectionRoleAssignments =
+        sectionMemberRole === null
+          ? []
+          : (values.sectionIds ?? []).map((sectionId) => ({
+              memberId,
+              roleDefinitionId: sectionMemberRole.id,
+              boardTermId: null,
+              sectionId,
+              projectId: null,
+              startedAt: new Date(),
+              endedAt: null,
+            }));
+
+      const assignments = [
+        ...values.roleAssignments.map((role) => {
           const definition = roleDefinitionById.get(role.roleDefinitionId);
           if (definition === undefined) {
             throw new Error("Nie znaleziono wybranej roli.");
           }
-          if (definition.scope === "project") {
-            throw new Error(
-              "Role projektowe są zarządzane w zespołach projektu.",
-            );
+          if (
+            definition.scope === "project_team" ||
+            definition.scope === "project"
+          ) {
+            throw new Error("Role projektowe są zarządzane przy projekcie.");
           }
           if (
             definition.scope === "board" &&
@@ -294,7 +329,11 @@ export async function updateMember(
             endedAt: parseDate(role.endedAt),
           };
         }),
-      );
+        ...sectionRoleAssignments,
+      ];
+      if (assignments.length > 0) {
+        await db.insert(roleAssignment).values(assignments);
+      }
     }
   }
 
@@ -642,10 +681,19 @@ export async function commitMemberImport(
         emailToId.set(email, created.id);
       }
       if (sectionIds.length > 0) {
-        await db.insert(memberSection).values(
+        const sectionMemberRole = await getSectionMemberRole();
+        await db.insert(roleAssignment).values(
           sectionIds.map((sectionId) => ({
             memberId: created.id,
+            roleDefinitionId: sectionMemberRole.id,
+            boardTermId: null,
             sectionId,
+            projectId: null,
+            startedAt:
+              row.joinedAt === ""
+                ? new Date()
+                : new Date(`${row.joinedAt}T00:00:00`),
+            endedAt: null,
           })),
         );
       }
@@ -718,6 +766,19 @@ export async function commitMemberImport(
 
 function emptyToNull(value: string | undefined): string | null {
   return value === undefined || value === "" ? null : value;
+}
+
+async function getSectionMemberRole() {
+  const role = await db.query.roleDefinition.findFirst({
+    where: and(
+      eq(roleDefinition.scope, "section"),
+      eq(roleDefinition.name, "członek"),
+    ),
+  });
+  if (role === undefined) {
+    throw new Error("Nie znaleziono roli członka sekcji.");
+  }
+  return role;
 }
 
 function normalizeEmail(email: string): string {

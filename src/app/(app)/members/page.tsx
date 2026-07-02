@@ -19,8 +19,7 @@ export default async function MembersPage() {
   const members = await db.query.member.findMany({
     orderBy: asc(member.fullName),
     with: {
-      sections: { with: { section: true } },
-      roleAssignments: { with: { roleDefinition: true } },
+      roleAssignments: { with: { roleDefinition: true, section: true } },
     },
   });
 
@@ -52,10 +51,7 @@ export default async function MembersPage() {
           fullName: memberRow.fullName,
           githubUsername: memberRow.githubUsername,
           status: memberRow.status,
-          sections: memberRow.sections.map((membership) => ({
-            id: membership.section.id,
-            name: membership.section.name,
-          })),
+          sections: activeSectionMemberships(memberRow.roleAssignments),
           roles: memberRow.roleAssignments.map((assignment) => ({
             id: assignment.roleDefinition.id,
             name: assignment.roleDefinition.name,
@@ -64,4 +60,24 @@ export default async function MembersPage() {
       />
     </div>
   );
+}
+
+function activeSectionMemberships(
+  assignments: {
+    endedAt: Date | null;
+    roleDefinition: { scope: string };
+    section: { id: string; name: string } | null;
+  }[],
+) {
+  const sections = new Map<string, { id: string; name: string }>();
+  for (const assignment of assignments) {
+    if (
+      assignment.endedAt === null &&
+      assignment.roleDefinition.scope === "section" &&
+      assignment.section !== null
+    ) {
+      sections.set(assignment.section.id, assignment.section);
+    }
+  }
+  return [...sections.values()];
 }

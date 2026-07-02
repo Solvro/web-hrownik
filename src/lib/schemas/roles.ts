@@ -20,7 +20,7 @@ export const roleAssignmentDraftSchema = z
 export type RoleAssignmentDraft = z.infer<typeof roleAssignmentDraftSchema>;
 
 export const roleDefinitionFormSchema = z.object({
-  scope: z.enum(["board", "section", "project"]),
+  scope: z.enum(["board", "section", "project_team", "project"]),
   name: z.string().trim().min(1, "Podaj nazwę roli").max(80),
   githubTeamSlug: z.string().trim().max(80).optional().or(z.literal("")),
   discordRoleId: z.string().trim().max(80).optional().or(z.literal("")),

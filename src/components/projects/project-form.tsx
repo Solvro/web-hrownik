@@ -1,10 +1,10 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Save } from "lucide-react";
+import { Plus, Save, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
 
 import { createProject, updateProject } from "@/actions/projects";
 import { MultiSelect } from "@/components/multi-select";
@@ -40,11 +40,15 @@ export function ProjectForm({
   mode = "create",
   projectId,
   repoOptions,
+  memberOptions = [],
+  projectRoleDefinitions = [],
   defaultValues,
 }: {
   mode?: "create" | "edit";
   projectId?: string;
   repoOptions: { value: string; label: string }[];
+  memberOptions?: { id: string; fullName: string }[];
+  projectRoleDefinitions?: { id: string; name: string }[];
   defaultValues?: ProjectFormValues;
 }) {
   const router = useRouter();
@@ -62,7 +66,12 @@ export function ProjectForm({
       projectCardDriveUrl: "",
       reportDriveUrl: "",
       repositoryFullNames: [],
+      projectRoles: [],
     },
+  });
+  const projectRoles = useFieldArray({
+    control: form.control,
+    name: "projectRoles",
   });
   const projectName = form.watch("name");
   const slug = form.watch("slug");
@@ -329,6 +338,123 @@ export function ProjectForm({
               </Field>
             )}
           />
+        ) : null}
+        {mode === "edit" ? (
+          <Field>
+            <FieldLabel>Role w całym projekcie</FieldLabel>
+            <FieldDescription>
+              Role z zakresem projektu, np. Product Owner, przypisują osobę do
+              całego projektu poza zespołami.
+            </FieldDescription>
+            <div className="space-y-2">
+              {projectRoles.fields.map((role, index) => (
+                <div
+                  key={role.id}
+                  className="flex flex-wrap gap-2 rounded-md border p-2"
+                >
+                  <Controller
+                    name={`projectRoles.${index}.memberId`}
+                    control={form.control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger className="min-w-48 flex-1">
+                          <SelectValue placeholder="Osoba" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {memberOptions.map((member) => (
+                            <SelectItem key={member.id} value={member.id}>
+                              {member.fullName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  <Controller
+                    name={`projectRoles.${index}.roleDefinitionId`}
+                    control={form.control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger className="min-w-44 flex-1">
+                          <SelectValue placeholder="Rola" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {projectRoleDefinitions.map((roleDefinition) => (
+                            <SelectItem
+                              key={roleDefinition.id}
+                              value={roleDefinition.id}
+                            >
+                              {roleDefinition.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  <Controller
+                    name={`projectRoles.${index}.startedAt`}
+                    control={form.control}
+                    render={({ field }) => (
+                      <Input
+                        {...field}
+                        type="date"
+                        aria-label="Data objęcia roli"
+                        className="w-40"
+                      />
+                    )}
+                  />
+                  <Controller
+                    name={`projectRoles.${index}.endedAt`}
+                    control={form.control}
+                    render={({ field }) => (
+                      <Input
+                        {...field}
+                        type="date"
+                        aria-label="Data zakończenia roli"
+                        className="w-40"
+                      />
+                    )}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label="Usuń rolę"
+                    onClick={() => {
+                      projectRoles.remove(index);
+                    }}
+                  >
+                    <Trash2 />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                disabled={
+                  memberOptions.length === 0 ||
+                  projectRoleDefinitions.length === 0
+                }
+                onClick={() => {
+                  projectRoles.append({
+                    memberId: "",
+                    roleDefinitionId: projectRoleDefinitions[0]?.id ?? "",
+                    startedAt: new Date().toISOString().slice(0, 10),
+                    endedAt: "",
+                  });
+                }}
+              >
+                <Plus />
+                Dodaj rolę projektową
+              </Button>
+            </div>
+          </Field>
         ) : null}
         {submitError === null ? null : (
           <FieldDescription className="text-destructive">

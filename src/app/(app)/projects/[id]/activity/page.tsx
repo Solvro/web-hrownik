@@ -49,7 +49,7 @@ export default async function ProjectActivityPage({
   }));
   const projectRoleDefinitions = canManage
     ? await db.query.roleDefinition.findMany({
-        where: eq(roleDefinition.scope, "project"),
+        where: eq(roleDefinition.scope, "project_team"),
         orderBy: asc(roleDefinition.name),
       })
     : [];
