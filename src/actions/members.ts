@@ -52,6 +52,7 @@ export async function createMember(input: MemberFormValues) {
       facebookUrl: emptyToNull(values.facebookUrl),
       linkedinUrl: emptyToNull(values.linkedinUrl),
       instagramUrl: emptyToNull(values.instagramUrl),
+      websiteUrl: emptyToNull(values.websiteUrl),
       photoUrl: emptyToNull(values.photoUrl),
       studentIndex: emptyToNull(values.studentIndex),
       studyDepartment: emptyToNull(values.studyDepartment),
@@ -206,6 +207,9 @@ export async function updateMember(
       }),
       ...(values.instagramUrl !== undefined && {
         instagramUrl: emptyToNull(values.instagramUrl),
+      }),
+      ...(values.websiteUrl !== undefined && {
+        websiteUrl: emptyToNull(values.websiteUrl),
       }),
       ...(values.photoUrl !== undefined && {
         photoUrl: emptyToNull(values.photoUrl),

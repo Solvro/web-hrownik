@@ -42,6 +42,7 @@ export const memberFormSchema = z.object({
   facebookUrl: z.url("Podaj poprawny adres URL").optional().or(z.literal("")),
   linkedinUrl: z.url("Podaj poprawny adres URL").optional().or(z.literal("")),
   instagramUrl: z.url("Podaj poprawny adres URL").optional().or(z.literal("")),
+  websiteUrl: z.url("Podaj poprawny adres URL").optional().or(z.literal("")),
   photoUrl: z.url("Podaj poprawny adres URL").optional().or(z.literal("")),
   studentIndex: z.string().trim().max(32).optional().or(z.literal("")),
   studyDepartment: z.string().trim().max(160).optional().or(z.literal("")),

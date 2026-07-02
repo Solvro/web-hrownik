@@ -75,6 +75,7 @@ export const memberApiConfig = {
     facebookUrl: member.facebookUrl,
     linkedinUrl: member.linkedinUrl,
     instagramUrl: member.instagramUrl,
+    websiteUrl: member.websiteUrl,
     photoUrl: member.photoUrl,
     studentIndex: member.studentIndex,
     studyDepartment: member.studyDepartment,
