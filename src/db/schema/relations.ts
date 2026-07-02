@@ -3,6 +3,7 @@ import { relations } from "drizzle-orm";
 import { user } from "@/db/auth-schema";
 
 import { apiKey, apiKeyEndpointStat } from "./api-keys";
+import { boardSettings, boardTerm } from "./boards";
 import {
   githubActivityEvent,
   projectRepository,
@@ -48,6 +49,17 @@ export const memberEmailRelations = relations(memberEmail, ({ one }) => ({
 export const sectionRelations = relations(section, ({ many }) => ({
   members: many(memberSection),
   roleAssignments: many(roleAssignment),
+}));
+
+export const boardTermRelations = relations(boardTerm, ({ many }) => ({
+  roleAssignments: many(roleAssignment),
+}));
+
+export const boardSettingsRelations = relations(boardSettings, ({ one }) => ({
+  activeBoardTerm: one(boardTerm, {
+    fields: [boardSettings.activeBoardTermId],
+    references: [boardTerm.id],
+  }),
 }));
 
 export const memberSectionRelations = relations(memberSection, ({ one }) => ({
@@ -110,6 +122,10 @@ export const roleAssignmentRelations = relations(roleAssignment, ({ one }) => ({
   roleDefinition: one(roleDefinition, {
     fields: [roleAssignment.roleDefinitionId],
     references: [roleDefinition.id],
+  }),
+  boardTerm: one(boardTerm, {
+    fields: [roleAssignment.boardTermId],
+    references: [boardTerm.id],
   }),
   section: one(section, {
     fields: [roleAssignment.sectionId],

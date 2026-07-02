@@ -104,9 +104,16 @@ export async function createMember(input: MemberFormValues) {
             "Role projektowe są zarządzane w zespołach projektu.",
           );
         }
+        if (
+          definition.scope === "board" &&
+          (role.boardTermId === undefined || role.boardTermId === "")
+        ) {
+          throw new Error("Rola zarządowa wymaga wskazania kadencji.");
+        }
         return {
           memberId: created.id,
           roleDefinitionId: role.roleDefinitionId,
+          boardTermId: definition.scope === "board" ? role.boardTermId : null,
           sectionId:
             definition.scope === "section" ? (role.sectionId ?? null) : null,
           projectId: null,
@@ -270,9 +277,16 @@ export async function updateMember(
               "Role projektowe są zarządzane w zespołach projektu.",
             );
           }
+          if (
+            definition.scope === "board" &&
+            (role.boardTermId === undefined || role.boardTermId === "")
+          ) {
+            throw new Error("Rola zarządowa wymaga wskazania kadencji.");
+          }
           return {
             memberId,
             roleDefinitionId: role.roleDefinitionId,
+            boardTermId: definition.scope === "board" ? role.boardTermId : null,
             sectionId:
               definition.scope === "section" ? (role.sectionId ?? null) : null,
             projectId: null,

@@ -42,8 +42,17 @@ export async function assignRole(memberId: string, input: RoleAssignmentDraft) {
   if (role === undefined) {
     throw new Error("Nie znaleziono roli.");
   }
-  if (role.scope === "section" && values.sectionId === undefined) {
+  if (
+    role.scope === "section" &&
+    (values.sectionId === undefined || values.sectionId === "")
+  ) {
     throw new Error("Ta rola wymaga wskazania sekcji.");
+  }
+  if (
+    role.scope === "board" &&
+    (values.boardTermId === undefined || values.boardTermId === "")
+  ) {
+    throw new Error("Ta rola wymaga wskazania kadencji zarządu.");
   }
   if (role.scope === "project") {
     throw new Error("Role projektowe są zarządzane w zespołach projektu.");
@@ -52,13 +61,15 @@ export async function assignRole(memberId: string, input: RoleAssignmentDraft) {
   await db.insert(roleAssignment).values({
     memberId,
     roleDefinitionId: values.roleDefinitionId,
-    sectionId: role.scope === "section" ? (values.sectionId ?? null) : null,
+    boardTermId: role.scope === "board" ? values.boardTermId : null,
+    sectionId: role.scope === "section" ? values.sectionId : null,
     projectId: null,
     startedAt: parseDate(values.startedAt) ?? new Date(),
     endedAt: parseDate(values.endedAt),
   });
 
   revalidatePath(`/members/${memberId}`);
+  revalidatePath("/boards");
 }
 
 function parseDate(value: string | undefined): Date | null {

@@ -3,6 +3,7 @@ export * from "./schema/enums";
 export * from "./schema/members";
 export * from "./schema/sections";
 export * from "./schema/projects";
+export * from "./schema/boards";
 export * from "./schema/roles";
 export * from "./schema/github";
 export * from "./schema/api-keys";

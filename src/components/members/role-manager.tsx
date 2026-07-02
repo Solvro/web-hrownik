@@ -19,11 +19,13 @@ export function RoleManager({
   memberId,
   activeRoles,
   roleDefinitions,
+  boardTerms,
   sections,
 }: {
   memberId: string;
   activeRoles: ActiveRole[];
   roleDefinitions: RoleDefinitionOption[];
+  boardTerms: { id: string; name: string }[];
   sections: { id: string; name: string }[];
 }) {
   const [draft, setDraft] = useState<RoleAssignmentDraft>({
@@ -92,6 +94,7 @@ export function RoleManager({
       <div className="flex gap-2">
         <RolePickerFields
           roleDefinitions={roleDefinitions}
+          boardTerms={boardTerms}
           sections={sections}
           value={draft}
           onChange={setDraft}
