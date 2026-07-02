@@ -27,8 +27,7 @@ export default async function EditMemberPage({
     where: eq(member.id, id),
     with: {
       emails: true,
-      sections: true,
-      roleAssignments: true,
+      roleAssignments: { with: { roleDefinition: true, section: true } },
     },
   });
   if (profile === undefined) {
@@ -104,24 +103,54 @@ export default async function EditMemberPage({
             email: email.email,
             kind: email.kind,
           })),
-          sectionIds: profile.sections.map(
-            (membership) => membership.sectionId,
+          sectionIds: activeSectionMemberships(profile.roleAssignments).map(
+            (sectionRow) => sectionRow.id,
           ),
-          roleAssignments: profile.roleAssignments.map((assignment) => ({
-            roleDefinitionId: assignment.roleDefinitionId,
-            boardTermId: assignment.boardTermId ?? undefined,
-            sectionId: assignment.sectionId ?? undefined,
-            projectId: assignment.projectId ?? undefined,
-            startedAt: toDateInput(assignment.startedAt),
-            endedAt:
-              assignment.endedAt === null
-                ? ""
-                : toDateInput(assignment.endedAt),
-          })),
+          roleAssignments: profile.roleAssignments
+            .filter(
+              (assignment) =>
+                assignment.roleDefinition.scope !== "project" &&
+                assignment.roleDefinition.scope !== "project_team" &&
+                !(
+                  assignment.roleDefinition.scope === "section" &&
+                  assignment.roleDefinition.name === "członek"
+                ),
+            )
+            .map((assignment) => ({
+              roleDefinitionId: assignment.roleDefinitionId,
+              boardTermId: assignment.boardTermId ?? undefined,
+              sectionId: assignment.sectionId ?? undefined,
+              projectId: assignment.projectId ?? undefined,
+              startedAt: toDateInput(assignment.startedAt),
+              endedAt:
+                assignment.endedAt === null
+                  ? ""
+                  : toDateInput(assignment.endedAt),
+            })),
         }}
       />
     </div>
   );
+}
+
+function activeSectionMemberships(
+  assignments: {
+    endedAt: Date | null;
+    roleDefinition: { scope: string };
+    section: { id: string; name: string } | null;
+  }[],
+) {
+  const sections = new Map<string, { id: string; name: string }>();
+  for (const assignment of assignments) {
+    if (
+      assignment.endedAt === null &&
+      assignment.roleDefinition.scope === "section" &&
+      assignment.section !== null
+    ) {
+      sections.set(assignment.section.id, assignment.section);
+    }
+  }
+  return [...sections.values()];
 }
 
 function toDateInput(date: Date): string {

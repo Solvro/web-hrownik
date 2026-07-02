@@ -18,7 +18,7 @@ export default async function SectionsPage() {
 
   const sections = await db.query.section.findMany({
     orderBy: asc(section.name),
-    with: { members: true },
+    with: { roleAssignments: { with: { roleDefinition: true } } },
   });
 
   return (
@@ -42,7 +42,18 @@ export default async function SectionsPage() {
                 {sectionRow.name}
               </h2>
               <Badge variant="secondary">
-                {declineNumeric(sectionRow.members.length, "członek")}
+                {declineNumeric(
+                  new Set(
+                    sectionRow.roleAssignments
+                      .filter(
+                        (assignment) =>
+                          assignment.endedAt === null &&
+                          assignment.roleDefinition.scope === "section",
+                      )
+                      .map((assignment) => assignment.memberId),
+                  ).size,
+                  "członek",
+                )}
               </Badge>
             </div>
             {sectionRow.description !== null && (

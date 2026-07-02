@@ -9,6 +9,7 @@ import { db } from "@/db";
 import { projectRepository, teamRepository } from "@/db/schema/github";
 import { member } from "@/db/schema/members";
 import { project, team, teamMember } from "@/db/schema/projects";
+import { roleAssignment, roleDefinition } from "@/db/schema/roles";
 import { getCurrentMember } from "@/lib/current-member";
 import { listOrgRepos } from "@/lib/integrations/github";
 import { syncRepositories } from "@/lib/integrations/github-activity";
@@ -110,6 +111,36 @@ export async function updateProject(
       updatedAt: new Date(),
     })
     .where(eq(project.id, projectId));
+
+  await db
+    .delete(roleAssignment)
+    .where(eq(roleAssignment.projectId, projectId));
+  if (values.projectRoles.length > 0) {
+    const definitions = await db.query.roleDefinition.findMany({
+      where: inArray(
+        roleDefinition.id,
+        values.projectRoles.map((role) => role.roleDefinitionId),
+      ),
+    });
+    const definitionById = new Map(definitions.map((role) => [role.id, role]));
+    await db.insert(roleAssignment).values(
+      values.projectRoles.map((role) => {
+        const definition = definitionById.get(role.roleDefinitionId);
+        if (definition?.scope !== "project") {
+          throw new Error("Wybrana rola nie jest rolą całego projektu.");
+        }
+        return {
+          memberId: role.memberId,
+          roleDefinitionId: role.roleDefinitionId,
+          boardTermId: null,
+          sectionId: null,
+          projectId,
+          startedAt: parseDate(role.startedAt) ?? new Date(),
+          endedAt: parseDate(role.endedAt),
+        };
+      }),
+    );
+  }
 
   revalidatePath(`/projects/${projectId}`);
   redirect(`/projects/${projectId}`);

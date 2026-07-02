@@ -23,80 +23,131 @@ export interface MemberPermissions {
 
 export const getMemberPermissions = cache(
   async (memberId: string): Promise<MemberPermissions> => {
-    const [grantRows, leadProjectRows] = await Promise.all([
-      db
-        .select({
-          resource: permissionGrant.resource,
-          action: permissionGrant.action,
-        })
-        .from(roleAssignment)
-        .innerJoin(
-          roleDefinition,
-          eq(roleAssignment.roleDefinitionId, roleDefinition.id),
-        )
-        .innerJoin(
-          roleDefinitionPermissionGroup,
-          eq(roleDefinitionPermissionGroup.roleDefinitionId, roleDefinition.id),
-        )
-        .innerJoin(
-          permissionGroup,
-          eq(
-            permissionGroup.id,
-            roleDefinitionPermissionGroup.permissionGroupId,
-          ),
-        )
-        .innerJoin(
-          permissionGrant,
-          eq(permissionGrant.permissionGroupId, permissionGroup.id),
-        )
-        .where(
-          and(
-            eq(roleAssignment.memberId, memberId),
-            isNull(roleAssignment.endedAt),
-            or(
-              sql`${roleDefinition.scope} <> 'board'`,
-              sql`${roleAssignment.boardTermId} = (SELECT ${boardSettings.activeBoardTermId} FROM ${boardSettings} WHERE ${boardSettings.id} = 'singleton')`,
+    const [grantRows, teamLeadProjectRows, projectLeadRows] = await Promise.all(
+      [
+        db
+          .select({
+            resource: permissionGrant.resource,
+            action: permissionGrant.action,
+          })
+          .from(roleAssignment)
+          .innerJoin(
+            roleDefinition,
+            eq(roleAssignment.roleDefinitionId, roleDefinition.id),
+          )
+          .innerJoin(
+            roleDefinitionPermissionGroup,
+            eq(
+              roleDefinitionPermissionGroup.roleDefinitionId,
+              roleDefinition.id,
+            ),
+          )
+          .innerJoin(
+            permissionGroup,
+            eq(
+              permissionGroup.id,
+              roleDefinitionPermissionGroup.permissionGroupId,
+            ),
+          )
+          .innerJoin(
+            permissionGrant,
+            eq(permissionGrant.permissionGroupId, permissionGroup.id),
+          )
+          .where(
+            and(
+              eq(roleAssignment.memberId, memberId),
+              isNull(roleAssignment.endedAt),
+              isNull(roleAssignment.projectId),
+              or(
+                sql`${roleDefinition.scope} <> 'board'`,
+                sql`${roleAssignment.boardTermId} = (SELECT ${boardSettings.activeBoardTermId} FROM ${boardSettings} WHERE ${boardSettings.id} = 'singleton')`,
+              ),
             ),
           ),
-        ),
-      db
-        .select({ projectId: project.id })
-        .from(teamMember)
-        .innerJoin(team, eq(teamMember.teamId, team.id))
-        .innerJoin(project, eq(team.projectId, project.id))
-        .innerJoin(
-          roleDefinition,
-          eq(teamMember.roleDefinitionId, roleDefinition.id),
-        )
-        .innerJoin(
-          roleDefinitionPermissionGroup,
-          eq(roleDefinitionPermissionGroup.roleDefinitionId, roleDefinition.id),
-        )
-        .innerJoin(
-          permissionGroup,
-          eq(
-            permissionGroup.id,
-            roleDefinitionPermissionGroup.permissionGroupId,
+        db
+          .select({ projectId: project.id })
+          .from(teamMember)
+          .innerJoin(team, eq(teamMember.teamId, team.id))
+          .innerJoin(project, eq(team.projectId, project.id))
+          .innerJoin(
+            roleDefinition,
+            eq(teamMember.roleDefinitionId, roleDefinition.id),
+          )
+          .innerJoin(
+            roleDefinitionPermissionGroup,
+            eq(
+              roleDefinitionPermissionGroup.roleDefinitionId,
+              roleDefinition.id,
+            ),
+          )
+          .innerJoin(
+            permissionGroup,
+            eq(
+              permissionGroup.id,
+              roleDefinitionPermissionGroup.permissionGroupId,
+            ),
+          )
+          .innerJoin(
+            permissionGrant,
+            and(
+              eq(permissionGrant.permissionGroupId, permissionGroup.id),
+              eq(permissionGrant.resource, "project_team"),
+              eq(permissionGrant.action, "lead"),
+            ),
+          )
+          .where(
+            and(eq(teamMember.memberId, memberId), isNull(teamMember.leftAt)),
           ),
-        )
-        .innerJoin(
-          permissionGrant,
-          and(
-            eq(permissionGrant.permissionGroupId, permissionGroup.id),
-            eq(permissionGrant.resource, "project_team"),
-            eq(permissionGrant.action, "lead"),
+        db
+          .select({ projectId: roleAssignment.projectId })
+          .from(roleAssignment)
+          .innerJoin(
+            roleDefinition,
+            eq(roleAssignment.roleDefinitionId, roleDefinition.id),
+          )
+          .innerJoin(
+            roleDefinitionPermissionGroup,
+            eq(
+              roleDefinitionPermissionGroup.roleDefinitionId,
+              roleDefinition.id,
+            ),
+          )
+          .innerJoin(
+            permissionGroup,
+            eq(
+              permissionGroup.id,
+              roleDefinitionPermissionGroup.permissionGroupId,
+            ),
+          )
+          .innerJoin(
+            permissionGrant,
+            and(
+              eq(permissionGrant.permissionGroupId, permissionGroup.id),
+              eq(permissionGrant.resource, "project_team"),
+              eq(permissionGrant.action, "lead"),
+            ),
+          )
+          .where(
+            and(
+              eq(roleAssignment.memberId, memberId),
+              eq(roleDefinition.scope, "project"),
+              isNull(roleAssignment.endedAt),
+              sql`${roleAssignment.projectId} IS NOT NULL`,
+            ),
           ),
-        )
-        .where(
-          and(eq(teamMember.memberId, memberId), isNull(teamMember.leftAt)),
-        ),
-    ]);
+      ],
+    );
 
     const grants = new Set(
       grantRows.map((row) => grantKey(row.resource, row.action)),
     );
     const leadProjectIds = [
-      ...new Set(leadProjectRows.map((row) => row.projectId)),
+      ...new Set([
+        ...teamLeadProjectRows.map((row) => row.projectId),
+        ...projectLeadRows.flatMap((row) =>
+          row.projectId === null ? [] : [row.projectId],
+        ),
+      ]),
     ];
 
     return { memberId, grants, leadProjectIds };
