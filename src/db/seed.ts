@@ -59,6 +59,8 @@ const permissionGroups: (typeof permissionGroup.$inferInsert)[] = [
 const ZARZAD_GRANTS = [
   { resource: "members", action: "read" },
   { resource: "members", action: "write" },
+  { resource: "boards", action: "read" },
+  { resource: "boards", action: "write" },
   { resource: "sections", action: "read" },
   { resource: "sections", action: "write" },
   { resource: "projects", action: "read" },

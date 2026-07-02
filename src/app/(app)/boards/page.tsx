@@ -1,6 +1,7 @@
 import { asc, desc } from "drizzle-orm";
 import Link from "next/link";
 
+import { EditBoardTermDialog } from "@/components/boards/edit-board-term-dialog";
 import { NewBoardTermDialog } from "@/components/boards/new-board-term-dialog";
 import { SetActiveBoardTermButton } from "@/components/boards/set-active-board-term-button";
 import { Badge } from "@/components/ui/badge";
@@ -17,8 +18,14 @@ export default async function BoardsPage() {
     currentMember === null
       ? null
       : await getMemberPermissions(currentMember.id);
+  const canViewBoards =
+    permissions !== null && can(permissions, "boards", "read");
   const canManageBoards =
-    permissions !== null && can(permissions, "roles", "write");
+    permissions !== null && can(permissions, "boards", "write");
+
+  if (!canViewBoards) {
+    return <p className="text-muted-foreground">Brak dostępu do kadencji.</p>;
+  }
 
   const [settings, terms] = await Promise.all([
     db.query.boardSettings.findFirst({ with: { activeBoardTerm: true } }),
@@ -80,8 +87,21 @@ export default async function BoardsPage() {
                       {formatRange(term.startsAt, term.endsAt)}
                     </p>
                   </div>
-                  {canManageBoards && !isActive ? (
-                    <SetActiveBoardTermButton boardTermId={term.id} />
+                  {canManageBoards ? (
+                    <div className="flex flex-wrap gap-2">
+                      <EditBoardTermDialog
+                        boardTermId={term.id}
+                        defaultValues={{
+                          name: term.name,
+                          startsAt: toDateInput(term.startsAt),
+                          endsAt: toDateInput(term.endsAt),
+                          description: term.description ?? "",
+                        }}
+                      />
+                      {isActive ? null : (
+                        <SetActiveBoardTermButton boardTermId={term.id} />
+                      )}
+                    </div>
                   ) : null}
                 </div>
               </CardHeader>
@@ -146,4 +166,8 @@ function formatRange(startsAt: Date | null, endsAt: Date | null) {
   return `${startsAt?.toLocaleDateString("pl-PL") ?? "?"} - ${
     endsAt?.toLocaleDateString("pl-PL") ?? "?"
   }`;
+}
+
+function toDateInput(date: Date | null): string {
+  return date === null ? "" : date.toISOString().slice(0, 10);
 }

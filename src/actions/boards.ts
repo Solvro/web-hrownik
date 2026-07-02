@@ -16,7 +16,7 @@ async function assertCanManageBoards() {
     throw new Error("Unauthorized");
   }
   const permissions = await getMemberPermissions(currentMember.id);
-  if (!can(permissions, "roles", "write")) {
+  if (!can(permissions, "boards", "write")) {
     throw new Error("Tylko zarząd może zarządzać kadencjami zarządu.");
   }
 }
@@ -60,6 +60,28 @@ export async function setActiveBoardTerm(boardTermId: string) {
       target: boardSettings.id,
       set: { activeBoardTermId: boardTermId, updatedAt: new Date() },
     });
+
+  revalidatePath("/boards");
+  revalidatePath("/members");
+}
+
+export async function updateBoardTerm(
+  boardTermId: string,
+  input: BoardTermFormValues,
+) {
+  await assertCanManageBoards();
+  const values = boardTermFormSchema.parse(input);
+
+  await db
+    .update(boardTerm)
+    .set({
+      name: values.name,
+      startsAt: parseDate(values.startsAt),
+      endsAt: parseDate(values.endsAt),
+      description: emptyToNull(values.description),
+      updatedAt: new Date(),
+    })
+    .where(eq(boardTerm.id, boardTermId));
 
   revalidatePath("/boards");
   revalidatePath("/members");
