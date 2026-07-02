@@ -2,6 +2,7 @@ export interface NumericForms {
   singular: string;
   paucal: string;
   plural: string;
+  genitiveSingular?: string;
 }
 
 export const polishNouns = {
@@ -9,11 +10,13 @@ export const polishNouns = {
     singular: "członek",
     paucal: "członków",
     plural: "członków",
+    genitiveSingular: "członka",
   },
   projekt: {
     singular: "projekt",
     paucal: "projekty",
     plural: "projektów",
+    genitiveSingular: "projektu",
   },
   repozytorium: {
     singular: "repozytorium",
@@ -72,8 +75,21 @@ export function getNumericForm(count: number, forms: NumericForms): string {
 export function declineNumeric(
   count: number,
   nounOrForms: PolishNoun | NumericForms,
+  genitive?: boolean,
 ): string {
   const forms =
     typeof nounOrForms === "string" ? polishNouns[nounOrForms] : nounOrForms;
+  if (genitive === true) {
+    const absoluteCount = Math.abs(count);
+    const genSingular =
+      "genitiveSingular" in forms
+        ? (forms as NumericForms & { genitiveSingular: string })
+            .genitiveSingular
+        : undefined;
+    if (absoluteCount === 1 && genSingular !== undefined) {
+      return `${count} ${genSingular}`;
+    }
+    return `${count} ${forms.plural}`;
+  }
   return `${count} ${getNumericForm(count, forms)}`;
 }

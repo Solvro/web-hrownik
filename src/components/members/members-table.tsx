@@ -243,7 +243,7 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
         <span>
           Wyniki {filtered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}–
           {Math.min(currentPage * pageSize, filtered.length)} z{" "}
-          {declineNumeric(filtered.length, "członek")}
+          {declineNumeric(filtered.length, "członek", true)}
         </span>
         <div className="flex items-center gap-2">
           <Button
