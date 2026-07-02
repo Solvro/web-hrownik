@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
-import logoMono from "@/assets/logo-mono.svg";
+import logoSolvro from "@/assets/logo_solvro.svg";
 import { appNavItems } from "@/components/app-nav-items";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -35,7 +35,7 @@ import { authClient } from "@/lib/auth-client";
 
 import { ModeToggle } from "./mode-toggle";
 
-const logoMonoSource = logoMono as unknown as string;
+const logoSolvroSource = logoSolvro as unknown as string;
 
 function getInitials(fullName: string): string {
   return fullName
@@ -86,9 +86,9 @@ export function AppSidebar({
               <Link href="/" onClick={closeMobileSidebar}>
                 <span className="flex size-6 shrink-0 items-center justify-center">
                   <Image
-                    src={logoMonoSource}
+                    src={logoSolvroSource}
                     alt=""
-                    className="size-5"
+                    className="size-5 dark:brightness-0 dark:invert"
                     aria-hidden="true"
                   />
                 </span>
