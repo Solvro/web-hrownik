@@ -28,7 +28,7 @@ export default async function ProjectsPage() {
           <Button asChild className="w-full sm:w-auto">
             <Link href="/projects/new">
               <Plus />
-              Nowy projekt
+              Dodaj projekt
             </Link>
           </Button>
         ) : null}

@@ -24,11 +24,13 @@ import { declineNumeric } from "@/lib/polish";
 
 export function ProjectActivityPanel({
   projectId,
+  projectSlug,
   canManage,
   counts,
   autoSync = false,
 }: {
   projectId: string;
+  projectSlug: string;
   canManage: boolean;
   counts: DailyActivityCount[];
   autoSync?: boolean;
@@ -59,11 +61,14 @@ export function ProjectActivityPanel({
       } finally {
         setPending(false);
         if (clearAutoSyncUrl) {
-          router.replace(`/projects/${projectId}`, { scroll: false });
+          router.replace(`/projects/${projectSlug}`, {
+            scroll: false,
+            transitionTypes: ["nav-back"],
+          });
         }
       }
     },
-    [projectId, router],
+    [projectId, projectSlug, router],
   );
 
   useEffect(() => {

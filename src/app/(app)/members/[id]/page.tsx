@@ -323,7 +323,8 @@ export default async function MemberProfilePage({
                 >
                   <div className="font-medium">
                     <Link
-                      href={`/projects/${membership.team.project.id}`}
+                      href={`/projects/${membership.team.project.slug}`}
+                      transitionTypes={["nav-forward"]}
                       className="hover:underline"
                     >
                       {membership.team.project.name}
@@ -369,7 +370,8 @@ export default async function MemberProfilePage({
                   )}
                   {assignment.project === null ? null : (
                     <Link
-                      href={`/projects/${assignment.project.id}`}
+                      href={`/projects/${assignment.project.slug}`}
+                      transitionTypes={["nav-forward"]}
                       className="hover:underline"
                     >
                       {assignment.project.name}
