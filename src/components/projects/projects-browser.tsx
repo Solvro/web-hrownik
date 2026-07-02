@@ -213,7 +213,7 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
         <span>
           Wyniki {filtered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}–
           {Math.min(currentPage * pageSize, filtered.length)} z{" "}
-          {declineNumeric(filtered.length, "projekt")}
+          {declineNumeric(filtered.length, "projekt", true)}
         </span>
         <div className="flex flex-wrap items-center gap-2">
           <Button
