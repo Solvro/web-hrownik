@@ -4,7 +4,10 @@ DO $$ BEGIN
     WHERE enumlabel = 'project_team'
       AND enumtypid = 'public.role_scope'::regtype
   ) THEN
-    ALTER TYPE "public"."role_scope" ADD VALUE 'project_team' BEFORE 'project';
+    CREATE TYPE "public"."role_scope_new" AS ENUM('section', 'project_team', 'project', 'board');
+    ALTER TABLE "role_definition" ALTER COLUMN "scope" TYPE "public"."role_scope_new" USING "scope"::text::"public"."role_scope_new";
+    DROP TYPE "public"."role_scope";
+    ALTER TYPE "public"."role_scope_new" RENAME TO "role_scope";
   END IF;
 END $$;
 --> statement-breakpoint
