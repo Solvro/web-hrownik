@@ -1,4 +1,12 @@
-ALTER TYPE "public"."role_scope" ADD VALUE 'project_team' BEFORE 'project';
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_enum
+    WHERE enumlabel = 'project_team'
+      AND enumtypid = 'public.role_scope'::regtype
+  ) THEN
+    ALTER TYPE "public"."role_scope" ADD VALUE 'project_team' BEFORE 'project';
+  END IF;
+END $$;
 --> statement-breakpoint
 
 UPDATE "role_definition"
