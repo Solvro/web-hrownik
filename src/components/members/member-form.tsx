@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 import type { MemberFormInput, MemberFormValues } from "@/lib/schemas/members";
 import {
   memberFormSchema,
@@ -96,6 +97,9 @@ export function MemberForm({
     resolver: zodResolver(memberFormSchema),
     defaultValues,
   });
+  useUnsavedChangesWarning(
+    form.formState.isDirty && !form.formState.isSubmitting,
+  );
   const emailFields = useFieldArray({ control: form.control, name: "emails" });
   const roleFields = useFieldArray({
     control: form.control,

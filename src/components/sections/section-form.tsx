@@ -16,6 +16,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 import type { SectionFormValues } from "@/lib/schemas/sections";
 import { sectionFormSchema } from "@/lib/schemas/sections";
 
@@ -37,6 +38,9 @@ export function SectionForm({
     resolver: zodResolver(sectionFormSchema),
     defaultValues: defaultValues ?? { name: "", description: "" },
   });
+  useUnsavedChangesWarning(
+    form.formState.isDirty && !form.formState.isSubmitting,
+  );
 
   async function onSubmit(values: SectionFormValues) {
     setSubmitError(null);

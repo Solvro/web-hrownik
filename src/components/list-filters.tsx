@@ -1,5 +1,7 @@
 "use client";
 
+import { ArrowUpDown, Filter, Search } from "lucide-react";
+
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -16,6 +18,7 @@ export interface ListFilterSelect {
   placeholder: string;
   options: { value: string; label: string }[];
   className?: string;
+  kind?: "filter" | "sort";
 }
 
 export function ListFilters({
@@ -33,14 +36,17 @@ export function ListFilters({
 }) {
   return (
     <div className={cn("grid gap-2 md:flex md:items-center", className)}>
-      <Input
-        value={query}
-        onChange={(event) => {
-          onQueryChange(event.target.value);
-        }}
-        placeholder={queryPlaceholder}
-        className="min-w-0 md:flex-1"
-      />
+      <div className="relative min-w-0 md:flex-1">
+        <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+        <Input
+          value={query}
+          onChange={(event) => {
+            onQueryChange(event.target.value);
+          }}
+          placeholder={queryPlaceholder}
+          className="pl-9"
+        />
+      </div>
       {selects.map((select) => (
         <Select
           key={select.placeholder}
@@ -48,6 +54,11 @@ export function ListFilters({
           onValueChange={select.onValueChange}
         >
           <SelectTrigger className={cn("w-full md:w-44", select.className)}>
+            {select.kind === "sort" ? (
+              <ArrowUpDown className="text-muted-foreground size-4" />
+            ) : (
+              <Filter className="text-muted-foreground size-4" />
+            )}
             <SelectValue placeholder={select.placeholder} />
           </SelectTrigger>
           <SelectContent>
