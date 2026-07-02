@@ -2,7 +2,8 @@
 
 import { FileWarning } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 import { ListFilters } from "@/components/list-filters";
 import {
@@ -36,6 +37,7 @@ export interface ProjectListItem {
 }
 
 const pageSizeOptions = [12, 24, 48] as const;
+const defaultPageSize = 12;
 
 const visibilityLabels: Record<ProjectVisibility, string> = {
   internal: "wewnętrzny",
@@ -43,12 +45,58 @@ const visibilityLabels: Record<ProjectVisibility, string> = {
 };
 
 export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("all");
-  const [visibility, setVisibility] = useState<VisibilityFilter>("all");
-  const [sort, setSort] = useState<SortMode>("name-asc");
-  const [pageSize, setPageSize] = useState<number>(12);
-  const [page, setPage] = useState(1);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParameters = useSearchParams();
+  const [query, setQuery] = useState(searchParameters.get("q") ?? "");
+  const [status, setStatus] = useState<StatusFilter>(
+    (searchParameters.get("status") as StatusFilter | null) ?? "all",
+  );
+  const [visibility, setVisibility] = useState<VisibilityFilter>(
+    (searchParameters.get("visibility") as VisibilityFilter | null) ?? "all",
+  );
+  const [sort, setSort] = useState<SortMode>(
+    (searchParameters.get("sort") as SortMode | null) ?? "name-asc",
+  );
+  const [pageSize, setPageSize] = useState<number>(() => {
+    const fromUrl = Number(searchParameters.get("pageSize"));
+    return Number.isFinite(fromUrl) && fromUrl > 0 ? fromUrl : defaultPageSize;
+  });
+  const [page, setPage] = useState(() =>
+    Math.max(1, Number(searchParameters.get("page") ?? 1)),
+  );
+
+  useEffect(() => {
+    if (searchParameters.has("pageSize")) {
+      return;
+    }
+    const stored = Number(localStorage.getItem("projects-page-size"));
+    if (Number.isFinite(stored) && stored > 0) {
+      setPageSize(stored);
+    }
+  }, [searchParameters]);
+
+  function updateUrl(updates: Record<string, string | number>) {
+    const parameters = new URLSearchParams(searchParameters.toString());
+    for (const [key, value] of Object.entries(updates)) {
+      const stringValue = String(value);
+      const isDefault =
+        (key === "q" && stringValue === "") ||
+        (["status", "visibility"].includes(key) && stringValue === "all") ||
+        (key === "sort" && stringValue === "name-asc") ||
+        (key === "page" && stringValue === "1") ||
+        (key === "pageSize" && stringValue === String(defaultPageSize));
+      if (isDefault) {
+        parameters.delete(key);
+      } else {
+        parameters.set(key, stringValue);
+      }
+    }
+    router.replace(
+      parameters.size === 0 ? pathname : `${pathname}?${parameters.toString()}`,
+      { scroll: false },
+    );
+  }
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -100,10 +148,6 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
     currentPage * pageSize,
   );
 
-  function resetPage() {
-    setPage(1);
-  }
-
   return (
     <div className="flex flex-1 flex-col gap-4">
       <div className="grid gap-2 lg:grid-cols-[minmax(14rem,1fr)_auto]">
@@ -111,7 +155,8 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
           query={query}
           onQueryChange={(value) => {
             setQuery(value);
-            resetPage();
+            setPage(1);
+            updateUrl({ q: value, page: 1 });
           }}
           queryPlaceholder="Szukaj po nazwie, statusie lub widoczności..."
           selects={[
@@ -119,7 +164,8 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
               value: status,
               onValueChange: (value) => {
                 setStatus(value as StatusFilter);
-                resetPage();
+                setPage(1);
+                updateUrl({ status: value, page: 1 });
               },
               placeholder: "Status",
               options: [
@@ -137,7 +183,8 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
               value: visibility,
               onValueChange: (value) => {
                 setVisibility(value as VisibilityFilter);
-                resetPage();
+                setPage(1);
+                updateUrl({ visibility: value, page: 1 });
               },
               placeholder: "Widoczność",
               options: [
@@ -153,8 +200,10 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
               value: sort,
               onValueChange: (value) => {
                 setSort(value as SortMode);
+                updateUrl({ sort: value });
               },
               placeholder: "Sortowanie",
+              kind: "sort",
               options: [
                 { value: "name-asc", label: "nazwa A-Z" },
                 { value: "name-desc", label: "nazwa Z-A" },
@@ -169,7 +218,9 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
           value={String(pageSize)}
           onValueChange={(value) => {
             setPageSize(Number(value));
-            resetPage();
+            localStorage.setItem("projects-page-size", value);
+            setPage(1);
+            updateUrl({ pageSize: value, page: 1 });
           }}
         >
           <SelectTrigger className="w-full md:w-36">
@@ -237,7 +288,9 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
             size="sm"
             disabled={currentPage === 1}
             onClick={() => {
-              setPage((value) => Math.max(1, value - 1));
+              const nextPage = Math.max(1, currentPage - 1);
+              setPage(nextPage);
+              updateUrl({ page: nextPage });
             }}
           >
             Poprzednia
@@ -251,7 +304,9 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
             size="sm"
             disabled={currentPage === pageCount}
             onClick={() => {
-              setPage((value) => Math.min(pageCount, value + 1));
+              const nextPage = Math.min(pageCount, currentPage + 1);
+              setPage(nextPage);
+              updateUrl({ page: nextPage });
             }}
           >
             Następna

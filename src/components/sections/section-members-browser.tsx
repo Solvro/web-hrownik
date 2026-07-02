@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { ListFilters } from "@/components/list-filters";
@@ -15,9 +16,35 @@ export function SectionMembersBrowser({
 }: {
   members: MemberCardData[];
 }) {
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("active");
-  const [sort, setSort] = useState<SortMode>("joined-desc");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParameters = useSearchParams();
+  const [query, setQuery] = useState(searchParameters.get("q") ?? "");
+  const [status, setStatus] = useState<StatusFilter>(
+    (searchParameters.get("status") as StatusFilter | null) ?? "active",
+  );
+  const [sort, setSort] = useState<SortMode>(
+    (searchParameters.get("sort") as SortMode | null) ?? "joined-desc",
+  );
+
+  function updateUrl(updates: Record<string, string>) {
+    const parameters = new URLSearchParams(searchParameters.toString());
+    for (const [key, value] of Object.entries(updates)) {
+      const isDefault =
+        (key === "q" && value === "") ||
+        (key === "status" && value === "active") ||
+        (key === "sort" && value === "joined-desc");
+      if (isDefault) {
+        parameters.delete(key);
+      } else {
+        parameters.set(key, value);
+      }
+    }
+    router.replace(
+      parameters.size === 0 ? pathname : `${pathname}?${parameters.toString()}`,
+      { scroll: false },
+    );
+  }
 
   const filteredMembers = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -56,13 +83,17 @@ export function SectionMembersBrowser({
     <div className="space-y-4">
       <ListFilters
         query={query}
-        onQueryChange={setQuery}
+        onQueryChange={(value) => {
+          setQuery(value);
+          updateUrl({ q: value });
+        }}
         queryPlaceholder="Szukaj po nazwie, GitHubie, roli lub projekcie..."
         selects={[
           {
             value: status,
             onValueChange: (value) => {
               setStatus(value as StatusFilter);
+              updateUrl({ status: value });
             },
             placeholder: "Status",
             options: [
@@ -78,8 +109,10 @@ export function SectionMembersBrowser({
             value: sort,
             onValueChange: (value) => {
               setSort(value as SortMode);
+              updateUrl({ sort: value });
             },
             placeholder: "Sortowanie",
+            kind: "sort",
             options: [
               { value: "joined-desc", label: "najnowsi w sekcji" },
               { value: "joined-asc", label: "najstarsi w sekcji" },
