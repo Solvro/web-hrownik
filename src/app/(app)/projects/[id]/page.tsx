@@ -103,13 +103,31 @@ export default async function ProjectPage({
         .map((teamMembership) => teamMembership.memberId),
     ),
   );
+  const unassignedActivityMemberById = new Map<
+    string,
+    NonNullable<(typeof activityEvents)[number]["member"]>
+  >();
+  for (const event of activityEvents) {
+    if (event.member !== null && !activeProjectMemberIds.has(event.member.id)) {
+      unassignedActivityMemberById.set(event.member.id, event.member);
+    }
+  }
+  const unassignedActivityMembers = [...unassignedActivityMemberById.values()];
 
   const now = Date.now();
   const [weeklyRanking, monthlyRanking, allTimeRanking, dailyActivity] =
     await Promise.all([
-      getContributorRanking(projectId, new Date(now - 7 * DAY_MS)),
-      getContributorRanking(projectId, new Date(now - 30 * DAY_MS)),
-      getContributorRanking(projectId),
+      getContributorRanking(
+        projectId,
+        new Date(now - 7 * DAY_MS),
+        projectRow.leaderboardLimit,
+      ),
+      getContributorRanking(
+        projectId,
+        new Date(now - 30 * DAY_MS),
+        projectRow.leaderboardLimit,
+      ),
+      getContributorRanking(projectId, undefined, projectRow.leaderboardLimit),
       getProjectDailyActivity(projectId),
     ]);
 
@@ -207,6 +225,8 @@ export default async function ProjectPage({
         weekly={weeklyRanking}
         monthly={monthlyRanking}
         allTime={allTimeRanking}
+        includeExternal={projectRow.leaderboardIncludeExternal}
+        includeBots={projectRow.leaderboardIncludeBots}
         canAddMembers={canAddMembers}
       />
 
@@ -298,6 +318,28 @@ export default async function ProjectPage({
           </CardContent>
         </Card>
       </div>
+
+      {canManage && unassignedActivityMembers.length > 0 ? (
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle>Kontrybutorzy bez zespołu</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-1 text-sm">
+              {unassignedActivityMembers.map((memberRow) => (
+                <li key={memberRow.id}>
+                  <Link
+                    href={`/members/${memberRow.id}`}
+                    className="hover:underline"
+                  >
+                    {memberRow.fullName}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card size="sm">
         <CardHeader>

@@ -24,6 +24,9 @@ export const projectFormSchema = z.object({
     .url("Podaj poprawny adres URL")
     .optional()
     .or(z.literal("")),
+  leaderboardLimit: z.int().min(1).max(50),
+  leaderboardIncludeExternal: z.boolean(),
+  leaderboardIncludeBots: z.boolean(),
   repositoryFullNames: z.array(z.string().trim()),
   projectRoles: z.array(
     z.object({

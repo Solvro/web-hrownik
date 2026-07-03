@@ -1,6 +1,7 @@
 import {
   Building2,
   FolderKanban,
+  GitBranch,
   KeyRound,
   Shapes,
   ShieldCheck,
@@ -35,5 +36,11 @@ export const appNavItems: {
     label: "Klucze API",
     icon: KeyRound,
     requiredGrant: { resource: "roles", action: "write" },
+  },
+  {
+    href: "/settings/github",
+    label: "GitHub",
+    icon: GitBranch,
+    requiredGrant: { resource: "projects", action: "write" },
   },
 ];

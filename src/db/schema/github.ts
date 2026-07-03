@@ -5,6 +5,19 @@ import { activityTypeEnum } from "./enums";
 import { member } from "./members";
 import { project, team } from "./projects";
 
+export const githubExternalContributor = pgTable(
+  "github_external_contributor",
+  {
+    id: id(),
+    githubLogin: text("github_login").notNull(),
+    type: text("type").notNull().default("external_contributor"),
+    notedAt: timestamp("noted_at").defaultNow().notNull(),
+  },
+  (table) => [
+    unique("github_external_contributor_login_unique").on(table.githubLogin),
+  ],
+);
+
 export const projectRepository = pgTable(
   "project_repository",
   {

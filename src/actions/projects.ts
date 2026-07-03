@@ -54,6 +54,9 @@ export async function createProject(input: ProjectFormValues) {
           ? emptyToNull(values.reportDriveUrl)
           : null,
       startedAt: new Date(),
+      leaderboardLimit: values.leaderboardLimit,
+      leaderboardIncludeExternal: values.leaderboardIncludeExternal,
+      leaderboardIncludeBots: values.leaderboardIncludeBots,
     })
     .returning();
 
@@ -122,6 +125,9 @@ export async function updateProject(
         values.startedAt === undefined || values.startedAt === ""
           ? undefined
           : parseDate(values.startedAt),
+      leaderboardLimit: values.leaderboardLimit,
+      leaderboardIncludeExternal: values.leaderboardIncludeExternal,
+      leaderboardIncludeBots: values.leaderboardIncludeBots,
       updatedAt: new Date(),
     })
     .where(eq(project.id, projectId));
