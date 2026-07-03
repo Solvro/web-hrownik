@@ -1,11 +1,13 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { notFound } from "next/navigation";
 
 import { NewTeamForm } from "@/components/projects/new-team-form";
 import { ProjectForm } from "@/components/projects/project-form";
+import type { AvailableMember } from "@/components/projects/team-panel";
 import { TeamPanel } from "@/components/projects/team-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
+import { githubActivityEvent } from "@/db/schema/github";
 import { member } from "@/db/schema/members";
 import { project, projectStatus } from "@/db/schema/projects";
 import { roleDefinition } from "@/db/schema/roles";
@@ -54,18 +56,42 @@ export default async function EditProjectPage({
     );
   }
 
-  const [members, projectRoleDefinitions, projectTeamRoleDefinitions] =
-    await Promise.all([
-      db.query.member.findMany({ orderBy: asc(member.fullName) }),
-      db.query.roleDefinition.findMany({
-        where: eq(roleDefinition.scope, "project"),
-        orderBy: asc(roleDefinition.name),
-      }),
-      db.query.roleDefinition.findMany({
-        where: eq(roleDefinition.scope, "project_team"),
-        orderBy: asc(roleDefinition.name),
-      }),
-    ]);
+  const [
+    allMembers,
+    projectRoleDefinitions,
+    projectTeamRoleDefinitions,
+    firstEvent,
+    membersWithProjectEvents,
+  ] = await Promise.all([
+    db.query.member.findMany({ orderBy: asc(member.fullName) }),
+    db.query.roleDefinition.findMany({
+      where: eq(roleDefinition.scope, "project"),
+      orderBy: asc(roleDefinition.name),
+    }),
+    db.query.roleDefinition.findMany({
+      where: eq(roleDefinition.scope, "project_team"),
+      orderBy: asc(roleDefinition.name),
+    }),
+    db.query.githubActivityEvent.findFirst({
+      where: eq(githubActivityEvent.projectId, projectRow.id),
+      orderBy: asc(githubActivityEvent.occurredAt),
+    }),
+    db
+      .selectDistinct({ memberId: githubActivityEvent.memberId })
+      .from(githubActivityEvent)
+      .where(
+        and(
+          eq(githubActivityEvent.projectId, projectRow.id),
+          sql`${githubActivityEvent.memberId} IS NOT NULL`,
+        ),
+      ),
+  ]);
+
+  const projectContributorIds = new Set(
+    membersWithProjectEvents
+      .map((row) => row.memberId)
+      .filter((id): id is string => id !== null),
+  );
 
   return (
     <div className="space-y-6">
@@ -81,7 +107,7 @@ export default async function EditProjectPage({
           status: entry.status,
           createdAt: entry.createdAt,
         }))}
-        memberOptions={members.map((memberRow) => ({
+        memberOptions={allMembers.map((memberRow) => ({
           id: memberRow.id,
           fullName: memberRow.fullName,
         }))}
@@ -128,43 +154,72 @@ export default async function EditProjectPage({
           <CardTitle>Zespoły projektu</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {projectRow.teams.map((teamRow) => (
-            <div key={teamRow.id} className="space-y-2 rounded-md border p-3">
-              <TeamPanel
-                teamId={teamRow.id}
-                teamName={teamRow.name}
-                canManage
-                roleDefinitions={projectTeamRoleDefinitions.map((role) => ({
-                  id: role.id,
-                  name: role.name,
-                }))}
-                members={teamRow.members.map((teamMembership) => ({
-                  teamMemberId: teamMembership.id,
-                  memberId: teamMembership.memberId,
-                  fullName: teamMembership.member.fullName,
-                  roleDefinitionId: teamMembership.roleDefinitionId,
-                  roleDefinitionName: teamMembership.roleDefinition.name,
-                  joinedAt: teamMembership.joinedAt,
-                  leftAt: teamMembership.leftAt,
-                }))}
-                repositories={projectRow.repositories.map((repo) => ({
-                  id: repo.id,
-                  name: repo.githubRepoFullName,
-                }))}
-                selectedRepositoryIds={teamRow.repositories.map(
-                  (repo) => repo.projectRepositoryId,
-                )}
-                availableMembers={members.filter(
-                  (memberRow) =>
-                    !teamRow.members.some(
-                      (teamMembership) =>
-                        teamMembership.memberId === memberRow.id &&
-                        teamMembership.leftAt === null,
-                    ),
-                )}
-              />
-            </div>
-          ))}
+          {projectRow.teams.map((teamRow) => {
+            const availableMembersTyped: AvailableMember[] = allMembers
+              .filter(
+                (memberRow) =>
+                  !teamRow.members.some(
+                    (teamMembership) =>
+                      teamMembership.memberId === memberRow.id &&
+                      teamMembership.leftAt === null,
+                  ),
+              )
+              .map((memberRow) => ({
+                id: memberRow.id,
+                fullName: memberRow.fullName,
+                status: memberRow.status,
+                hasProjectContributions: projectContributorIds.has(
+                  memberRow.id,
+                ),
+                hasTeamContributions: projectContributorIds.has(memberRow.id),
+              }));
+
+            return (
+              <div key={teamRow.id} className="space-y-2 rounded-md border p-3">
+                <TeamPanel
+                  teamId={teamRow.id}
+                  teamName={teamRow.name}
+                  canManage
+                  roleDefinitions={projectTeamRoleDefinitions.map((role) => ({
+                    id: role.id,
+                    name: role.name,
+                  }))}
+                  members={teamRow.members.map((teamMembership) => ({
+                    teamMemberId: teamMembership.id,
+                    memberId: teamMembership.memberId,
+                    fullName: teamMembership.member.fullName,
+                    roleDefinitionId: teamMembership.roleDefinitionId,
+                    roleDefinitionName: teamMembership.roleDefinition.name,
+                    joinedAt: teamMembership.joinedAt,
+                    leftAt: teamMembership.leftAt,
+                  }))}
+                  repositories={projectRow.repositories.map((repo) => ({
+                    id: repo.id,
+                    name: repo.githubRepoFullName,
+                  }))}
+                  selectedRepositoryIds={teamRow.repositories.map(
+                    (repo) => repo.projectRepositoryId,
+                  )}
+                  availableMembers={availableMembersTyped}
+                  projectStartedAt={
+                    projectRow.startedAt === null
+                      ? undefined
+                      : toDateInput2(projectRow.startedAt)
+                  }
+                  projectEndedAt={
+                    projectRow.endedAt === null
+                      ? undefined
+                      : toDateInput2(projectRow.endedAt)
+                  }
+                  firstCommitDate={
+                    firstEvent === undefined
+                      ? undefined
+                      : firstEvent.occurredAt.toISOString().slice(0, 10)
+                  }
+                />
+              </div>
+            );
+          })}
           <NewTeamForm projectId={projectRow.id} />
         </CardContent>
       </Card>
@@ -173,5 +228,9 @@ export default async function EditProjectPage({
 }
 
 function toDateInput(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function toDateInput2(date: Date): string {
   return date.toISOString().slice(0, 10);
 }

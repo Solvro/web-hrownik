@@ -365,6 +365,35 @@ export async function updateTeamRepositories(
   revalidatePath(`/projects/${teamRow.projectId}`);
 }
 
+export async function assignRepoToTeam(
+  projectRepositoryId: string,
+  teamId: string,
+) {
+  const repo = await db.query.projectRepository.findFirst({
+    where: eq(projectRepository.id, projectRepositoryId),
+  });
+  if (repo === undefined) {
+    throw new Error("Nie znaleziono repozytorium.");
+  }
+  await assertCanManageProject(repo.projectId);
+
+  const existing = await db.query.teamRepository.findFirst({
+    where: and(
+      eq(teamRepository.teamId, teamId),
+      eq(teamRepository.projectRepositoryId, projectRepositoryId),
+    ),
+  });
+  if (existing !== undefined) {
+    return;
+  }
+
+  await db.insert(teamRepository).values({
+    teamId,
+    projectRepositoryId,
+  });
+  revalidatePath(`/projects/${repo.projectId}`);
+}
+
 /** Manual "Synchronizuj aktywność" button — initial data collection or a
  * one-off catch-up, on top of the ongoing webhook-driven sync. */
 export async function syncProjectActivity(
