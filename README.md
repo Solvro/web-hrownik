@@ -29,6 +29,22 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## One-time member import
+
+Use the Directus team import script to backfill legacy social links and photos into the members table:
+
+```bash
+pnpm import:directus-team -- --dry-run
+pnpm import:directus-team
+```
+
+Behavior:
+
+- matches members by full name, case-insensitive,
+- imports LinkedIn, GitHub, Facebook, Instagram, website, email, and photo data with the migration rules in `scripts/import-directus-team.ts`,
+- skips Discord links,
+- only fills missing member fields and logs conflicts/warnings instead of overwriting existing data.
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
