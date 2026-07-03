@@ -52,7 +52,6 @@ export const memberFormSchema = z.object({
   hrNotes: z.string().trim().max(5000).optional().or(z.literal("")),
   status: z.enum(memberStatusOptions),
   emails: z.array(emailSchema).min(1, "Podaj co najmniej jeden adres e-mail"),
-  sectionIds: z.array(z.string().trim()),
   // Create-mode only: initial role assignments, and whether to skip
   // GitHub/Discord invites when adding a member who already has an account
   // (e.g. importing an existing member).

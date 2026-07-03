@@ -104,18 +104,11 @@ export default async function EditMemberPage({
             email: email.email,
             kind: email.kind,
           })),
-          sectionIds: activeSectionMemberships(profile.roleAssignments).map(
-            (sectionRow) => sectionRow.id,
-          ),
           roleAssignments: profile.roleAssignments
             .filter(
               (assignment) =>
                 assignment.roleDefinition.scope !== "project" &&
-                assignment.roleDefinition.scope !== "project_team" &&
-                !(
-                  assignment.roleDefinition.scope === "section" &&
-                  assignment.roleDefinition.name === "członek"
-                ),
+                assignment.roleDefinition.scope !== "project_team",
             )
             .map((assignment) => ({
               roleDefinitionId: assignment.roleDefinitionId,
@@ -132,26 +125,6 @@ export default async function EditMemberPage({
       />
     </div>
   );
-}
-
-function activeSectionMemberships(
-  assignments: {
-    endedAt: Date | null;
-    roleDefinition: { scope: string };
-    section: { id: string; name: string } | null;
-  }[],
-) {
-  const sections = new Map<string, { id: string; name: string }>();
-  for (const assignment of assignments) {
-    if (
-      assignment.endedAt === null &&
-      assignment.roleDefinition.scope === "section" &&
-      assignment.section !== null
-    ) {
-      sections.set(assignment.section.id, assignment.section);
-    }
-  }
-  return [...sections.values()];
 }
 
 function toDateInput(date: Date): string {
