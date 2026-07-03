@@ -303,7 +303,20 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
                     ))}
                   </div>
                 </TableCell>
-                <TableCell>{memberRow.githubUsername ?? "—"}</TableCell>
+                <TableCell>
+                  {memberRow.githubUsername === null ? (
+                    "—"
+                  ) : (
+                    <a
+                      href={`https://github.com/${memberRow.githubUsername}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="hover:underline"
+                    >
+                      {memberRow.githubUsername}
+                    </a>
+                  )}
+                </TableCell>
                 <TableCell>
                   <MemberStatusBadge status={memberRow.status} />
                 </TableCell>
