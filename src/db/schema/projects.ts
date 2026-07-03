@@ -15,9 +15,19 @@ export const project = pgTable("project", {
   driveFolderUrl: text("drive_folder_url"),
   projectCardDriveUrl: text("project_card_drive_url"),
   reportDriveUrl: text("report_drive_url"),
+  startedAt: timestamp("started_at"),
   endedAt: timestamp("ended_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const projectStatus = pgTable("project_status_history", {
+  id: id(),
+  projectId: text("project_id")
+    .notNull()
+    .references(() => project.id, { onDelete: "cascade" }),
+  status: projectStatusEnum("status").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const team = pgTable("team", {

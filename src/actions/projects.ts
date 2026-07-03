@@ -8,7 +8,7 @@ import * as z from "zod";
 import { db } from "@/db";
 import { projectRepository, teamRepository } from "@/db/schema/github";
 import { member } from "@/db/schema/members";
-import { project, team, teamMember } from "@/db/schema/projects";
+import { project, projectStatus, team, teamMember } from "@/db/schema/projects";
 import { roleAssignment, roleDefinition } from "@/db/schema/roles";
 import { getCurrentMember } from "@/lib/current-member";
 import { listOrgRepos } from "@/lib/integrations/github";
@@ -53,8 +53,14 @@ export async function createProject(input: ProjectFormValues) {
         values.status === "completed"
           ? emptyToNull(values.reportDriveUrl)
           : null,
+      startedAt: new Date(),
     })
     .returning();
+
+  await db.insert(projectStatus).values({
+    projectId: created.id,
+    status: values.status,
+  });
 
   let linkedRepositoryCount = 0;
   if (values.repositoryFullNames.length > 0) {
@@ -94,6 +100,10 @@ export async function updateProject(
 
   const values = projectFormSchema.parse(input);
 
+  const existing = await db.query.project.findFirst({
+    where: eq(project.id, projectId),
+  });
+
   await db
     .update(project)
     .set({
@@ -108,9 +118,27 @@ export async function updateProject(
         values.status === "completed"
           ? emptyToNull(values.reportDriveUrl)
           : null,
+      startedAt:
+        values.startedAt === undefined || values.startedAt === ""
+          ? undefined
+          : parseDate(values.startedAt),
       updatedAt: new Date(),
     })
     .where(eq(project.id, projectId));
+
+  if (existing !== undefined && existing.status !== values.status) {
+    await db.insert(projectStatus).values({
+      projectId,
+      status: values.status,
+    });
+
+    if (existing.startedAt === null && values.status === "active") {
+      await db
+        .update(project)
+        .set({ startedAt: new Date() })
+        .where(eq(project.id, projectId));
+    }
+  }
 
   await db
     .delete(roleAssignment)
@@ -311,6 +339,75 @@ export async function syncProjectActivity(
   const results = await syncRepositories(repos);
   revalidatePath(`/projects/${projectId}`);
   return results;
+}
+
+export async function addProjectStatusEntry(
+  projectId: string,
+  status: "active" | "completed" | "suspended",
+) {
+  await assertCanManageProject(projectId);
+
+  await db.insert(projectStatus).values({ projectId, status });
+
+  await db
+    .update(project)
+    .set({ status, updatedAt: new Date() })
+    .where(eq(project.id, projectId));
+
+  if (status === "completed") {
+    await db
+      .update(project)
+      .set({ endedAt: new Date() })
+      .where(eq(project.id, projectId));
+  }
+
+  if (status === "active") {
+    const existing = await db.query.project.findFirst({
+      where: eq(project.id, projectId),
+      columns: { startedAt: true },
+    });
+    if (existing?.startedAt === null) {
+      await db
+        .update(project)
+        .set({ startedAt: new Date() })
+        .where(eq(project.id, projectId));
+    }
+  }
+
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function deleteProjectStatusEntry(statusEntryId: string) {
+  const entry = await db.query.projectStatus.findFirst({
+    where: eq(projectStatus.id, statusEntryId),
+  });
+  if (entry === undefined) {
+    throw new Error("Nie znaleziono wpisu statusu.");
+  }
+  await assertCanManageProject(entry.projectId);
+
+  const projectStatuses = await db.query.projectStatus.findMany({
+    where: eq(projectStatus.projectId, entry.projectId),
+    orderBy: (ps, { desc }) => desc(ps.createdAt),
+  });
+
+  if (projectStatuses.length <= 1) {
+    throw new Error("Nie można usunąć ostatniego wpisu statusu.");
+  }
+
+  await db.delete(projectStatus).where(eq(projectStatus.id, statusEntryId));
+
+  const latestStatus = projectStatuses.find(
+    (ps) => ps.id !== statusEntryId,
+  )?.status;
+  if (latestStatus !== undefined) {
+    await db
+      .update(project)
+      .set({ status: latestStatus, updatedAt: new Date() })
+      .where(eq(project.id, entry.projectId));
+  }
+
+  revalidatePath(`/projects/${entry.projectId}`);
 }
 
 export async function deleteProject(projectId: string) {
