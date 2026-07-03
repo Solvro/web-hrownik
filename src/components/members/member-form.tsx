@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Save, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
@@ -9,7 +9,6 @@ import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { createMember, updateMember } from "@/actions/members";
 import type { RoleDefinitionOption } from "@/components/members/role-picker-fields";
 import { RolePickerFields } from "@/components/members/role-picker-fields";
-import { MultiSelect } from "@/components/multi-select";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Combobox } from "@/components/ui/combobox";
@@ -136,22 +135,14 @@ export function MemberForm({
     setSubmitError(null);
     try {
       if (mode === "create") {
-        await createMember(values);
+        const result = await createMember(values);
+        const query = result.query === "" ? "" : `?${result.query}`;
+        router.push(`/members/${result.id}${query}`);
       } else if (memberId !== undefined) {
         await updateMember(memberId, values);
+        router.push(`/members/${memberId}`);
       }
     } catch (error) {
-      // next/navigation's redirect() (called by the server action on
-      // success) throws an internal control-flow error that must propagate.
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        "digest" in error &&
-        typeof error.digest === "string" &&
-        error.digest.startsWith("NEXT_REDIRECT")
-      ) {
-        throw error;
-      }
       setSubmitError(
         error instanceof Error ? error.message : "Coś poszło nie tak.",
       );
@@ -666,25 +657,6 @@ export function MemberForm({
               )}
             />
 
-            <Controller
-              name="sectionIds"
-              control={form.control}
-              render={({ field }) => (
-                <Field>
-                  <FieldLabel>Sekcje</FieldLabel>
-                  <MultiSelect
-                    options={sections.map((section) => ({
-                      value: section.id,
-                      label: section.name,
-                    }))}
-                    value={field.value}
-                    onChange={field.onChange}
-                    placeholder="Wybierz sekcje"
-                  />
-                </Field>
-              )}
-            />
-
             <Field>
               <FieldLabel>Role</FieldLabel>
               <div className="flex flex-col gap-2">
@@ -823,7 +795,7 @@ export function MemberForm({
 
         <div className="flex gap-2">
           <Button type="submit" disabled={form.formState.isSubmitting}>
-            Zapisz
+            <Save /> Zapisz
           </Button>
           <Button
             type="button"

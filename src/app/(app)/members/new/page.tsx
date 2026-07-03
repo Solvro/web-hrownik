@@ -30,7 +30,6 @@ const emptyValues: MemberFormInput = {
   hrNotes: "",
   status: "new",
   emails: [{ email: "", kind: "login" }],
-  sectionIds: [],
   roleAssignments: [],
   sendGithubInvite: true,
   sendDiscordInvite: true,

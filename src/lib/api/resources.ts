@@ -24,7 +24,6 @@ Object.assign(memberRelations, {
   emails: {},
   parent: memberRelations,
   children: memberRelations,
-  sections: { section: sectionRelations },
   roleAssignments: {
     roleDefinition: {},
     section: sectionRelations,
