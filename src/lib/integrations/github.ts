@@ -158,7 +158,14 @@ export async function getGithubUserProfile(
   }
 }
 
+let repoCache: { repos: OrgRepo[]; timestamp: number } | null = null;
+const REPO_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export async function listOrgRepos(): Promise<OrgRepo[]> {
+  if (repoCache !== null && Date.now() - repoCache.timestamp < REPO_CACHE_TTL) {
+    return repoCache.repos;
+  }
+
   const config = getGithubConfig();
   if (config === null) {
     return [];
@@ -171,11 +178,20 @@ export async function listOrgRepos(): Promise<OrgRepo[]> {
       per_page: 100,
     });
 
-    return repos.map((repo) => ({ id: repo.id, fullName: repo.full_name }));
+    const mapped = repos.map((repo) => ({
+      id: repo.id,
+      fullName: repo.full_name,
+    }));
+    repoCache = { repos: mapped, timestamp: Date.now() };
+    return mapped;
   } catch (error) {
     console.warn("Failed to list GitHub org repos:", error);
     return [];
   }
+}
+
+export function clearOrgReposCache() {
+  repoCache = null;
 }
 
 /** Shared org-installation Octokit instance for callers outside this module (e.g. activity sync). */
