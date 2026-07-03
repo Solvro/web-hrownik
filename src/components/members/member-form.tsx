@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Save, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { startTransition, useState } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 
 import { createMember, updateMember } from "@/actions/members";
@@ -137,10 +137,14 @@ export function MemberForm({
       if (mode === "create") {
         const result = await createMember(values);
         const query = result.query === "" ? "" : `?${result.query}`;
-        router.push(`/members/${result.id}${query}`);
+        startTransition(() => {
+          router.push(`/members/${result.id}${query}`);
+        });
       } else if (memberId !== undefined) {
         await updateMember(memberId, values);
-        router.push(`/members/${memberId}`);
+        startTransition(() => {
+          router.push(`/members/${memberId}`);
+        });
       }
     } catch (error) {
       setSubmitError(
