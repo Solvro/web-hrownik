@@ -1,11 +1,13 @@
-import { asc, isNotNull, isNull } from "drizzle-orm";
+import { asc, inArray, isNotNull, isNull } from "drizzle-orm";
 import Link from "next/link";
 
+import { AssignRepoToTeam } from "@/components/github/assign-repo-to-team";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
 import { githubActivityEvent, projectRepository } from "@/db/schema/github";
 import { member } from "@/db/schema/members";
+import { team } from "@/db/schema/projects";
 import { getCurrentMember } from "@/lib/current-member";
 import { listOrgRepos } from "@/lib/integrations/github";
 import { can, getMemberPermissions } from "@/lib/permissions";
@@ -58,6 +60,26 @@ export default async function GithubSettingsPage() {
     (repo) => repo.teams.length === 0,
   );
 
+  const projectIds = [
+    ...new Set(reposWithoutTeam.map((repo) => repo.projectId)),
+  ];
+  const projectTeams =
+    projectIds.length === 0
+      ? []
+      : await db.query.team.findMany({
+          where: inArray(team.projectId, projectIds),
+          orderBy: asc(team.name),
+        });
+  const teamsByProjectId = new Map<string, { id: string; name: string }[]>();
+  for (const t of projectTeams) {
+    const list = teamsByProjectId.get(t.projectId);
+    if (list === undefined) {
+      teamsByProjectId.set(t.projectId, [{ id: t.id, name: t.name }]);
+    } else {
+      list.push({ id: t.id, name: t.name });
+    }
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">GitHub</h1>
@@ -106,14 +128,26 @@ export default async function GithubSettingsPage() {
         <CardContent>
           <ul className="divide-y rounded-md border text-sm">
             {reposWithoutTeam.map((repo) => (
-              <li key={repo.id} className="p-2">
-                <Link
-                  href={`/projects/${repo.project.id}`}
-                  className="hover:underline"
-                >
-                  {repo.project.name}
-                </Link>{" "}
-                · {repo.githubRepoFullName}
+              <li
+                key={repo.id}
+                className="flex items-center justify-between gap-2 p-2"
+              >
+                <div className="min-w-0">
+                  <Link
+                    href={`/projects/${repo.project.id}`}
+                    className="hover:underline"
+                  >
+                    {repo.project.name}
+                  </Link>{" "}
+                  · {repo.githubRepoFullName}
+                </div>
+                <AssignRepoToTeam
+                  repoId={repo.id}
+                  repoFullName={repo.githubRepoFullName}
+                  projectId={repo.projectId}
+                  projectName={repo.project.name}
+                  teams={teamsByProjectId.get(repo.projectId) ?? []}
+                />
               </li>
             ))}
             {reposWithoutTeam.length === 0 ? (

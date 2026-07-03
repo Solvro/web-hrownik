@@ -303,6 +303,12 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
                   {project.name}
                 </h2>
                 <div className="flex shrink-0 items-center gap-1">
+                  {project.startedAt === null ? (
+                    <FileWarning
+                      className="text-destructive/70 size-3.5"
+                      aria-label="Brak daty rozpoczęcia"
+                    />
+                  ) : null}
                   {project.projectCardDriveUrl === null ||
                   (project.status === "completed" &&
                     project.reportDriveUrl === null) ? (
