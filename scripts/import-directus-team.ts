@@ -3,15 +3,19 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { member, memberEmail } from "@/db/schema/members";
 
-type DirectusSocial = { link: string };
-type DirectusTeamMember = {
+interface DirectusSocial {
+  link: string;
+}
+interface DirectusTeamMember {
   name: string;
   subtitle?: string | null;
   photo: string | null;
   sociale?: DirectusSocial[];
-};
+}
 
-type DirectusResponse = { data: DirectusTeamMember[] };
+interface DirectusResponse {
+  data?: DirectusTeamMember[];
+}
 
 const DIRECTUS_URL =
   process.env.DIRECTUS_TEAM_URL ??
@@ -35,9 +39,11 @@ function normalizeLinkedIn(url: string): string {
 function normalizeFacebook(url: string): string {
   const trimmed = url.trim().replace(/#$/, "");
   const [base, query = ""] = trimmed.split("?");
-  if (query === "") return base.replace(/\/$/, "");
-  const params = new URLSearchParams(query);
-  const id = params.get("id");
+  if (query === "") {
+    return base.replace(/\/$/, "");
+  }
+  const parameters = new URLSearchParams(query);
+  const id = parameters.get("id");
   return id === null
     ? base.replace(/\/$/, "")
     : `${base.replace(/\/$/, "")}?id=${id}`;
@@ -105,8 +111,9 @@ async function main() {
     for (const social of socials) {
       const rawLink = social.link.trim();
       if (rawLink.startsWith("https://www.linkedin.com")) {
-        if (memberRow.linkedinUrl === null)
+        if (memberRow.linkedinUrl === null) {
           patch.linkedinUrl = normalizeLinkedIn(rawLink);
+        }
         continue;
       }
       if (rawLink.startsWith("mailto:")) {
@@ -138,13 +145,15 @@ async function main() {
         continue;
       }
       if (rawLink.includes("facebook.com")) {
-        if (memberRow.facebookUrl === null)
+        if (memberRow.facebookUrl === null) {
           patch.facebookUrl = normalizeFacebook(rawLink);
+        }
         continue;
       }
       if (rawLink.startsWith("https://www.instagram.com")) {
-        if (memberRow.instagramUrl === null)
+        if (memberRow.instagramUrl === null) {
           patch.instagramUrl = rawLink.replace(/\/$/, "");
+        }
         continue;
       }
       if (rawLink.startsWith("https://discord.com")) {
@@ -185,4 +194,4 @@ async function main() {
 }
 
 await main();
-process.exit(0);
+process.exit(0); // eslint-disable-line unicorn/no-process-exit
