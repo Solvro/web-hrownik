@@ -187,6 +187,39 @@ export async function createTeam(projectId: string, name: string) {
   revalidatePath(`/projects/${projectId}`);
 }
 
+export async function updateTeamName(teamId: string, name: string) {
+  const teamRow = await db.query.team.findFirst({ where: eq(team.id, teamId) });
+  if (teamRow === undefined) {
+    throw new Error("Nie znaleziono zespołu.");
+  }
+  await assertCanManageProject(teamRow.projectId);
+  if (name.trim() === "") {
+    throw new Error("Podaj nazwę zespołu.");
+  }
+
+  await db.update(team).set({ name: name.trim() }).where(eq(team.id, teamId));
+  revalidatePath(`/projects/${teamRow.projectId}`);
+}
+
+export async function deleteTeam(teamId: string) {
+  const teamRow = await db.query.team.findFirst({
+    where: eq(team.id, teamId),
+    with: { members: true, repositories: true },
+  });
+  if (teamRow === undefined) {
+    throw new Error("Nie znaleziono zespołu.");
+  }
+  await assertCanManageProject(teamRow.projectId);
+  if (teamRow.members.length > 0 || teamRow.repositories.length > 0) {
+    throw new Error(
+      "Można usunąć tylko pusty zespół bez członków i repozytoriów.",
+    );
+  }
+
+  await db.delete(team).where(eq(team.id, teamId));
+  revalidatePath(`/projects/${teamRow.projectId}`);
+}
+
 export async function addTeamMember(
   teamId: string,
   memberId: string,

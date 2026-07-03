@@ -1,7 +1,10 @@
 import { asc, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 
+import { NewTeamForm } from "@/components/projects/new-team-form";
 import { ProjectForm } from "@/components/projects/project-form";
+import { TeamPanel } from "@/components/projects/team-panel";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
 import { member } from "@/db/schema/members";
 import { project, projectStatus } from "@/db/schema/projects";
@@ -18,7 +21,16 @@ export default async function EditProjectPage({
 
   const projectRow = await db.query.project.findFirst({
     where: eq(project.slug, slug),
-    with: { roleAssignments: { with: { roleDefinition: true } } },
+    with: {
+      repositories: true,
+      roleAssignments: { with: { roleDefinition: true } },
+      teams: {
+        with: {
+          members: { with: { member: true, roleDefinition: true } },
+          repositories: { with: { projectRepository: true } },
+        },
+      },
+    },
   });
   if (projectRow === undefined) {
     notFound();
@@ -42,13 +54,18 @@ export default async function EditProjectPage({
     );
   }
 
-  const [members, projectRoleDefinitions] = await Promise.all([
-    db.query.member.findMany({ orderBy: asc(member.fullName) }),
-    db.query.roleDefinition.findMany({
-      where: eq(roleDefinition.scope, "project"),
-      orderBy: asc(roleDefinition.name),
-    }),
-  ]);
+  const [members, projectRoleDefinitions, projectTeamRoleDefinitions] =
+    await Promise.all([
+      db.query.member.findMany({ orderBy: asc(member.fullName) }),
+      db.query.roleDefinition.findMany({
+        where: eq(roleDefinition.scope, "project"),
+        orderBy: asc(roleDefinition.name),
+      }),
+      db.query.roleDefinition.findMany({
+        where: eq(roleDefinition.scope, "project_team"),
+        orderBy: asc(roleDefinition.name),
+      }),
+    ]);
 
   return (
     <div className="space-y-6">
@@ -106,6 +123,51 @@ export default async function EditProjectPage({
             })),
         }}
       />
+      <Card size="sm">
+        <CardHeader>
+          <CardTitle>Zespoły projektu</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {projectRow.teams.map((teamRow) => (
+            <div key={teamRow.id} className="space-y-2 rounded-md border p-3">
+              <TeamPanel
+                teamId={teamRow.id}
+                teamName={teamRow.name}
+                canManage
+                roleDefinitions={projectTeamRoleDefinitions.map((role) => ({
+                  id: role.id,
+                  name: role.name,
+                }))}
+                members={teamRow.members.map((teamMembership) => ({
+                  teamMemberId: teamMembership.id,
+                  memberId: teamMembership.memberId,
+                  fullName: teamMembership.member.fullName,
+                  roleDefinitionId: teamMembership.roleDefinitionId,
+                  roleDefinitionName: teamMembership.roleDefinition.name,
+                  joinedAt: teamMembership.joinedAt,
+                  leftAt: teamMembership.leftAt,
+                }))}
+                repositories={projectRow.repositories.map((repo) => ({
+                  id: repo.id,
+                  name: repo.githubRepoFullName,
+                }))}
+                selectedRepositoryIds={teamRow.repositories.map(
+                  (repo) => repo.projectRepositoryId,
+                )}
+                availableMembers={members.filter(
+                  (memberRow) =>
+                    !teamRow.members.some(
+                      (teamMembership) =>
+                        teamMembership.memberId === memberRow.id &&
+                        teamMembership.leftAt === null,
+                    ),
+                )}
+              />
+            </div>
+          ))}
+          <NewTeamForm projectId={projectRow.id} />
+        </CardContent>
+      </Card>
     </div>
   );
 }
