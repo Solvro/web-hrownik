@@ -1,4 +1,5 @@
 import { db } from "@/db";
+import { boardTerm } from "@/db/schema/boards";
 import { member } from "@/db/schema/members";
 import { project } from "@/db/schema/projects";
 import { section } from "@/db/schema/sections";
@@ -13,6 +14,9 @@ type ProjectQueryConfiguration = Parameters<
 >[0];
 type SectionQueryConfiguration = Parameters<
   typeof db.query.section.findMany
+>[0];
+type BoardTermQueryConfiguration = Parameters<
+  typeof db.query.boardTerm.findMany
 >[0];
 
 const memberRelations: RelationSpec = {};
@@ -54,6 +58,15 @@ Object.assign(teamRelations, {
   members: { member: memberRelations, roleDefinition: {} },
   repositories: { projectRepository: {} },
 });
+
+const boardTermRelations: RelationSpec = {
+  roleAssignments: {
+    roleDefinition: {},
+    member: memberRelations,
+    section: sectionRelations,
+    project: projectRelations,
+  },
+};
 
 export const memberApiConfig = {
   query: {
@@ -136,4 +149,29 @@ export const sectionApiConfig = {
   defaultSort: "name",
   searchable: ["name", "description"],
   relations: sectionRelations,
+};
+
+export const boardApiConfig = {
+  query: {
+    findMany: (configuration: object) =>
+      db.query.boardTerm.findMany(configuration as BoardTermQueryConfiguration),
+    findFirst: (configuration: object) =>
+      db.query.boardTerm.findFirst(
+        configuration as BoardTermQueryConfiguration,
+      ),
+  },
+  resource: "boards",
+  table: boardTerm,
+  columns: {
+    id: boardTerm.id,
+    name: boardTerm.name,
+    startsAt: boardTerm.startsAt,
+    endsAt: boardTerm.endsAt,
+    description: boardTerm.description,
+    createdAt: boardTerm.createdAt,
+    updatedAt: boardTerm.updatedAt,
+  },
+  defaultSort: "name",
+  searchable: ["name", "description"],
+  relations: boardTermRelations,
 };
