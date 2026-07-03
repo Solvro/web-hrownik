@@ -13,6 +13,7 @@
     "dev": "next dev",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "import:directus-team": "tsx --env-file=.env scripts/import-directus-team.ts",
     "lint": "eslint . --max-warnings=0",
     "prepare": "husky || true",
     "start": "next start",
