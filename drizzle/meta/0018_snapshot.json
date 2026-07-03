@@ -750,8 +750,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.project_status": {
-      "name": "project_status",
+    "public.project_status_history": {
+      "name": "project_status_history",
       "schema": "",
       "columns": {
         "id": {
@@ -783,9 +783,9 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "project_status_project_id_project_id_fk": {
-          "name": "project_status_project_id_project_id_fk",
-          "tableFrom": "project_status",
+        "project_status_history_project_id_project_id_fk": {
+          "name": "project_status_history_project_id_project_id_fk",
+          "tableFrom": "project_status_history",
           "tableTo": "project",
           "columnsFrom": ["project_id"],
           "columnsTo": ["id"],

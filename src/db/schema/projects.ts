@@ -21,7 +21,7 @@ export const project = pgTable("project", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const projectStatus = pgTable("project_status", {
+export const projectStatus = pgTable("project_status_history", {
   id: id(),
   projectId: text("project_id")
     .notNull()

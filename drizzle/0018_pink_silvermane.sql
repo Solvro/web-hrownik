@@ -1,4 +1,4 @@
-CREATE TABLE "project_status" (
+CREATE TABLE "project_status_history" (
 	"id" text PRIMARY KEY NOT NULL,
 	"project_id" text NOT NULL,
 	"status" "project_status" NOT NULL,
@@ -6,9 +6,9 @@ CREATE TABLE "project_status" (
 );
 --> statement-breakpoint
 ALTER TABLE "project" ADD COLUMN "started_at" timestamp;--> statement-breakpoint
-ALTER TABLE "project_status" ADD CONSTRAINT "project_status_project_id_project_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."project"("id") ON DELETE cascade ON UPDATE no action;
+ALTER TABLE "project_status_history" ADD CONSTRAINT "project_status_history_project_id_project_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."project"("id") ON DELETE cascade ON UPDATE no action;
 --> statement-breakpoint
-INSERT INTO "project_status" ("id", "project_id", "status", "created_at")
+INSERT INTO "project_status_history" ("id", "project_id", "status", "created_at")
 SELECT gen_random_uuid()::text, "id", "status", "created_at"
 FROM "project";
 --> statement-breakpoint
