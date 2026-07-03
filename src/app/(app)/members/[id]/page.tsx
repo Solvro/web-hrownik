@@ -182,6 +182,7 @@ export default async function MemberProfilePage({
         facebookUrl={profile.facebookUrl}
         linkedinUrl={profile.linkedinUrl}
         instagramUrl={profile.instagramUrl}
+        websiteUrl={profile.websiteUrl}
       />
 
       <Card size="sm">

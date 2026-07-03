@@ -32,7 +32,7 @@ export default async function NewProjectPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Nowy projekt</h1>
+      <h1 className="text-2xl font-semibold">Dodaj projekt</h1>
       <ProjectForm repoOptions={repoOptions} />
     </div>
   );

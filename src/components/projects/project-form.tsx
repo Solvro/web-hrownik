@@ -468,7 +468,7 @@ export function ProjectForm({
         <div className="flex gap-2">
           <Button type="submit" disabled={form.formState.isSubmitting}>
             {mode === "create" ? <Plus /> : <Save />}
-            {mode === "create" ? "Utwórz projekt" : "Zapisz"}
+            {mode === "create" ? "Dodaj projekt" : "Zapisz"}
           </Button>
           <Button
             type="button"

@@ -1,3 +1,4 @@
+import { Globe } from "lucide-react";
 import Link from "next/link";
 import type { ComponentType } from "react";
 
@@ -23,12 +24,14 @@ export function MemberContactPills({
   facebookUrl,
   linkedinUrl,
   instagramUrl,
+  websiteUrl,
 }: {
   githubUsername: string | null;
   discordId: string | null;
   facebookUrl: string | null;
   linkedinUrl: string | null;
   instagramUrl: string | null;
+  websiteUrl: string | null;
 }) {
   const pills: ContactPill[] = [
     githubUsername === null
@@ -65,6 +68,14 @@ export function MemberContactPills({
           href: instagramUrl,
           label: "Instagram",
           icon: InstagramIcon,
+        },
+    websiteUrl === null
+      ? null
+      : {
+          key: "website",
+          href: websiteUrl,
+          label: "WWW",
+          icon: Globe,
         },
   ].filter((pill) => pill !== null);
 

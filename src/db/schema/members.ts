@@ -20,6 +20,7 @@ export const member = pgTable("member", {
   facebookUrl: text("facebook_url"),
   linkedinUrl: text("linkedin_url"),
   instagramUrl: text("instagram_url"),
+  websiteUrl: text("website_url"),
   photoUrl: text("photo_url"),
   studentIndex: text("student_index"),
   studyDepartment: text("study_department"),

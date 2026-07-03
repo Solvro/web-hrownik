@@ -158,6 +158,25 @@ export function MemberForm({
     }
   }
 
+  function suggestStudentEmail(studentIndex: string) {
+    if (mode !== "create" || !/^\d{6}$/.test(studentIndex.trim())) {
+      return;
+    }
+    const studentEmail = `${studentIndex.trim()}@student.pwr.edu.pl`;
+    const currentEmails = form.getValues("emails");
+    const existingStudentEmailIndex = currentEmails.findIndex((email) =>
+      email.email.toLowerCase().endsWith("@student.pwr.edu.pl"),
+    );
+    if (existingStudentEmailIndex === -1) {
+      emailFields.append({ email: studentEmail, kind: "login" });
+      return;
+    }
+    form.setValue(`emails.${existingStudentEmailIndex}.email`, studentEmail, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }
+
   return (
     <form
       onSubmit={(event) => void form.handleSubmit(onSubmit)(event)}
@@ -386,6 +405,25 @@ export function MemberForm({
         />
 
         <Controller
+          name="websiteUrl"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor={field.name}>Strona WWW</FieldLabel>
+              <Input
+                {...field}
+                id={field.name}
+                placeholder="https://..."
+                aria-invalid={fieldState.invalid}
+              />
+              {fieldState.invalid ? (
+                <FieldError errors={[fieldState.error]} />
+              ) : null}
+            </Field>
+          )}
+        />
+
+        <Controller
           name="photoUrl"
           control={form.control}
           render={({ field, fieldState }) => (
@@ -417,6 +455,10 @@ export function MemberForm({
                 {...field}
                 id={field.name}
                 aria-invalid={fieldState.invalid}
+                onBlur={(event) => {
+                  field.onBlur();
+                  suggestStudentEmail(event.target.value);
+                }}
               />
               <FieldDescription>
                 Tylko jeśli osoba jest studentem.

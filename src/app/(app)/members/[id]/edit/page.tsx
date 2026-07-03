@@ -91,6 +91,7 @@ export default async function EditMemberPage({
           facebookUrl: profile.facebookUrl ?? "",
           linkedinUrl: profile.linkedinUrl ?? "",
           instagramUrl: profile.instagramUrl ?? "",
+          websiteUrl: profile.websiteUrl ?? "",
           photoUrl: profile.photoUrl ?? "",
           studentIndex: profile.studentIndex ?? "",
           studyDepartment: profile.studyDepartment ?? "",

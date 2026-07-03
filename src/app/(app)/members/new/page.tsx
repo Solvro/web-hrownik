@@ -20,6 +20,7 @@ const emptyValues: MemberFormInput = {
   facebookUrl: "",
   linkedinUrl: "",
   instagramUrl: "",
+  websiteUrl: "",
   photoUrl: "",
   studentIndex: "",
   studyDepartment: "",
@@ -80,7 +81,7 @@ export default async function NewMemberPage({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Nowy członek</h1>
+      <h1 className="text-2xl font-semibold">Dodaj członka</h1>
       <MemberForm
         mode="create"
         fullAccess
