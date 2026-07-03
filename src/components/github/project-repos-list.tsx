@@ -6,15 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { AssignRepoToTeam } from "@/components/github/assign-repo-to-team";
-import { ListFilters } from "@/components/list-filters";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { declineNumeric } from "@/lib/polish";
 
 export interface ProjectRepoEntry {
@@ -30,7 +22,6 @@ export interface ProjectTeamEntry {
   name: string;
 }
 
-const pageSizeOptions = [10, 25, 50, 100] as const;
 const defaultPageSize = 25;
 
 export function ProjectReposWithoutTeamList({
@@ -43,14 +34,12 @@ export function ProjectReposWithoutTeamList({
   const router = useRouter();
   const pathname = usePathname();
   const searchParameters = useSearchParams();
-  const [query, setQuery] = useState(searchParameters.get("q") ?? "");
-  const [projectFilter, setProjectFilter] = useState<string>(
-    searchParameters.get("project") ?? "all",
-  );
-  const [pageSize, setPageSize] = useState<number>(() => {
+  const query = searchParameters.get("q") ?? "";
+  const projectFilter = searchParameters.get("project") ?? "all";
+  const pageSize = (() => {
     const fromUrl = Number(searchParameters.get("pageSize"));
     return Number.isFinite(fromUrl) && fromUrl > 0 ? fromUrl : defaultPageSize;
-  });
+  })();
   const [page, setPage] = useState(() =>
     Math.max(1, Number(searchParameters.get("page") ?? 1)),
   );
@@ -59,12 +48,7 @@ export function ProjectReposWithoutTeamList({
     const parameters = new URLSearchParams(searchParameters.toString());
     for (const [key, value] of Object.entries(updates)) {
       const stringValue = String(value);
-      const isDefault =
-        (key === "q" && stringValue === "") ||
-        (key === "project" && stringValue === "all") ||
-        (key === "page" && stringValue === "1") ||
-        (key === "pageSize" && stringValue === String(defaultPageSize));
-      if (isDefault) {
+      if (key === "page" && stringValue === "1") {
         parameters.delete(key);
       } else {
         parameters.set(key, stringValue);
@@ -75,23 +59,6 @@ export function ProjectReposWithoutTeamList({
       { scroll: false },
     );
   }
-
-  const projectOptions = useMemo(() => {
-    const seen = new Set<string>();
-    return repos
-      .filter((repo) => {
-        if (seen.has(repo.projectId)) {
-          return false;
-        }
-        seen.add(repo.projectId);
-        return true;
-      })
-      .map((repo) => ({
-        value: repo.projectId,
-        label: repo.projectName,
-      }))
-      .toSorted((a, b) => a.label.localeCompare(b.label, "pl"));
-  }, [repos]);
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -115,53 +82,6 @@ export function ProjectReposWithoutTeamList({
 
   return (
     <div className="flex flex-1 flex-col gap-3">
-      <div className="grid gap-2 lg:grid-cols-[minmax(14rem,1fr)_auto]">
-        <ListFilters
-          query={query}
-          onQueryChange={(value) => {
-            setQuery(value);
-            setPage(1);
-            updateUrl({ q: value, page: 1 });
-          }}
-          queryPlaceholder="Szukaj po nazwie repozytorium lub projektu…"
-          selects={[
-            {
-              value: projectFilter,
-              onValueChange: (value) => {
-                setProjectFilter(value);
-                setPage(1);
-                updateUrl({ project: value, page: 1 });
-              },
-              placeholder: "Projekt",
-              options: [
-                { value: "all", label: "Wszystkie projekty" },
-                ...projectOptions,
-              ],
-              className: "md:w-52",
-            },
-          ]}
-        />
-        <Select
-          value={String(pageSize)}
-          onValueChange={(value) => {
-            setPageSize(Number(value));
-            setPage(1);
-            updateUrl({ pageSize: value, page: 1 });
-          }}
-        >
-          <SelectTrigger className="w-full md:w-36">
-            <SelectValue placeholder="Na stronę" />
-          </SelectTrigger>
-          <SelectContent>
-            {pageSizeOptions.map((option) => (
-              <SelectItem key={option} value={String(option)}>
-                {option} / stronę
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
       <div className="flex-1">
         <ul className="divide-y rounded-md border text-sm">
           {paginated.map((repo) => (

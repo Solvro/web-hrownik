@@ -11,6 +11,24 @@ function Shimmer({ className }: { className?: string }) {
   );
 }
 
+export function FiltersSkeleton({
+  width,
+  hasFilter,
+}: {
+  width: string;
+  hasFilter?: boolean;
+}) {
+  return (
+    <div className="grid gap-2 lg:grid-cols-[minmax(14rem,1fr)_auto]">
+      <div className="flex gap-2">
+        <Shimmer className="h-10 flex-1" />
+        {hasFilter === true ? <Shimmer className="h-10 w-44" /> : null}
+      </div>
+      <Shimmer className={cn("h-10", width)} />
+    </div>
+  );
+}
+
 function CardSkeleton() {
   return (
     <div className="flex flex-col gap-4 rounded-2xl border p-4">

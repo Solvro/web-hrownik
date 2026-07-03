@@ -3,7 +3,11 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { UnlinkedReposListSkeleton } from "@/components/github/github-skeletons";
+import {
+  FiltersSkeleton,
+  UnlinkedReposListSkeleton,
+} from "@/components/github/github-skeletons";
+import { UnlinkedReposFilters } from "@/components/github/unlinked-repos-filters";
 import { UnlinkedReposList } from "@/components/github/unlinked-repos-list";
 import type {
   ProjectOption,
@@ -26,6 +30,9 @@ export default function RepositoriesPage() {
         Wróć do przeglądu GitHub
       </Link>
       <h1 className="text-2xl font-semibold">Repozytoria bez projektu</h1>
+      <Suspense fallback={<FiltersSkeleton width="w-36" />}>
+        <UnlinkedReposFilters />
+      </Suspense>
       <Suspense fallback={<UnlinkedReposListSkeleton />}>
         <RepositoriesContent />
       </Suspense>

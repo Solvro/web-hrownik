@@ -3,7 +3,11 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { ProjectReposListSkeleton } from "@/components/github/github-skeletons";
+import {
+  FiltersSkeleton,
+  ProjectReposListSkeleton,
+} from "@/components/github/github-skeletons";
+import { ProjectReposFilters } from "@/components/github/project-repos-filters";
 import type {
   ProjectRepoEntry,
   ProjectTeamEntry,
@@ -11,11 +15,17 @@ import type {
 import { ProjectReposWithoutTeamList } from "@/components/github/project-repos-list";
 import { db } from "@/db";
 import { projectRepository } from "@/db/schema/github";
-import { team } from "@/db/schema/projects";
+import { project, team } from "@/db/schema/projects";
 import { getCurrentMember } from "@/lib/current-member";
 import { can, getMemberPermissions } from "@/lib/permissions";
 
-export default function ProjectReposPage() {
+export default async function ProjectReposPage() {
+  const projects = await db.query.project.findMany({
+    orderBy: asc(project.name),
+    columns: { id: true, name: true },
+  });
+  const projectOptions = projects.map((p) => ({ value: p.id, label: p.name }));
+
   return (
     <div className="flex flex-1 flex-col gap-6">
       <Link
@@ -28,6 +38,9 @@ export default function ProjectReposPage() {
       <h1 className="text-2xl font-semibold">
         Repozytoria projektu bez zespołu
       </h1>
+      <Suspense fallback={<FiltersSkeleton width="w-36" hasFilter />}>
+        <ProjectReposFilters projectOptions={projectOptions} />
+      </Suspense>
       <Suspense fallback={<ProjectReposListSkeleton />}>
         <ProjectReposContent />
       </Suspense>

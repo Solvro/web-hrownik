@@ -3,9 +3,13 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { ContributorsFilters } from "@/components/github/contributors-filters";
 import { ContributorsList } from "@/components/github/contributors-list";
 import type { ContributorEntry } from "@/components/github/contributors-list";
-import { ContributorsListSkeleton } from "@/components/github/github-skeletons";
+import {
+  ContributorsListSkeleton,
+  FiltersSkeleton,
+} from "@/components/github/github-skeletons";
 import { db } from "@/db";
 import { githubActivityEvent } from "@/db/schema/github";
 import { member } from "@/db/schema/members";
@@ -25,6 +29,9 @@ export default function ContributorsPage() {
       <h1 className="text-2xl font-semibold">
         Kontrybutorzy spoza listy członków
       </h1>
+      <Suspense fallback={<FiltersSkeleton width="w-36" hasFilter />}>
+        <ContributorsFilters />
+      </Suspense>
       <Suspense fallback={<ContributorsListSkeleton />}>
         <ContributorsContent />
       </Suspense>
