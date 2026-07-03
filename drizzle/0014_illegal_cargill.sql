@@ -18,6 +18,13 @@ WHERE "scope" = 'project'
   AND "name" <> 'Product Owner';
 --> statement-breakpoint
 
+INSERT INTO "role_definition" ("id", "scope", "name") VALUES
+  (gen_random_uuid()::text, 'section', 'przewodniczący'),
+  (gen_random_uuid()::text, 'section', 'wiceprzewodniczący'),
+  (gen_random_uuid()::text, 'section', 'członek')
+ON CONFLICT ("scope", "name") DO NOTHING;
+--> statement-breakpoint
+
 INSERT INTO "role_assignment" (
   "id",
   "member_id",
@@ -31,7 +38,7 @@ SELECT
   "member_section"."member_id",
   "role_definition"."id",
   "member_section"."section_id",
-  "member_section"."joined_at",
+  COALESCE("member_section"."joined_at", '2000-01-01'::timestamp),
   "member_section"."left_at"
 FROM "member_section"
 JOIN "role_definition"
@@ -43,5 +50,6 @@ WHERE NOT EXISTS (
   WHERE "role_assignment"."member_id" = "member_section"."member_id"
     AND "role_assignment"."role_definition_id" = "role_definition"."id"
     AND "role_assignment"."section_id" = "member_section"."section_id"
+    AND "role_assignment"."started_at" IS NOT DISTINCT FROM COALESCE("member_section"."joined_at", '2000-01-01'::timestamp)
     AND "role_assignment"."ended_at" IS NOT DISTINCT FROM "member_section"."left_at"
 );
