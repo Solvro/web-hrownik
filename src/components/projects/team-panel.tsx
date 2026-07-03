@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import {
   addTeamMember,
@@ -42,6 +42,14 @@ interface TeamMemberRow {
   leftAt: Date | null;
 }
 
+export interface AvailableMember {
+  id: string;
+  fullName: string;
+  status: string;
+  hasProjectContributions: boolean;
+  hasTeamContributions: boolean;
+}
+
 function toDateInput(date: Date | null): string {
   return date?.toISOString().slice(0, 10) ?? "";
 }
@@ -55,15 +63,21 @@ export function TeamPanel({
   selectedRepositoryIds,
   canManage,
   roleDefinitions,
+  projectStartedAt,
+  projectEndedAt,
+  firstCommitDate,
 }: {
   teamId: string;
   teamName: string;
   members: TeamMemberRow[];
-  availableMembers: { id: string; fullName: string }[];
+  availableMembers: AvailableMember[];
   repositories: { id: string; name: string }[];
   selectedRepositoryIds: string[];
   canManage: boolean;
   roleDefinitions: { id: string; name: string }[];
+  projectStartedAt?: string;
+  projectEndedAt?: string;
+  firstCommitDate?: string;
 }) {
   const [name, setName] = useState(teamName);
   const [selectedMemberId, setSelectedMemberId] = useState<string>("");
@@ -73,6 +87,39 @@ export function TeamPanel({
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [filterActiveOnly, setFilterActiveOnly] = useState(true);
+  const [filterProjectContributions, setFilterProjectContributions] =
+    useState(false);
+  const [filterTeamContributions, setFilterTeamContributions] = useState(true);
+
+  const debounceTimers = useRef<
+    Record<string, ReturnType<typeof setTimeout> | undefined>
+  >({});
+
+  const debouncedSave = useCallback(
+    (
+      teamMemberId: string,
+      roleDefinitionId: string,
+      joinedAt: string,
+      leftAt: string,
+      delayMs = 600,
+    ) => {
+      const existing = debounceTimers.current[teamMemberId];
+      if (existing !== undefined) {
+        clearTimeout(existing);
+      }
+      debounceTimers.current[teamMemberId] = setTimeout(() => {
+        void updateTeamMemberDetails(teamMemberId, {
+          roleDefinitionId,
+          joinedAt,
+          leftAt,
+        });
+        debounceTimers.current[teamMemberId] = undefined;
+      }, delayMs);
+    },
+    [],
+  );
 
   async function handleAdd() {
     if (selectedMemberId === "" || selectedRoleId === "") {
@@ -131,21 +178,17 @@ export function TeamPanel({
     }
   }
 
-  async function handleMemberDetailsChange(
+  async function handleRoleChange(
     memberRow: TeamMemberRow,
-    values: Partial<{
-      roleDefinitionId: string;
-      joinedAt: string;
-      leftAt: string;
-    }>,
+    roleDefinitionId: string,
   ) {
     setPending(true);
     setError(null);
     try {
       await updateTeamMemberDetails(memberRow.teamMemberId, {
-        roleDefinitionId: values.roleDefinitionId ?? memberRow.roleDefinitionId,
-        joinedAt: values.joinedAt ?? toDateInput(memberRow.joinedAt),
-        leftAt: values.leftAt ?? toDateInput(memberRow.leftAt),
+        roleDefinitionId,
+        joinedAt: toDateInput(memberRow.joinedAt),
+        leftAt: toDateInput(memberRow.leftAt),
       });
     } catch (error_) {
       setError(error_ instanceof Error ? error_.message : "Błąd");
@@ -153,6 +196,19 @@ export function TeamPanel({
       setPending(false);
     }
   }
+
+  const filteredMembers = availableMembers.filter((member) => {
+    if (filterActiveOnly && member.status !== "active") {
+      return false;
+    }
+    if (filterProjectContributions && !member.hasProjectContributions) {
+      return false;
+    }
+    if (filterTeamContributions && !member.hasTeamContributions) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <div className="space-y-2">
@@ -209,9 +265,7 @@ export function TeamPanel({
                   <Select
                     value={memberRow.roleDefinitionId}
                     onValueChange={(roleDefinitionId) =>
-                      void handleMemberDetailsChange(memberRow, {
-                        roleDefinitionId,
-                      })
+                      void handleRoleChange(memberRow, roleDefinitionId)
                     }
                   >
                     <SelectTrigger className="w-44">
@@ -225,27 +279,60 @@ export function TeamPanel({
                       ))}
                     </SelectContent>
                   </Select>
-                  <Input
-                    type="date"
-                    defaultValue={toDateInput(memberRow.joinedAt)}
-                    aria-label={`Data dołączenia: ${memberRow.fullName}`}
-                    className="w-40"
-                    onBlur={(event) =>
-                      void handleMemberDetailsChange(memberRow, {
-                        joinedAt: event.target.value,
-                      })
-                    }
-                  />
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="date"
+                      defaultValue={toDateInput(memberRow.joinedAt)}
+                      min={projectStartedAt}
+                      max={projectEndedAt}
+                      aria-label={`Data dołączenia: ${memberRow.fullName}`}
+                      className="w-40"
+                      onChange={(event) => {
+                        debouncedSave(
+                          memberRow.teamMemberId,
+                          memberRow.roleDefinitionId,
+                          event.target.value,
+                          toDateInput(memberRow.leftAt),
+                        );
+                      }}
+                    />
+                    {firstCommitDate === undefined ? null : (
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-foreground cursor-pointer text-[10px] underline underline-offset-2"
+                        title={`Pierwszy commit: ${firstCommitDate}`}
+                        onClick={() => {
+                          const input =
+                            document.querySelector<HTMLInputElement>(
+                              `[aria-label="Data dołączenia: ${memberRow.fullName}"]`,
+                            );
+                          if (input !== null) {
+                            input.value = firstCommitDate;
+                            input.dispatchEvent(
+                              new Event("change", { bubbles: true }),
+                            );
+                          }
+                        }}
+                      >
+                        {firstCommitDate}
+                      </button>
+                    )}
+                  </div>
                   <Input
                     type="date"
                     defaultValue={toDateInput(memberRow.leftAt)}
+                    min={projectStartedAt}
+                    max={projectEndedAt}
                     aria-label={`Data zakończenia: ${memberRow.fullName}`}
                     className="w-40"
-                    onBlur={(event) =>
-                      void handleMemberDetailsChange(memberRow, {
-                        leftAt: event.target.value,
-                      })
-                    }
+                    onChange={(event) => {
+                      debouncedSave(
+                        memberRow.teamMemberId,
+                        memberRow.roleDefinitionId,
+                        toDateInput(memberRow.joinedAt),
+                        event.target.value,
+                      );
+                    }}
                   />
                   {memberRow.leftAt === null ? (
                     <Button
@@ -310,8 +397,40 @@ export function TeamPanel({
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-3">
+              <div className="flex flex-wrap gap-2">
+                <label className="flex items-center gap-1.5 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={filterActiveOnly}
+                    onChange={(event) => {
+                      setFilterActiveOnly(event.target.checked);
+                    }}
+                  />
+                  Tylko aktywni
+                </label>
+                <label className="flex items-center gap-1.5 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={filterProjectContributions}
+                    onChange={(event) => {
+                      setFilterProjectContributions(event.target.checked);
+                    }}
+                  />
+                  Z kontrybucjami w projekcie
+                </label>
+                <label className="flex items-center gap-1.5 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={filterTeamContributions}
+                    onChange={(event) => {
+                      setFilterTeamContributions(event.target.checked);
+                    }}
+                  />
+                  Z kontrybucjami w zespole
+                </label>
+              </div>
               <Combobox
-                options={availableMembers.map((option) => ({
+                options={filteredMembers.map((option) => ({
                   value: option.id,
                   label: option.fullName,
                 }))}

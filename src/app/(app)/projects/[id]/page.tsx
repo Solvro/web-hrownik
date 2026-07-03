@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { deleteProject } from "@/actions/projects";
 import { ActivityTimeline } from "@/components/activity-timeline";
 import { DeleteButton } from "@/components/delete-button";
+import { AssignActivityMemberToTeam } from "@/components/projects/assign-activity-member-to-team";
 import { ContributorLeaderboardCard } from "@/components/projects/contributor-leaderboard";
 import { ProjectActivityPanel } from "@/components/projects/project-activity-panel";
 import { ProjectLinkPills } from "@/components/projects/project-link-pills";
@@ -318,15 +319,27 @@ export default async function ProjectPage({
             <CardTitle>Kontrybutorzy bez zespołu</CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-1 text-sm">
+            <ul className="space-y-2 text-sm">
               {unassignedActivityMembers.map((memberRow) => (
-                <li key={memberRow.id}>
+                <li
+                  key={memberRow.id}
+                  className="flex items-center justify-between gap-2 rounded-md border p-2"
+                >
                   <Link
                     href={`/members/${memberRow.id}`}
                     className="hover:underline"
                   >
                     {memberRow.fullName}
                   </Link>
+                  <AssignActivityMemberToTeam
+                    projectId={projectId}
+                    memberId={memberRow.id}
+                    teams={teamOptions}
+                    roleDefinitions={projectRoleDefinitions.map((role) => ({
+                      id: role.id,
+                      name: role.name,
+                    }))}
+                  />
                 </li>
               ))}
             </ul>
@@ -367,6 +380,16 @@ export default async function ProjectPage({
                   (repo) => repo.projectRepositoryId,
                 )}
                 availableMembers={[]}
+                projectStartedAt={
+                  projectRow.startedAt === null
+                    ? undefined
+                    : projectRow.startedAt.toISOString().slice(0, 10)
+                }
+                projectEndedAt={
+                  projectRow.endedAt === null
+                    ? undefined
+                    : projectRow.endedAt.toISOString().slice(0, 10)
+                }
               />
             </div>
           ))}
