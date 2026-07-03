@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { ProjectForm } from "@/components/projects/project-form";
 import { db } from "@/db";
 import { member } from "@/db/schema/members";
-import { project } from "@/db/schema/projects";
+import { project, projectStatus } from "@/db/schema/projects";
 import { roleDefinition } from "@/db/schema/roles";
 import { getCurrentMember } from "@/lib/current-member";
 import { canManageProject, getMemberPermissions } from "@/lib/permissions";
@@ -23,6 +23,11 @@ export default async function EditProjectPage({
   if (projectRow === undefined) {
     notFound();
   }
+
+  const statusHistory = await db.query.projectStatus.findMany({
+    where: eq(projectStatus.projectId, projectRow.id),
+    orderBy: (ps, { desc }) => desc(ps.createdAt),
+  });
 
   const currentMember = await getCurrentMember();
   const permissions =
@@ -54,6 +59,11 @@ export default async function EditProjectPage({
         mode="edit"
         projectId={projectRow.id}
         repoOptions={[]}
+        statusHistory={statusHistory.map((entry) => ({
+          id: entry.id,
+          status: entry.status,
+          createdAt: entry.createdAt,
+        }))}
         memberOptions={members.map((memberRow) => ({
           id: memberRow.id,
           fullName: memberRow.fullName,
@@ -66,6 +76,10 @@ export default async function EditProjectPage({
           name: projectRow.name,
           slug: projectRow.slug,
           status: projectRow.status,
+          startedAt:
+            projectRow.startedAt === null
+              ? ""
+              : toDateInput(projectRow.startedAt),
           visibility: projectRow.visibility,
           productionUrl: projectRow.productionUrl ?? "",
           driveFolderUrl: projectRow.driveFolderUrl ?? "",

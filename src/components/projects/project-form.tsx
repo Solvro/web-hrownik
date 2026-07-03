@@ -6,7 +6,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 
-import { createProject, updateProject } from "@/actions/projects";
+import {
+  createProject,
+  deleteProjectStatusEntry,
+  updateProject,
+} from "@/actions/projects";
 import { MultiSelect } from "@/components/multi-select";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +45,7 @@ export function ProjectForm({
   mode = "create",
   projectId,
   repoOptions,
+  statusHistory = [],
   memberOptions = [],
   projectRoleDefinitions = [],
   defaultValues,
@@ -48,6 +53,7 @@ export function ProjectForm({
   mode?: "create" | "edit";
   projectId?: string;
   repoOptions: { value: string; label: string }[];
+  statusHistory?: { id: string; status: string; createdAt: Date }[];
   memberOptions?: { id: string; fullName: string }[];
   projectRoleDefinitions?: { id: string; name: string }[];
   defaultValues?: ProjectFormValues;
@@ -61,6 +67,7 @@ export function ProjectForm({
       name: "",
       slug: "",
       status: "active",
+      startedAt: "",
       visibility: "internal",
       productionUrl: "",
       driveFolderUrl: "",
@@ -211,6 +218,21 @@ export function ProjectForm({
           />
         </div>
         <Controller
+          name="startedAt"
+          control={form.control}
+          render={({ field }) => (
+            <Field>
+              <FieldLabel htmlFor={field.name}>Data rozpoczęcia</FieldLabel>
+              <Input
+                {...field}
+                id={field.name}
+                type="date"
+                aria-label="Data rozpoczęcia projektu"
+              />
+            </Field>
+          )}
+        />
+        <Controller
           name="productionUrl"
           control={form.control}
           render={({ field, fieldState }) => (
@@ -342,6 +364,59 @@ export function ProjectForm({
               </Field>
             )}
           />
+        ) : null}
+        {mode === "edit" && statusHistory.length > 0 ? (
+          <Field>
+            <FieldLabel>Historia statusów</FieldLabel>
+            <FieldDescription>
+              Kolejne zmiany statusu projektu. Dodaj nowy wpis, aby zmienić
+              aktualny status.
+            </FieldDescription>
+            <div className="space-y-2">
+              {statusHistory.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="flex items-center gap-2 rounded-md border p-2 text-sm"
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    <span
+                      className={`inline-block size-2 rounded-full ${
+                        entry.status === "active"
+                          ? "bg-green-500"
+                          : entry.status === "completed"
+                            ? "bg-blue-500"
+                            : "bg-red-500"
+                      }`}
+                    />
+                    {entry.status === "active"
+                      ? "aktywny"
+                      : entry.status === "completed"
+                        ? "zakończony"
+                        : "zawieszony"}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {new Date(entry.createdAt).toLocaleDateString("pl-PL")}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="ml-auto size-6"
+                    disabled={statusHistory.length <= 1}
+                    onClick={async () => {
+                      try {
+                        await deleteProjectStatusEntry(entry.id);
+                      } catch {
+                        // handled via form-level submit error
+                      }
+                    }}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </Field>
         ) : null}
         {mode === "edit" ? (
           <Field>

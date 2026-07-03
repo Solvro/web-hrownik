@@ -11,6 +11,7 @@ import {
   projectStatusLabels,
 } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -32,6 +33,8 @@ export interface ProjectListItem {
   name: string;
   status: ProjectStatus;
   visibility: ProjectVisibility;
+  startedAt: Date | null;
+  endedAt: Date | null;
   projectCardDriveUrl: string | null;
   reportDriveUrl: string | null;
 }
@@ -55,6 +58,10 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
   const [visibility, setVisibility] = useState<VisibilityFilter>(
     (searchParameters.get("visibility") as VisibilityFilter | null) ?? "all",
   );
+  const [startDate, setStartDate] = useState(
+    searchParameters.get("startDate") ?? "",
+  );
+  const [endDate, setEndDate] = useState(searchParameters.get("endDate") ?? "");
   const [sort, setSort] = useState<SortMode>(
     (searchParameters.get("sort") as SortMode | null) ?? "name-asc",
   );
@@ -83,6 +90,7 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
       const isDefault =
         (key === "q" && stringValue === "") ||
         (["status", "visibility"].includes(key) && stringValue === "all") ||
+        (["startDate", "endDate"].includes(key) && stringValue === "") ||
         (key === "sort" && stringValue === "name-asc") ||
         (key === "page" && stringValue === "1") ||
         (key === "pageSize" && stringValue === String(defaultPageSize));
@@ -100,12 +108,31 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
+    const startFilter =
+      startDate === "" ? null : new Date(`${startDate}T00:00:00`);
+    const endFilter = endDate === "" ? null : new Date(`${endDate}T23:59:59`);
 
     return projects
       .filter((project) => status === "all" || project.status === status)
       .filter(
         (project) => visibility === "all" || project.visibility === visibility,
       )
+      .filter((project) => {
+        if (startFilter === null && endFilter === null) {
+          return true;
+        }
+        const date = project.startedAt ?? project.endedAt;
+        if (date === null) {
+          return startFilter === null;
+        }
+        if (startFilter !== null && date < startFilter) {
+          return false;
+        }
+        if (endFilter !== null && date > endFilter) {
+          return false;
+        }
+        return true;
+      })
       .filter((project) => {
         if (normalizedQuery === "") {
           return true;
@@ -139,7 +166,7 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
 
         return first.name.localeCompare(second.name, "pl");
       });
-  }, [projects, query, sort, status, visibility]);
+  }, [projects, query, sort, status, visibility, startDate, endDate]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, pageCount);
@@ -234,6 +261,32 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
             ))}
           </SelectContent>
         </Select>
+        <div className="flex items-center gap-2">
+          <Input
+            type="date"
+            aria-label="Data od"
+            value={startDate}
+            onChange={(event) => {
+              const value = event.target.value;
+              setStartDate(value);
+              setPage(1);
+              updateUrl({ startDate: value, page: 1 });
+            }}
+            className="w-40"
+          />
+          <Input
+            type="date"
+            aria-label="Data do"
+            value={endDate}
+            onChange={(event) => {
+              const value = event.target.value;
+              setEndDate(value);
+              setPage(1);
+              updateUrl({ endDate: value, page: 1 });
+            }}
+            className="w-40"
+          />
+        </div>
       </div>
 
       <div className="flex-1">
@@ -263,6 +316,17 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
               </div>
               <p className="text-muted-foreground mt-1 text-sm">
                 {visibilityLabels[project.visibility]}
+              </p>
+              <p className="text-muted-foreground mt-0.5 text-xs">
+                {project.startedAt === null
+                  ? ""
+                  : new Date(project.startedAt).toLocaleDateString("pl-PL")}
+                {project.startedAt !== null && project.endedAt !== null
+                  ? " – "
+                  : ""}
+                {project.endedAt === null
+                  ? ""
+                  : new Date(project.endedAt).toLocaleDateString("pl-PL")}
               </p>
             </Link>
           ))}

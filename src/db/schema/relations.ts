@@ -10,7 +10,7 @@ import {
   teamRepository,
 } from "./github";
 import { member, memberEmail } from "./members";
-import { project, team, teamMember } from "./projects";
+import { project, projectStatus, team, teamMember } from "./projects";
 import {
   permissionGrant,
   permissionGroup,
@@ -142,6 +142,14 @@ export const projectRelations = relations(project, ({ many }) => ({
   teams: many(team),
   roleAssignments: many(roleAssignment),
   activityEvents: many(githubActivityEvent),
+  statusHistory: many(projectStatus),
+}));
+
+export const projectStatusRelations = relations(projectStatus, ({ one }) => ({
+  project: one(project, {
+    fields: [projectStatus.projectId],
+    references: [project.id],
+  }),
 }));
 
 export const teamRelations = relations(team, ({ one, many }) => ({

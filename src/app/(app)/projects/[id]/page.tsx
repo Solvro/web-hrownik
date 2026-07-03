@@ -122,6 +122,23 @@ export default async function ProjectPage({
               {projectRow.name}
             </h1>
             <ProjectStatusBadge status={projectRow.status} />
+            {projectRow.startedAt === null ? (
+              <a
+                href={projectRow.projectCardDriveUrl ?? undefined}
+                target={
+                  projectRow.projectCardDriveUrl === null ? undefined : "_blank"
+                }
+                rel="noopener noreferrer"
+                className="text-destructive hover:text-destructive/80"
+                title={
+                  projectRow.projectCardDriveUrl === null
+                    ? "Brak daty rozpoczęcia"
+                    : "Brak daty rozpoczęcia — otwórz kartę projektu"
+                }
+              >
+                <FileWarning className="size-5" />
+              </a>
+            ) : null}
             {projectRow.projectCardDriveUrl === null ||
             (projectRow.status === "completed" &&
               projectRow.reportDriveUrl === null) ? (
@@ -131,8 +148,18 @@ export default async function ProjectPage({
               />
             ) : null}
           </div>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground flex items-center gap-2 text-sm">
             {projectRow.visibility === "public" ? "publiczny" : "wewnętrzny"}
+            {projectRow.startedAt === null ? null : (
+              <span>
+                · {new Date(projectRow.startedAt).toLocaleDateString("pl-PL")}
+              </span>
+            )}
+            {projectRow.endedAt === null ? null : (
+              <span>
+                · {new Date(projectRow.endedAt).toLocaleDateString("pl-PL")}
+              </span>
+            )}
           </p>
         </div>
         <div className="flex flex-col gap-2 min-[360px]:flex-row sm:flex-row">
