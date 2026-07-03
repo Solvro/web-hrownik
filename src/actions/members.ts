@@ -74,9 +74,7 @@ export async function createMember(input: MemberFormValues) {
     );
   }
 
-  const sectionMemberRole =
-    values.sectionIds.length === 0 ? null : await getSectionMemberRole();
-  if (values.roleAssignments.length > 0 || values.sectionIds.length > 0) {
+  if (values.roleAssignments.length > 0) {
     const roleDefinitions =
       values.roleAssignments.length === 0
         ? []
@@ -90,21 +88,8 @@ export async function createMember(input: MemberFormValues) {
       roleDefinitions.map((role) => [role.id, role]),
     );
 
-    const sectionRoleAssignments =
-      sectionMemberRole === null
-        ? []
-        : values.sectionIds.map((sectionId) => ({
-            memberId: created.id,
-            roleDefinitionId: sectionMemberRole.id,
-            boardTermId: null,
-            sectionId,
-            projectId: null,
-            startedAt: new Date(),
-            endedAt: null,
-          }));
-
-    await db.insert(roleAssignment).values([
-      ...values.roleAssignments.map((role) => {
+    await db.insert(roleAssignment).values(
+      values.roleAssignments.map((role) => {
         const definition = roleDefinitionById.get(role.roleDefinitionId);
         if (definition === undefined) {
           throw new Error("Nie znaleziono wybranej roli.");
@@ -132,8 +117,7 @@ export async function createMember(input: MemberFormValues) {
           endedAt: parseDate(role.endedAt),
         };
       }),
-      ...sectionRoleAssignments,
-    ]);
+    );
   }
 
   if (created.githubUsername !== null) {
@@ -153,10 +137,11 @@ export async function createMember(input: MemberFormValues) {
   if (automationResult.discordInviteUrl !== null) {
     resultParameters.set("discordInvite", automationResult.discordInviteUrl);
   }
-  const query =
-    resultParameters.size > 0 ? `?${resultParameters.toString()}` : "";
 
-  redirect(`/members/${created.id}${query}`);
+  revalidatePath(`/members/${created.id}`);
+  revalidatePath("/members");
+
+  return { id: created.id, query: resultParameters.toString() };
 }
 
 export async function updateMember(
@@ -180,7 +165,7 @@ export async function updateMember(
     throw new Error("Członek nie może być swoim własnym rodzicem.");
   }
 
-  // fullName, status, bio, HR notes, emails, sectionIds and roles are board-only;
+  // fullName, status, bio, HR notes, emails and roles are board-only;
   // everything else (socials + study data) is self-editable per FEATURES.md.
   await db
     .update(member)
@@ -273,11 +258,7 @@ export async function updateMember(
         .where(inArray(roleAssignment.id, replacedAssignmentIds));
     }
 
-    const sectionMemberRole =
-      values.sectionIds === undefined || values.sectionIds.length === 0
-        ? null
-        : await getSectionMemberRole();
-    if (values.roleAssignments.length > 0 || values.sectionIds !== undefined) {
+    if (values.roleAssignments.length > 0) {
       const roleDefinitions =
         values.roleAssignments.length === 0
           ? []
@@ -291,50 +272,34 @@ export async function updateMember(
         roleDefinitions.map((role) => [role.id, role]),
       );
 
-      const sectionRoleAssignments =
-        sectionMemberRole === null
-          ? []
-          : (values.sectionIds ?? []).map((sectionId) => ({
-              memberId,
-              roleDefinitionId: sectionMemberRole.id,
-              boardTermId: null,
-              sectionId,
-              projectId: null,
-              startedAt: new Date(),
-              endedAt: null,
-            }));
-
-      const assignments = [
-        ...values.roleAssignments.map((role) => {
-          const definition = roleDefinitionById.get(role.roleDefinitionId);
-          if (definition === undefined) {
-            throw new Error("Nie znaleziono wybranej roli.");
-          }
-          if (
-            definition.scope === "project_team" ||
-            definition.scope === "project"
-          ) {
-            throw new Error("Role projektowe są zarządzane przy projekcie.");
-          }
-          if (
-            definition.scope === "board" &&
-            (role.boardTermId === undefined || role.boardTermId === "")
-          ) {
-            throw new Error("Rola zarządowa wymaga wskazania kadencji.");
-          }
-          return {
-            memberId,
-            roleDefinitionId: role.roleDefinitionId,
-            boardTermId: definition.scope === "board" ? role.boardTermId : null,
-            sectionId:
-              definition.scope === "section" ? (role.sectionId ?? null) : null,
-            projectId: null,
-            startedAt: parseDate(role.startedAt) ?? new Date(),
-            endedAt: parseDate(role.endedAt),
-          };
-        }),
-        ...sectionRoleAssignments,
-      ];
+      const assignments = values.roleAssignments.map((role) => {
+        const definition = roleDefinitionById.get(role.roleDefinitionId);
+        if (definition === undefined) {
+          throw new Error("Nie znaleziono wybranej roli.");
+        }
+        if (
+          definition.scope === "project_team" ||
+          definition.scope === "project"
+        ) {
+          throw new Error("Role projektowe są zarządzane przy projekcie.");
+        }
+        if (
+          definition.scope === "board" &&
+          (role.boardTermId === undefined || role.boardTermId === "")
+        ) {
+          throw new Error("Rola zarządowa wymaga wskazania kadencji.");
+        }
+        return {
+          memberId,
+          roleDefinitionId: role.roleDefinitionId,
+          boardTermId: definition.scope === "board" ? role.boardTermId : null,
+          sectionId:
+            definition.scope === "section" ? (role.sectionId ?? null) : null,
+          projectId: null,
+          startedAt: parseDate(role.startedAt) ?? new Date(),
+          endedAt: parseDate(role.endedAt),
+        };
+      });
       if (assignments.length > 0) {
         await db.insert(roleAssignment).values(assignments);
       }
@@ -348,7 +313,8 @@ export async function updateMember(
     }
   }
 
-  redirect(`/members/${memberId}`);
+  revalidatePath(`/members/${memberId}`);
+  revalidatePath("/members");
 }
 
 export async function deleteMember(memberId: string): Promise<void> {
