@@ -141,45 +141,47 @@ export function ContributorsList({
         </Select>
       </div>
 
-      <ul className="divide-y rounded-md border text-sm">
-        {paginated.map((entry) => (
-          <li
-            key={entry.login}
-            className="flex items-center justify-between gap-2 p-2"
-          >
-            <div className="flex min-w-0 items-center gap-2">
-              <a
-                href={`https://github.com/${entry.login}`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1 truncate hover:underline"
-              >
-                {entry.login}
-                <ExternalLink className="size-3 shrink-0" />
-              </a>
-              <Badge variant="outline" className="shrink-0">
-                {typeLabels[entry.type]}
-              </Badge>
-            </div>
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className="h-7 shrink-0"
+      <div className="flex-1">
+        <ul className="divide-y rounded-md border text-sm">
+          {paginated.map((entry) => (
+            <li
+              key={entry.login}
+              className="flex items-center justify-between gap-2 p-2"
             >
-              <Link
-                href={`/members/new?githubUsername=${encodeURIComponent(entry.login)}`}
+              <div className="flex min-w-0 items-center gap-2">
+                <a
+                  href={`https://github.com/${entry.login}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 truncate hover:underline"
+                >
+                  {entry.login}
+                  <ExternalLink className="size-3 shrink-0" />
+                </a>
+                <Badge variant="outline" className="shrink-0">
+                  {typeLabels[entry.type]}
+                </Badge>
+              </div>
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="h-7 shrink-0"
               >
-                <UserPlus />
-                Dodaj członka
-              </Link>
-            </Button>
-          </li>
-        ))}
-        {paginated.length === 0 ? (
-          <li className="text-muted-foreground p-2">Brak wyników.</li>
-        ) : null}
-      </ul>
+                <Link
+                  href={`/members/new?githubUsername=${encodeURIComponent(entry.login)}`}
+                >
+                  <UserPlus />
+                  Dodaj członka
+                </Link>
+              </Button>
+            </li>
+          ))}
+          {paginated.length === 0 ? (
+            <li className="text-muted-foreground p-2">Brak wyników.</li>
+          ) : null}
+        </ul>
+      </div>
 
       <div className="text-muted-foreground flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
         <span>

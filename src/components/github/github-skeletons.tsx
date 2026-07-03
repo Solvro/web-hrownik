@@ -53,15 +53,29 @@ export function ContributorsListSkeleton() {
         <Shimmer className="h-10 flex-1" />
         <Shimmer className="h-10 w-36" />
       </div>
-      <div className="divide-y rounded-md border text-sm">
-        <ContributorRowSkeleton />
-        <ContributorRowSkeleton />
-        <ContributorRowSkeleton />
-        <ContributorRowSkeleton />
-        <ContributorRowSkeleton />
-        <ContributorRowSkeleton />
-        <ContributorRowSkeleton />
-        <ContributorRowSkeleton />
+      <div className="flex-1">
+        <div className="divide-y rounded-md border text-sm">
+          <ContributorRowSkeleton />
+          <ContributorRowSkeleton />
+          <ContributorRowSkeleton />
+          <ContributorRowSkeleton />
+          <ContributorRowSkeleton />
+          <ContributorRowSkeleton />
+          <ContributorRowSkeleton />
+          <ContributorRowSkeleton />
+          <ContributorRowSkeleton />
+          <ContributorRowSkeleton />
+          <ContributorRowSkeleton />
+          <ContributorRowSkeleton />
+          <ContributorRowSkeleton />
+          <ContributorRowSkeleton />
+          <ContributorRowSkeleton />
+          <ContributorRowSkeleton />
+          <ContributorRowSkeleton />
+          <ContributorRowSkeleton />
+          <ContributorRowSkeleton />
+          <ContributorRowSkeleton />
+        </div>
       </div>
     </div>
   );
@@ -87,15 +101,29 @@ export function UnlinkedReposListSkeleton() {
         <Shimmer className="h-10 flex-1" />
         <Shimmer className="h-10 w-36" />
       </div>
-      <div className="divide-y rounded-md border text-sm">
-        <UnlinkedRepoRowSkeleton />
-        <UnlinkedRepoRowSkeleton />
-        <UnlinkedRepoRowSkeleton />
-        <UnlinkedRepoRowSkeleton />
-        <UnlinkedRepoRowSkeleton />
-        <UnlinkedRepoRowSkeleton />
-        <UnlinkedRepoRowSkeleton />
-        <UnlinkedRepoRowSkeleton />
+      <div className="flex-1">
+        <div className="divide-y rounded-md border text-sm">
+          <UnlinkedRepoRowSkeleton />
+          <UnlinkedRepoRowSkeleton />
+          <UnlinkedRepoRowSkeleton />
+          <UnlinkedRepoRowSkeleton />
+          <UnlinkedRepoRowSkeleton />
+          <UnlinkedRepoRowSkeleton />
+          <UnlinkedRepoRowSkeleton />
+          <UnlinkedRepoRowSkeleton />
+          <UnlinkedRepoRowSkeleton />
+          <UnlinkedRepoRowSkeleton />
+          <UnlinkedRepoRowSkeleton />
+          <UnlinkedRepoRowSkeleton />
+          <UnlinkedRepoRowSkeleton />
+          <UnlinkedRepoRowSkeleton />
+          <UnlinkedRepoRowSkeleton />
+          <UnlinkedRepoRowSkeleton />
+          <UnlinkedRepoRowSkeleton />
+          <UnlinkedRepoRowSkeleton />
+          <UnlinkedRepoRowSkeleton />
+          <UnlinkedRepoRowSkeleton />
+        </div>
       </div>
     </div>
   );
@@ -125,15 +153,29 @@ export function ProjectReposListSkeleton() {
         <Shimmer className="h-10 w-36" />
         <Shimmer className="h-10 w-36" />
       </div>
-      <div className="divide-y rounded-md border text-sm">
-        <ProjectRepoRowSkeleton />
-        <ProjectRepoRowSkeleton />
-        <ProjectRepoRowSkeleton />
-        <ProjectRepoRowSkeleton />
-        <ProjectRepoRowSkeleton />
-        <ProjectRepoRowSkeleton />
-        <ProjectRepoRowSkeleton />
-        <ProjectRepoRowSkeleton />
+      <div className="flex-1">
+        <div className="divide-y rounded-md border text-sm">
+          <ProjectRepoRowSkeleton />
+          <ProjectRepoRowSkeleton />
+          <ProjectRepoRowSkeleton />
+          <ProjectRepoRowSkeleton />
+          <ProjectRepoRowSkeleton />
+          <ProjectRepoRowSkeleton />
+          <ProjectRepoRowSkeleton />
+          <ProjectRepoRowSkeleton />
+          <ProjectRepoRowSkeleton />
+          <ProjectRepoRowSkeleton />
+          <ProjectRepoRowSkeleton />
+          <ProjectRepoRowSkeleton />
+          <ProjectRepoRowSkeleton />
+          <ProjectRepoRowSkeleton />
+          <ProjectRepoRowSkeleton />
+          <ProjectRepoRowSkeleton />
+          <ProjectRepoRowSkeleton />
+          <ProjectRepoRowSkeleton />
+          <ProjectRepoRowSkeleton />
+          <ProjectRepoRowSkeleton />
+        </div>
       </div>
     </div>
   );

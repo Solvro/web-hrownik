@@ -162,43 +162,45 @@ export function ProjectReposWithoutTeamList({
         </Select>
       </div>
 
-      <ul className="divide-y rounded-md border text-sm">
-        {paginated.map((repo) => (
-          <li
-            key={repo.id}
-            className="flex flex-col gap-2 p-2 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div className="flex min-w-0 items-center gap-2">
-              <Link
-                href={`/projects/${repo.projectSlug}`}
-                className="shrink-0 hover:underline"
-              >
-                {repo.projectName}
-              </Link>
-              <span className="text-muted-foreground">·</span>
-              <a
-                href={`https://github.com/${repo.githubRepoFullName}`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1 truncate hover:underline"
-              >
-                {repo.githubRepoFullName}
-                <ExternalLink className="size-3 shrink-0" />
-              </a>
-            </div>
-            <AssignRepoToTeam
-              repoId={repo.id}
-              repoFullName={repo.githubRepoFullName}
-              projectId={repo.projectId}
-              projectName={repo.projectName}
-              teams={teamsByProjectId[repo.projectId] ?? []}
-            />
-          </li>
-        ))}
-        {paginated.length === 0 ? (
-          <li className="text-muted-foreground p-2">Brak wyników.</li>
-        ) : null}
-      </ul>
+      <div className="flex-1">
+        <ul className="divide-y rounded-md border text-sm">
+          {paginated.map((repo) => (
+            <li
+              key={repo.id}
+              className="flex flex-col gap-2 p-2 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="flex min-w-0 items-center gap-2">
+                <Link
+                  href={`/projects/${repo.projectSlug}`}
+                  className="shrink-0 hover:underline"
+                >
+                  {repo.projectName}
+                </Link>
+                <span className="text-muted-foreground">·</span>
+                <a
+                  href={`https://github.com/${repo.githubRepoFullName}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 truncate hover:underline"
+                >
+                  {repo.githubRepoFullName}
+                  <ExternalLink className="size-3 shrink-0" />
+                </a>
+              </div>
+              <AssignRepoToTeam
+                repoId={repo.id}
+                repoFullName={repo.githubRepoFullName}
+                projectId={repo.projectId}
+                projectName={repo.projectName}
+                teams={teamsByProjectId[repo.projectId] ?? []}
+              />
+            </li>
+          ))}
+          {paginated.length === 0 ? (
+            <li className="text-muted-foreground p-2">Brak wyników.</li>
+          ) : null}
+        </ul>
+      </div>
 
       <div className="text-muted-foreground flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
         <span>

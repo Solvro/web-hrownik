@@ -141,79 +141,81 @@ export function UnlinkedReposList({
         </Select>
       </div>
 
-      <ul className="divide-y rounded-md border text-sm">
-        {paginated.map((fullName) => (
-          <li
-            key={fullName}
-            className="flex flex-col gap-2 p-2 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div className="flex min-w-0 items-center gap-2">
-              <a
-                href={`https://github.com/${fullName}`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1 truncate hover:underline"
-              >
-                {fullName}
-                <ExternalLink className="size-3 shrink-0" />
-              </a>
-              <Link
-                href={`/projects/new?repository=${encodeURIComponent(fullName)}`}
-                className="hover:text-foreground text-muted-foreground flex shrink-0 items-center gap-0.5 text-xs transition-colors hover:underline"
-              >
-                <Plus className="size-3" />
-                nowy projekt
-              </Link>
-            </div>
-            <form
-              action={async (formData) => {
-                await handleAssign(fullName, formData);
-              }}
-              className="flex flex-wrap items-center gap-2"
+      <div className="flex-1">
+        <ul className="divide-y rounded-md border text-sm">
+          {paginated.map((fullName) => (
+            <li
+              key={fullName}
+              className="flex flex-col gap-2 p-2 sm:flex-row sm:items-center sm:justify-between"
             >
-              <Select name="projectId" required>
-                <SelectTrigger className="h-8 w-44">
-                  <SelectValue placeholder="Wybierz projekt" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select name="teamId" defaultValue="none">
-                <SelectTrigger className="h-8 w-44">
-                  <SelectValue placeholder="Zespół (opcjonalnie)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Bez zespołu</SelectItem>
-                  {teams.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                type="submit"
-                size="sm"
-                className="h-8"
-                disabled={assigning[fullName]}
+              <div className="flex min-w-0 items-center gap-2">
+                <a
+                  href={`https://github.com/${fullName}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 truncate hover:underline"
+                >
+                  {fullName}
+                  <ExternalLink className="size-3 shrink-0" />
+                </a>
+                <Link
+                  href={`/projects/new?repository=${encodeURIComponent(fullName)}`}
+                  className="hover:text-foreground text-muted-foreground flex shrink-0 items-center gap-0.5 text-xs transition-colors hover:underline"
+                >
+                  <Plus className="size-3" />
+                  nowy projekt
+                </Link>
+              </div>
+              <form
+                action={async (formData) => {
+                  await handleAssign(fullName, formData);
+                }}
+                className="flex flex-wrap items-center gap-2"
               >
-                {assigning[fullName] ? "Przypisywanie…" : "Przypisz"}
-              </Button>
-            </form>
-          </li>
-        ))}
-        {paginated.length === 0 ? (
-          <li className="text-muted-foreground p-2">Brak wyników.</li>
-        ) : null}
-        {error === null ? null : (
-          <li className="text-destructive p-2 text-xs">{error}</li>
-        )}
-      </ul>
+                <Select name="projectId" required>
+                  <SelectTrigger className="h-8 w-44">
+                    <SelectValue placeholder="Wybierz projekt" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select name="teamId" defaultValue="none">
+                  <SelectTrigger className="h-8 w-44">
+                    <SelectValue placeholder="Zespół (opcjonalnie)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Bez zespołu</SelectItem>
+                    {teams.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="h-8"
+                  disabled={assigning[fullName]}
+                >
+                  {assigning[fullName] ? "Przypisywanie…" : "Przypisz"}
+                </Button>
+              </form>
+            </li>
+          ))}
+          {paginated.length === 0 ? (
+            <li className="text-muted-foreground p-2">Brak wyników.</li>
+          ) : null}
+          {error === null ? null : (
+            <li className="text-destructive p-2 text-xs">{error}</li>
+          )}
+        </ul>
+      </div>
 
       <div className="text-muted-foreground flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
         <span>
