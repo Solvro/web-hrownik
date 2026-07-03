@@ -24,7 +24,11 @@ const DIRECTUS_URL =
 const dryRun = process.argv.includes("--dry-run");
 
 function normalizeName(name: string): string {
-  return name.trim().toLowerCase().replaceAll(/\s+/g, " ");
+  return foldDiacritics(name).trim().toLowerCase().replaceAll(/\s+/g, " ");
+}
+
+function foldDiacritics(value: string): string {
+  return value.normalize("NFD").replaceAll(/\p{Diacritic}/gu, "");
 }
 
 function stripQueryAndHash(url: string): string {
