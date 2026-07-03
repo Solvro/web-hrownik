@@ -7,7 +7,6 @@ import { deleteProject } from "@/actions/projects";
 import { ActivityTimeline } from "@/components/activity-timeline";
 import { DeleteButton } from "@/components/delete-button";
 import { ContributorLeaderboardCard } from "@/components/projects/contributor-leaderboard";
-import { NewTeamForm } from "@/components/projects/new-team-form";
 import { ProjectActivityPanel } from "@/components/projects/project-activity-panel";
 import { ProjectLinkPills } from "@/components/projects/project-link-pills";
 import { TeamPanel } from "@/components/projects/team-panel";
@@ -16,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
 import { githubActivityEvent } from "@/db/schema/github";
-import { member } from "@/db/schema/members";
 import { project } from "@/db/schema/projects";
 import { roleDefinition } from "@/db/schema/roles";
 import { getCurrentMember } from "@/lib/current-member";
@@ -69,15 +67,10 @@ export default async function ProjectPage({
     permissions !== null && can(permissions, "members", "write");
   const canDeleteProject =
     permissions !== null && can(permissions, "projects", "write");
-  const [allMembers, projectRoleDefinitions] = await Promise.all([
-    canManage
-      ? db.query.member.findMany({ orderBy: asc(member.fullName) })
-      : Promise.resolve([]),
-    db.query.roleDefinition.findMany({
-      where: eq(roleDefinition.scope, "project_team"),
-      orderBy: asc(roleDefinition.name),
-    }),
-  ]);
+  const projectRoleDefinitions = await db.query.roleDefinition.findMany({
+    where: eq(roleDefinition.scope, "project_team"),
+    orderBy: asc(roleDefinition.name),
+  });
   const activeProjectRoles = projectRow.roleAssignments.filter(
     (assignment) =>
       assignment.endedAt === null &&
@@ -351,7 +344,8 @@ export default async function ProjectPage({
               <h3 className="text-sm font-medium">{teamRow.name}</h3>
               <TeamPanel
                 teamId={teamRow.id}
-                canManage={canManage}
+                teamName={teamRow.name}
+                canManage={false}
                 roleDefinitions={projectRoleDefinitions.map((role) => ({
                   id: role.id,
                   name: role.name,
@@ -372,22 +366,10 @@ export default async function ProjectPage({
                 selectedRepositoryIds={teamRow.repositories.map(
                   (repo) => repo.projectRepositoryId,
                 )}
-                availableMembers={
-                  canManage
-                    ? allMembers.filter(
-                        (memberRow) =>
-                          !teamRow.members.some(
-                            (teamMembership) =>
-                              teamMembership.memberId === memberRow.id &&
-                              teamMembership.leftAt === null,
-                          ),
-                      )
-                    : []
-                }
+                availableMembers={[]}
               />
             </div>
           ))}
-          {canManage ? <NewTeamForm projectId={projectId} /> : null}
         </CardContent>
       </Card>
     </div>

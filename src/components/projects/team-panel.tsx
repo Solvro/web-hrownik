@@ -4,12 +4,16 @@ import { useState } from "react";
 
 import {
   addTeamMember,
+  deleteTeam,
   removeTeamMember,
   updateTeamMemberDetails,
+  updateTeamName,
   updateTeamRepositories,
 } from "@/actions/projects";
+import { DeleteButton } from "@/components/delete-button";
 import { MultiSelect } from "@/components/multi-select";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +48,7 @@ function toDateInput(date: Date | null): string {
 
 export function TeamPanel({
   teamId,
+  teamName,
   members,
   availableMembers,
   repositories,
@@ -52,6 +57,7 @@ export function TeamPanel({
   roleDefinitions,
 }: {
   teamId: string;
+  teamName: string;
   members: TeamMemberRow[];
   availableMembers: { id: string; fullName: string }[];
   repositories: { id: string; name: string }[];
@@ -59,6 +65,7 @@ export function TeamPanel({
   canManage: boolean;
   roleDefinitions: { id: string; name: string }[];
 }) {
+  const [name, setName] = useState(teamName);
   const [selectedMemberId, setSelectedMemberId] = useState<string>("");
   const [selectedRoleId, setSelectedRoleId] = useState<string>(
     roleDefinitions[0]?.id ?? "",
@@ -78,6 +85,21 @@ export function TeamPanel({
       setSelectedMemberId("");
       setSelectedRoleId(roleDefinitions[0]?.id ?? "");
       setAddDialogOpen(false);
+    } catch (error_) {
+      setError(error_ instanceof Error ? error_.message : "Błąd");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function handleRename() {
+    if (name.trim() === "" || name.trim() === teamName) {
+      return;
+    }
+    setPending(true);
+    setError(null);
+    try {
+      await updateTeamName(teamId, name);
     } catch (error_) {
       setError(error_ instanceof Error ? error_.message : "Błąd");
     } finally {
@@ -134,81 +156,116 @@ export function TeamPanel({
 
   return (
     <div className="space-y-2">
-      <ul className="divide-y rounded-md border">
-        {members.map((memberRow) => (
-          <li
-            key={memberRow.teamMemberId}
-            className="flex items-center justify-between p-2 text-sm"
+      {canManage ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value);
+            }}
+            onBlur={() => void handleRename()}
+            className="w-56"
+            aria-label="Nazwa zespołu"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={pending || name.trim() === "" || name.trim() === teamName}
+            onClick={() => void handleRename()}
           >
-            <div>
-              <span>{memberRow.fullName}</span>
-              <span className="text-muted-foreground ml-2">
-                {memberRow.joinedAt.toLocaleDateString("pl-PL")} –{" "}
-                {memberRow.leftAt?.toLocaleDateString("pl-PL") ?? "obecnie"}
-              </span>
-            </div>
-            {canManage ? (
-              <div className="flex items-center gap-2">
-                <Select
-                  value={memberRow.roleDefinitionId}
-                  onValueChange={(roleDefinitionId) =>
-                    void handleMemberDetailsChange(memberRow, {
-                      roleDefinitionId,
-                    })
-                  }
-                >
-                  <SelectTrigger className="w-44">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {roleDefinitions.map((role) => (
-                      <SelectItem key={role.id} value={role.id}>
-                        {role.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="date"
-                  value={toDateInput(memberRow.joinedAt)}
-                  aria-label={`Data dołączenia: ${memberRow.fullName}`}
-                  className="w-40"
-                  onChange={(event) =>
-                    void handleMemberDetailsChange(memberRow, {
-                      joinedAt: event.target.value,
-                    })
-                  }
-                />
-                <Input
-                  type="date"
-                  value={toDateInput(memberRow.leftAt)}
-                  aria-label={`Data zakończenia: ${memberRow.fullName}`}
-                  className="w-40"
-                  onChange={(event) =>
-                    void handleMemberDetailsChange(memberRow, {
-                      leftAt: event.target.value,
-                    })
-                  }
-                />
-                {memberRow.leftAt === null ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={pending}
-                    onClick={() => void handleRemove(memberRow.teamMemberId)}
-                  >
-                    Zakończ
-                  </Button>
-                ) : null}
+            Zmień nazwę
+          </Button>
+          {members.length === 0 && selectedRepositoryIds.length === 0 ? (
+            <DeleteButton
+              action={deleteTeam.bind(null, teamId)}
+              confirmMessage={`Na pewno usunąć zespół "${teamName}"?`}
+            >
+              Usuń zespół
+            </DeleteButton>
+          ) : null}
+        </div>
+      ) : null}
+      <ul className="divide-y rounded-md border">
+        {members
+          .toSorted(
+            (first, second) =>
+              first.joinedAt.getTime() - second.joinedAt.getTime(),
+          )
+          .map((memberRow) => (
+            <li
+              key={memberRow.teamMemberId}
+              className="flex items-center justify-between p-2 text-sm"
+            >
+              <div>
+                <span>{memberRow.fullName}</span>
+                <span className="text-muted-foreground ml-2">
+                  {memberRow.joinedAt.toLocaleDateString("pl-PL")} –{" "}
+                  {memberRow.leftAt?.toLocaleDateString("pl-PL") ?? "obecnie"}
+                </span>
               </div>
-            ) : (
-              <span className="text-muted-foreground">
-                {memberRow.roleDefinitionName}
-              </span>
-            )}
-          </li>
-        ))}
+              {canManage ? (
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={memberRow.roleDefinitionId}
+                    onValueChange={(roleDefinitionId) =>
+                      void handleMemberDetailsChange(memberRow, {
+                        roleDefinitionId,
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-44">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roleDefinitions.map((role) => (
+                        <SelectItem key={role.id} value={role.id}>
+                          {role.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="date"
+                    defaultValue={toDateInput(memberRow.joinedAt)}
+                    aria-label={`Data dołączenia: ${memberRow.fullName}`}
+                    className="w-40"
+                    onBlur={(event) =>
+                      void handleMemberDetailsChange(memberRow, {
+                        joinedAt: event.target.value,
+                      })
+                    }
+                  />
+                  <Input
+                    type="date"
+                    defaultValue={toDateInput(memberRow.leftAt)}
+                    aria-label={`Data zakończenia: ${memberRow.fullName}`}
+                    className="w-40"
+                    onBlur={(event) =>
+                      void handleMemberDetailsChange(memberRow, {
+                        leftAt: event.target.value,
+                      })
+                    }
+                  />
+                  {memberRow.leftAt === null ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={pending}
+                      onClick={() => void handleRemove(memberRow.teamMemberId)}
+                    >
+                      Zakończ
+                    </Button>
+                  ) : null}
+                </div>
+              ) : (
+                <span className="text-muted-foreground">
+                  {memberRow.roleDefinitionName}
+                </span>
+              )}
+            </li>
+          ))}
         {members.length === 0 ? (
           <li className="text-muted-foreground p-2 text-sm">Brak członków</li>
         ) : null}
@@ -253,21 +310,15 @@ export function TeamPanel({
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-3">
-              <Select
+              <Combobox
+                options={availableMembers.map((option) => ({
+                  value: option.id,
+                  label: option.fullName,
+                }))}
                 value={selectedMemberId}
                 onValueChange={setSelectedMemberId}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Wybierz członka" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableMembers.map((option) => (
-                    <SelectItem key={option.id} value={option.id}>
-                      {option.fullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Wybierz członka"
+              />
               <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Rola" />
