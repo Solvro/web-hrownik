@@ -1,17 +1,41 @@
 import { asc, inArray } from "drizzle-orm";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { Suspense } from "react";
 
-import { ProjectReposWithoutTeamList } from "@/components/github/project-repos-list";
+import { ProjectReposListSkeleton } from "@/components/github/github-skeletons";
 import type {
   ProjectRepoEntry,
   ProjectTeamEntry,
 } from "@/components/github/project-repos-list";
+import { ProjectReposWithoutTeamList } from "@/components/github/project-repos-list";
 import { db } from "@/db";
 import { projectRepository } from "@/db/schema/github";
 import { team } from "@/db/schema/projects";
 import { getCurrentMember } from "@/lib/current-member";
 import { can, getMemberPermissions } from "@/lib/permissions";
 
-export default async function ProjectReposPage() {
+export default function ProjectReposPage() {
+  return (
+    <div className="flex flex-1 flex-col gap-6">
+      <Link
+        href="/settings/github"
+        className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm transition-colors"
+      >
+        <ArrowLeft className="size-4" />
+        Wróć do przeglądu GitHub
+      </Link>
+      <h1 className="text-2xl font-semibold">
+        Repozytoria projektu bez zespołu
+      </h1>
+      <Suspense fallback={<ProjectReposListSkeleton />}>
+        <ProjectReposContent />
+      </Suspense>
+    </div>
+  );
+}
+
+async function ProjectReposContent() {
   const currentMember = await getCurrentMember();
   const permissions =
     currentMember === null
@@ -57,14 +81,9 @@ export default async function ProjectReposPage() {
   }));
 
   return (
-    <div className="flex flex-1 flex-col gap-6">
-      <h1 className="text-2xl font-semibold">
-        Repozytoria projektu bez zespołu
-      </h1>
-      <ProjectReposWithoutTeamList
-        repos={repos}
-        teamsByProjectId={teamsByProjectId}
-      />
-    </div>
+    <ProjectReposWithoutTeamList
+      repos={repos}
+      teamsByProjectId={teamsByProjectId}
+    />
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Plus } from "lucide-react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -146,15 +147,24 @@ export function UnlinkedReposList({
             key={fullName}
             className="flex flex-col gap-2 p-2 sm:flex-row sm:items-center sm:justify-between"
           >
-            <a
-              href={`https://github.com/${fullName}`}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1 truncate hover:underline"
-            >
-              {fullName}
-              <ExternalLink className="size-3 shrink-0" />
-            </a>
+            <div className="flex min-w-0 items-center gap-2">
+              <a
+                href={`https://github.com/${fullName}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1 truncate hover:underline"
+              >
+                {fullName}
+                <ExternalLink className="size-3 shrink-0" />
+              </a>
+              <Link
+                href={`/projects/new?repository=${encodeURIComponent(fullName)}`}
+                className="hover:text-foreground text-muted-foreground flex shrink-0 items-center gap-0.5 text-xs transition-colors hover:underline"
+              >
+                <Plus className="size-3" />
+                nowy projekt
+              </Link>
+            </div>
             <form
               action={async (formData) => {
                 await handleAssign(fullName, formData);

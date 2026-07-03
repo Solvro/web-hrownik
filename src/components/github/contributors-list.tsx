@@ -152,7 +152,7 @@ export function ContributorsList({
                 href={`https://github.com/${entry.login}`}
                 target="_blank"
                 rel="noreferrer"
-                className="hover:text-primary flex items-center gap-1 truncate hover:underline"
+                className="flex items-center gap-1 truncate hover:underline"
               >
                 {entry.login}
                 <ExternalLink className="size-3 shrink-0" />

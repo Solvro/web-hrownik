@@ -1,14 +1,38 @@
 import { isNotNull, isNull } from "drizzle-orm";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { Suspense } from "react";
 
 import { ContributorsList } from "@/components/github/contributors-list";
 import type { ContributorEntry } from "@/components/github/contributors-list";
+import { ContributorsListSkeleton } from "@/components/github/github-skeletons";
 import { db } from "@/db";
 import { githubActivityEvent } from "@/db/schema/github";
 import { member } from "@/db/schema/members";
 import { getCurrentMember } from "@/lib/current-member";
 import { can, getMemberPermissions } from "@/lib/permissions";
 
-export default async function ContributorsPage() {
+export default function ContributorsPage() {
+  return (
+    <div className="flex flex-1 flex-col gap-6">
+      <Link
+        href="/settings/github"
+        className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm transition-colors"
+      >
+        <ArrowLeft className="size-4" />
+        Wróć do przeglądu GitHub
+      </Link>
+      <h1 className="text-2xl font-semibold">
+        Kontrybutorzy spoza listy członków
+      </h1>
+      <Suspense fallback={<ContributorsListSkeleton />}>
+        <ContributorsContent />
+      </Suspense>
+    </div>
+  );
+}
+
+async function ContributorsContent() {
   const currentMember = await getCurrentMember();
   const permissions =
     currentMember === null
@@ -54,12 +78,5 @@ export default async function ContributorsPage() {
     a.login.localeCompare(b.login),
   );
 
-  return (
-    <div className="flex flex-1 flex-col gap-6">
-      <h1 className="text-2xl font-semibold">
-        Kontrybutorzy spoza listy członków
-      </h1>
-      <ContributorsList contributors={contributors} />
-    </div>
-  );
+  return <ContributorsList contributors={contributors} />;
 }
