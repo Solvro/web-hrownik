@@ -48,11 +48,7 @@ function ContributorRowSkeleton() {
 
 export function ContributorsListSkeleton() {
   return (
-    <div className="flex flex-1 flex-col gap-3">
-      <div className="grid gap-2 lg:grid-cols-[minmax(14rem,1fr)_auto]">
-        <Shimmer className="h-10 flex-1" />
-        <Shimmer className="h-10 w-36" />
-      </div>
+    <div className="flex flex-1 flex-col">
       <div className="flex-1">
         <div className="divide-y rounded-md border text-sm">
           <ContributorRowSkeleton />
@@ -96,11 +92,7 @@ function UnlinkedRepoRowSkeleton() {
 
 export function UnlinkedReposListSkeleton() {
   return (
-    <div className="flex flex-1 flex-col gap-3">
-      <div className="grid gap-2 lg:grid-cols-[minmax(14rem,1fr)_auto]">
-        <Shimmer className="h-10 flex-1" />
-        <Shimmer className="h-10 w-36" />
-      </div>
+    <div className="flex flex-1 flex-col">
       <div className="flex-1">
         <div className="divide-y rounded-md border text-sm">
           <UnlinkedRepoRowSkeleton />
@@ -147,12 +139,7 @@ function ProjectRepoRowSkeleton() {
 
 export function ProjectReposListSkeleton() {
   return (
-    <div className="flex flex-1 flex-col gap-3">
-      <div className="grid gap-2 lg:grid-cols-[minmax(14rem,1fr)_auto]">
-        <Shimmer className="h-10 flex-1" />
-        <Shimmer className="h-10 w-36" />
-        <Shimmer className="h-10 w-36" />
-      </div>
+    <div className="flex flex-1 flex-col">
       <div className="flex-1">
         <div className="divide-y rounded-md border text-sm">
           <ProjectRepoRowSkeleton />
