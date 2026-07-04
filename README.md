@@ -1,52 +1,29 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# HRownik
 
-## Getting Started
+HRownik is an internal operations system for Koło Naukowe Solvro.
 
-First, run the development server:
+It is meant to be the single source of truth for the people, sections, projects, teams and relationships that make up the organization. The project was created because the same organizational data used to live in too many places at once: the website, documentation pages, Discord, GitHub, project READMEs, Google Drive spreadsheets and other ad-hoc files.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+When those sources drift apart, it becomes hard to know which data is current, who belongs to which team, who leads a project, what repositories belong to what project, and what changed over time. HRownik brings that information into one place and keeps history where it matters.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Who It Is For
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- The board, to manage members, sections, projects and organizational relationships in one place.
+- Project leads, to keep project teams, roles and repositories up to date.
+- Members, to view and maintain their own organizational profile and see their project history.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## What It Covers
 
-## Learn More
+- Member profiles with statuses, contact links, university-related data, section membership and role history.
+- Project records with status, visibility, production links, Drive links, repositories and teams.
+- Team membership with project-specific roles and historical join/leave dates.
+- Sections and organizational roles, including board and section-level responsibilities.
+- GitHub repository connections, project activity and member activity.
+- Permission-aware access so different users can manage only the data they are responsible for.
+- Onboarding and synchronization hooks for keeping external services aligned with HRownik data.
 
-To learn more about Next.js, take a look at the following resources:
+## Why It Exists
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+HRownik reduces duplicated work and stale records. Instead of updating the same member, project or team information across multiple tools, Solvro can maintain it in one place and use that source to support the rest of the organization.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## One-time member import
-
-Use the Directus team import script to backfill legacy social links and photos into the members table:
-
-```bash
-pnpm import:directus-team -- --dry-run
-pnpm import:directus-team
-```
-
-Behavior:
-
-- matches members by full name, case-insensitive,
-- imports LinkedIn, GitHub, Facebook, Instagram, website, email, and photo data with the migration rules in `scripts/import-directus-team.ts`,
-- skips Discord links,
-- only fills missing member fields and logs conflicts/warnings instead of overwriting existing data.
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The goal is not just to store data, but to preserve organizational continuity: who was involved, when things changed, how projects evolved, and what the current state of the organization actually is.
