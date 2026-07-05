@@ -1,5 +1,6 @@
 "use client";
 
+import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -23,6 +24,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { declineNumeric } from "@/lib/polish";
 import type { MemberStatus } from "@/lib/schemas/members";
 
@@ -30,6 +37,7 @@ export interface MembersTableRow {
   id: string;
   fullName: string;
   githubUsername: string | null;
+  githubUsernameInvalid: boolean;
   status: MemberStatus;
   sections: { id: string; name: string }[];
   roles: { id: string; name: string }[];
@@ -307,14 +315,28 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
                   {memberRow.githubUsername === null ? (
                     "—"
                   ) : (
-                    <a
-                      href={`https://github.com/${memberRow.githubUsername}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="hover:underline"
-                    >
-                      {memberRow.githubUsername}
-                    </a>
+                    <span className="inline-flex items-center gap-1.5">
+                      <a
+                        href={`https://github.com/${memberRow.githubUsername}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="hover:underline"
+                      >
+                        {memberRow.githubUsername}
+                      </a>
+                      {memberRow.githubUsernameInvalid ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <TriangleAlert className="text-destructive size-4 shrink-0 cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Konto GitHub nie istnieje</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : null}
+                    </span>
                   )}
                 </TableCell>
                 <TableCell>
