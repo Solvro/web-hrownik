@@ -1,12 +1,14 @@
 "use client";
 
 import { Plus } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import { deleteApiKey } from "@/actions/api-keys";
 import { CreateApiKeyDialog } from "@/components/api-keys/create-api-key-dialog";
 import { DeleteButton } from "@/components/delete-button";
 import { RelativeTime } from "@/components/relative-time";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
@@ -18,6 +20,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+function getInitials(fullName: string): string {
+  return fullName
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
 
 export interface ApiKeyEndpointStat {
   resource: string;
@@ -32,7 +44,9 @@ export interface ApiKeyData {
   endpointStats: ApiKeyEndpointStat[];
   lastUsedAt: Date | null;
   createdAt: Date;
+  createdByMemberId: string | null;
   createdByName: string | null;
+  createdByPhotoUrl: string | null;
 }
 
 export function ApiKeyTable({ apiKeys }: { apiKeys: ApiKeyData[] }) {
@@ -72,6 +86,7 @@ export function ApiKeyTable({ apiKeys }: { apiKeys: ApiKeyData[] }) {
                 <TableHead>Wg endpointu</TableHead>
                 <TableHead>Ostatnio użyty</TableHead>
                 <TableHead>Utworzono</TableHead>
+                <TableHead>Utworzył</TableHead>
                 <TableHead className="w-0" />
               </TableRow>
             </TableHeader>
@@ -109,6 +124,37 @@ export function ApiKeyTable({ apiKeys }: { apiKeys: ApiKeyData[] }) {
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs">
                     <RelativeTime date={key.createdAt} />
+                  </TableCell>
+                  <TableCell>
+                    {key.createdByName === null ? (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Avatar size="sm">
+                          {key.createdByPhotoUrl === null ? null : (
+                            <AvatarImage
+                              src={key.createdByPhotoUrl}
+                              alt={key.createdByName}
+                            />
+                          )}
+                          <AvatarFallback>
+                            {getInitials(key.createdByName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        {key.createdByMemberId === null ? (
+                          <span className="truncate text-sm">
+                            {key.createdByName}
+                          </span>
+                        ) : (
+                          <Link
+                            href={`/members/${key.createdByMemberId}`}
+                            className="truncate text-sm hover:underline"
+                          >
+                            {key.createdByName}
+                          </Link>
+                        )}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <DeleteButton
