@@ -181,3 +181,24 @@ export function canEditOwnProfile(
 ): boolean {
   return permissions.memberId === targetMemberId;
 }
+
+/** Filter nav items (or any items with `requiredGrant`) to only those the user can access. */
+export function filterNavItems<
+  T extends {
+    requiredGrant?: { resource: PermissionResourceKey; action: string };
+  },
+>(permissions: MemberPermissions | null, items: readonly T[]): T[] {
+  return items.filter((item) => {
+    if (item.requiredGrant === undefined) {
+      return true;
+    }
+    if (permissions === null) {
+      return false;
+    }
+    return can(
+      permissions,
+      item.requiredGrant.resource,
+      item.requiredGrant.action,
+    );
+  });
+}
