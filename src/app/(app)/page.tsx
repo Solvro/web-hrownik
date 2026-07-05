@@ -3,9 +3,14 @@ import Link from "next/link";
 import { appNavItems } from "@/components/app-nav-items";
 import { Button } from "@/components/ui/button";
 import { getCurrentMember } from "@/lib/current-member";
+import { filterNavItems, getMemberPermissions } from "@/lib/permissions";
 
 export default async function DashboardPage() {
   const member = await getCurrentMember();
+  const permissions =
+    member === null ? null : await getMemberPermissions(member.id);
+
+  const navItems = filterNavItems(permissions, appNavItems);
 
   return (
     <div className="space-y-6">
@@ -18,7 +23,7 @@ export default async function DashboardPage() {
         </p>
       </div>
       <div className="flex flex-col gap-3 min-[360px]:flex-row min-[360px]:flex-wrap">
-        {appNavItems.map((item, index) => (
+        {navItems.map((item, index) => (
           <Button
             key={item.href}
             asChild

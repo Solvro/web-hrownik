@@ -32,6 +32,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
+import { grantKey } from "@/lib/permissions/catalog";
 
 import { ModeToggle } from "./mode-toggle";
 
@@ -52,29 +53,35 @@ export function AppSidebar({
   memberName,
   memberPhotoUrl,
   memberEmail,
-  canManageRoles,
+  grantKeys,
 }: {
   memberId: string;
   memberName: string;
   memberPhotoUrl: string | null;
   memberEmail: string;
-  canManageRoles: boolean;
+  grantKeys: string[];
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
+
+  const grants = new Set(grantKeys);
+  const generalNavItems = appNavItems.filter(
+    (item) => item.requiredGrant === undefined,
+  );
+  const adminNavItems = appNavItems.filter(
+    (item) =>
+      item.requiredGrant !== undefined &&
+      grants.has(
+        grantKey(item.requiredGrant.resource, item.requiredGrant.action),
+      ),
+  );
 
   function closeMobileSidebar() {
     if (isMobile) {
       setOpenMobile(false);
     }
   }
-  const generalNavItems = appNavItems.filter(
-    (item) => item.requiredGrant === undefined,
-  );
-  const adminNavItems = canManageRoles
-    ? appNavItems.filter((item) => item.requiredGrant !== undefined)
-    : [];
   const initials = getInitials(memberName);
 
   return (
