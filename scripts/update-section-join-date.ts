@@ -87,3 +87,4 @@ async function main() {
 }
 
 await main();
+process.exit(0); // eslint-disable-line unicorn/no-process-exit
