@@ -37,7 +37,6 @@ export interface MembersTableRow {
   id: string;
   fullName: string;
   githubUsername: string | null;
-  githubUsernameInvalid: boolean;
   status: MemberStatus;
   sections: { id: string; name: string }[];
   roles: { id: string; name: string }[];
@@ -77,6 +76,12 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
   const [page, setPage] = useState(() =>
     Math.max(1, Number(searchParameters.get("page") ?? 1)),
   );
+  const [githubFilter, setGithubFilter] = useState<"all" | "invalid">(
+    (searchParameters.get("github") as "all" | "invalid" | null) ?? "all",
+  );
+  const [invalidGithubIds, setInvalidGithubIds] = useState<
+    Set<string> | undefined
+  >();
 
   useEffect(() => {
     if (searchParameters.has("pageSize")) {
@@ -88,13 +93,28 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
     }
   }, [searchParameters]);
 
+  useEffect(() => {
+    async function fetchInvalidIds() {
+      try {
+        const response = await fetch("/api/members/github-validation");
+        const { invalidIds } = await (response.json() as Promise<{
+          invalidIds: string[];
+        }>);
+        setInvalidGithubIds(new Set(invalidIds));
+      } catch {
+        /* ignore */
+      }
+    }
+    void fetchInvalidIds();
+  }, []);
+
   function updateUrl(updates: Record<string, string | number>) {
     const parameters = new URLSearchParams(searchParameters.toString());
     for (const [key, value] of Object.entries(updates)) {
       const stringValue = String(value);
       const isDefault =
         (key === "q" && stringValue === "") ||
-        (["section", "role", "status"].includes(key) &&
+        (["section", "role", "status", "github"].includes(key) &&
           stringValue === "all") ||
         (key === "sort" && stringValue === "name-asc") ||
         (key === "page" && stringValue === "1") ||
@@ -157,8 +177,17 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
           roleId === "all" ||
           memberRow.roles.some((role) => role.id === roleId);
         const matchesStatus = status === "all" || memberRow.status === status;
+        const matchesGithub =
+          githubFilter === "all" ||
+          (invalidGithubIds?.has(memberRow.id) ?? false);
 
-        return matchesQuery && matchesSection && matchesRole && matchesStatus;
+        return (
+          matchesQuery &&
+          matchesSection &&
+          matchesRole &&
+          matchesStatus &&
+          matchesGithub
+        );
       })
       .toSorted((first, second) => {
         if (sort === "name-desc") {
@@ -172,7 +201,16 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
         }
         return first.fullName.localeCompare(second.fullName, "pl");
       });
-  }, [members, query, roleId, sectionId, sort, status]);
+  }, [
+    members,
+    query,
+    roleId,
+    sectionId,
+    sort,
+    status,
+    githubFilter,
+    invalidGithubIds,
+  ]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, pageCount);
@@ -183,7 +221,7 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
 
   return (
     <div className="flex flex-1 flex-col gap-3">
-      <div className="grid gap-2 lg:grid-cols-[minmax(14rem,1fr)_auto]">
+      <div className="flex flex-wrap items-start gap-2">
         <ListFilters
           query={query}
           onQueryChange={(value) => {
@@ -192,6 +230,7 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
             updateUrl({ q: value, page: 1 });
           }}
           queryPlaceholder="Szukaj po imieniu, nazwisku, GitHubie, sekcji lub roli…"
+          className="min-w-0 flex-1 md:flex-wrap"
           selects={[
             {
               value: sectionId,
@@ -208,6 +247,7 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
                   label: section.name,
                 })),
               ],
+              className: "md:w-52",
             },
             {
               value: roleId,
@@ -240,7 +280,21 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
                   label,
                 })),
               ],
-              className: "md:w-40",
+              className: "md:w-44",
+            },
+            {
+              value: githubFilter,
+              onValueChange: (value) => {
+                setGithubFilter(value as "all" | "invalid");
+                setPage(1);
+                updateUrl({ github: value, page: 1 });
+              },
+              placeholder: "GitHub",
+              options: [
+                { value: "all", label: "Wszystkie konta" },
+                { value: "invalid", label: "Nieprawidłowe konto" },
+              ],
+              className: "md:w-56",
             },
             {
               value: sort,
@@ -292,58 +346,62 @@ export function MembersTable({ members }: { members: MembersTableRow[] }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paginated.map((memberRow) => (
-              <TableRow key={memberRow.id}>
-                <TableCell>
-                  <Link
-                    href={`/members/${memberRow.id}`}
-                    className="font-medium hover:underline"
-                  >
-                    {memberRow.fullName}
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {memberRow.sections.map((section) => (
-                      <Badge key={section.id} variant="outline">
-                        {section.name}
-                      </Badge>
-                    ))}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {memberRow.githubUsername === null ? (
-                    "—"
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5">
-                      <a
-                        href={`https://github.com/${memberRow.githubUsername}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="hover:underline"
-                      >
-                        {memberRow.githubUsername}
-                      </a>
-                      {memberRow.githubUsernameInvalid ? (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <TriangleAlert className="text-destructive size-4 shrink-0 cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Konto GitHub nie istnieje</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : null}
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <MemberStatusBadge status={memberRow.status} />
-                </TableCell>
-              </TableRow>
-            ))}
+            {paginated.map((memberRow) => {
+              const githubUsernameInvalid =
+                invalidGithubIds?.has(memberRow.id) ?? false;
+              return (
+                <TableRow key={memberRow.id}>
+                  <TableCell>
+                    <Link
+                      href={`/members/${memberRow.id}`}
+                      className="font-medium hover:underline"
+                    >
+                      {memberRow.fullName}
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {memberRow.sections.map((section) => (
+                        <Badge key={section.id} variant="outline">
+                          {section.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {memberRow.githubUsername === null ? (
+                      "—"
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5">
+                        <a
+                          href={`https://github.com/${memberRow.githubUsername}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="hover:underline"
+                        >
+                          {memberRow.githubUsername}
+                        </a>
+                        {githubUsernameInvalid ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <TriangleAlert className="text-destructive size-4 shrink-0 cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Konto GitHub nie istnieje</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : null}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <MemberStatusBadge status={memberRow.status} />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
             {paginated.length === 0 ? (
               <TableRow>
                 <TableCell

@@ -7,10 +7,6 @@ import { Button } from "@/components/ui/button";
 import { db } from "@/db";
 import { member } from "@/db/schema/members";
 import { getCurrentMember } from "@/lib/current-member";
-import {
-  getGithubUserProfile,
-  isGithubConfigured,
-} from "@/lib/integrations/github";
 import { can, getMemberPermissions } from "@/lib/permissions";
 
 export default async function MembersPage() {
@@ -26,30 +22,6 @@ export default async function MembersPage() {
       roleAssignments: { with: { roleDefinition: true, section: true } },
     },
   });
-
-  const githubSetup = isGithubConfigured();
-  let invalidGithubMemberIds: Set<string> | undefined;
-
-  if (githubSetup) {
-    const withGithub = members.filter(
-      (m): m is typeof m & { githubUsername: string } =>
-        m.githubUsername !== null,
-    );
-    const checks = await Promise.allSettled(
-      withGithub.map(async (m) => ({
-        id: m.id,
-        valid: (await getGithubUserProfile(m.githubUsername)) !== null,
-      })),
-    );
-    invalidGithubMemberIds = new Set(
-      checks
-        .filter(
-          (r): r is PromiseFulfilledResult<{ id: string; valid: boolean }> =>
-            r.status === "fulfilled" && !r.value.valid,
-        )
-        .map((r) => r.value.id),
-    );
-  }
 
   return (
     <div className="flex flex-1 flex-col gap-6">
@@ -78,8 +50,6 @@ export default async function MembersPage() {
           id: memberRow.id,
           fullName: memberRow.fullName,
           githubUsername: memberRow.githubUsername,
-          githubUsernameInvalid:
-            invalidGithubMemberIds?.has(memberRow.id) ?? false,
           status: memberRow.status,
           sections: activeSectionMemberships(memberRow.roleAssignments),
           roles: memberRow.roleAssignments.map((assignment) => ({
