@@ -78,7 +78,7 @@ export function PermissionMatrix({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-muted-foreground text-sm">
-          Wiersze to grupy uprawnień, kolumny — konkretne zdolności zdefiniowane
+          Kolumny to grupy uprawnień, wiersze — konkretne zdolności zdefiniowane
           w kodzie.
         </p>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -95,100 +95,97 @@ export function PermissionMatrix({
           />
         </Dialog>
       </div>
-      <div className="overflow-x-auto rounded-md border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b">
-              <th className="p-2 text-left font-medium">Grupa</th>
-              {PERMISSION_MATRIX_COLUMNS.map((column) => (
-                <th
-                  key={grantKey(column.resource, column.action)}
-                  className="p-2 text-center font-medium whitespace-nowrap"
-                >
-                  {column.resourceLabel}
-                  <br />
-                  <span className="text-muted-foreground font-normal">
-                    {column.actionLabel}
-                  </span>
-                </th>
-              ))}
-              <th className="p-2" />
-            </tr>
-          </thead>
-          <tbody>
-            {permissionGroups.map((group) => (
-              <tr key={group.id} className="border-b last:border-0">
-                <td className="p-2 align-top">
-                  <div className="font-medium">{group.name}</div>
-                  {group.description === null ||
-                  group.description === "" ? null : (
-                    <div className="text-muted-foreground text-xs">
-                      {group.description}
-                    </div>
-                  )}
-                </td>
-                {PERMISSION_MATRIX_COLUMNS.map((column) => {
-                  const key = `${group.id}:${grantKey(column.resource, column.action)}`;
-                  return (
-                    <td key={key} className="p-2 text-center align-middle">
-                      <Checkbox
-                        checked={isGranted(
-                          group.id,
-                          column.resource,
-                          column.action,
-                        )}
-                        disabled={pendingKey === key}
-                        onCheckedChange={() =>
-                          void toggle(group.id, column.resource, column.action)
-                        }
-                        aria-label={`${group.name}: ${column.resourceLabel} · ${column.actionLabel}`}
-                      />
-                    </td>
-                  );
-                })}
-                <td className="p-2 align-top">
-                  <div className="flex items-center gap-2">
-                    <Dialog
-                      open={editingGroupId === group.id}
-                      onOpenChange={(open) => {
-                        setEditingGroupId(open ? group.id : null);
-                      }}
-                    >
-                      <DialogTrigger asChild>
-                        <Button type="button" variant="outline" size="sm">
-                          <Pencil />
-                        </Button>
-                      </DialogTrigger>
-                      <PermissionGroupForm
-                        group={group}
-                        onSaved={() => {
-                          setEditingGroupId(null);
+      {permissionGroups.length === 0 ? (
+        <p className="text-muted-foreground rounded-md border border-dashed p-6 text-center text-sm">
+          Brak grup uprawnień
+        </p>
+      ) : (
+        <div className="overflow-x-auto rounded-md border">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b">
+                <th className="p-2 text-left font-medium">Uprawnienie</th>
+                {permissionGroups.map((group) => (
+                  <th key={group.id} className="p-2 text-center align-top">
+                    <div className="font-medium">{group.name}</div>
+                    {group.description === null ||
+                    group.description === "" ? null : (
+                      <div className="text-muted-foreground text-xs font-normal">
+                        {group.description}
+                      </div>
+                    )}
+                    <div className="mt-2 flex items-center justify-center gap-2">
+                      <Dialog
+                        open={editingGroupId === group.id}
+                        onOpenChange={(open) => {
+                          setEditingGroupId(open ? group.id : null);
                         }}
-                      />
-                    </Dialog>
-                    <DeleteButton
-                      action={deletePermissionGroup.bind(null, group.id)}
-                      confirmMessage={`Na pewno usunąć grupę "${group.name}"?`}
-                    >
-                      Usuń
-                    </DeleteButton>
-                  </div>
-                </td>
+                      >
+                        <DialogTrigger asChild>
+                          <Button type="button" variant="outline" size="sm">
+                            <Pencil />
+                          </Button>
+                        </DialogTrigger>
+                        <PermissionGroupForm
+                          group={group}
+                          onSaved={() => {
+                            setEditingGroupId(null);
+                          }}
+                        />
+                      </Dialog>
+                      <DeleteButton
+                        action={deletePermissionGroup.bind(null, group.id)}
+                        confirmMessage={`Na pewno usunąć grupę "${group.name}"?`}
+                      >
+                        Usuń
+                      </DeleteButton>
+                    </div>
+                  </th>
+                ))}
               </tr>
-            ))}
-            {permissionGroups.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={PERMISSION_MATRIX_COLUMNS.length + 2}
-                  className="text-muted-foreground p-3 text-center"
+            </thead>
+            <tbody>
+              {PERMISSION_MATRIX_COLUMNS.map((column) => (
+                <tr
+                  key={grantKey(column.resource, column.action)}
+                  className="border-b last:border-0"
                 >
-                  Brak grup uprawnień
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
+                  <td className="p-2 align-middle font-medium whitespace-nowrap">
+                    {column.resourceLabel}
+                    <br />
+                    <span className="text-muted-foreground font-normal">
+                      {column.actionLabel}
+                    </span>
+                  </td>
+                  {permissionGroups.map((group) => {
+                    const key = `${group.id}:${grantKey(column.resource, column.action)}`;
+                    return (
+                      <td key={key} className="p-2 text-center align-middle">
+                        <Checkbox
+                          checked={isGranted(
+                            group.id,
+                            column.resource,
+                            column.action,
+                          )}
+                          disabled={pendingKey === key}
+                          onCheckedChange={() =>
+                            void toggle(
+                              group.id,
+                              column.resource,
+                              column.action,
+                            )
+                          }
+                          aria-label={`${group.name}: ${column.resourceLabel} · ${column.actionLabel}`}
+                        />
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       {error === null ? null : (
         <p className="text-destructive text-sm">{error}</p>
       )}
