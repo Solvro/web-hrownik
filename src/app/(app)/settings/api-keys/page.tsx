@@ -45,7 +45,9 @@ export default async function ApiKeysSettingsPage() {
             })),
           lastUsedAt: key.lastUsedAt,
           createdAt: key.createdAt,
+          createdByMemberId: key.createdBy?.id ?? null,
           createdByName: key.createdBy?.fullName ?? null,
+          createdByPhotoUrl: key.createdBy?.photoUrl ?? null,
         }))}
       />
     </div>
