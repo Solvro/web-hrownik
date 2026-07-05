@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Save, Trash2 } from "lucide-react";
+import { FileWarning, Plus, Save, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
@@ -12,6 +12,7 @@ import {
   updateProject,
 } from "@/actions/projects";
 import { MultiSelect } from "@/components/multi-select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -287,6 +288,15 @@ export function ProjectForm({
               {fieldState.invalid ? (
                 <FieldError errors={[fieldState.error]} />
               ) : null}
+              {mode === "edit" && field.value === "" ? (
+                <Alert variant="warning">
+                  <FileWarning />
+                  <AlertTitle>Wymagane</AlertTitle>
+                  <AlertDescription>
+                    Karta projektu jest wymagana dla każdego projektu.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
             </Field>
           )}
         />
@@ -305,6 +315,15 @@ export function ProjectForm({
                 />
                 {fieldState.invalid ? (
                   <FieldError errors={[fieldState.error]} />
+                ) : null}
+                {mode === "edit" && field.value === "" ? (
+                  <Alert variant="warning">
+                    <FileWarning />
+                    <AlertTitle>Wymagane</AlertTitle>
+                    <AlertDescription>
+                      Sprawozdanie jest wymagane dla zakończonego projektu.
+                    </AlertDescription>
+                  </Alert>
                 ) : null}
               </Field>
             )}
