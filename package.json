@@ -18,7 +18,8 @@
     "prepare": "husky || true",
     "start": "next start",
     "types:check": "tsc --noEmit",
-    "types:generate": "next typegen"
+    "types:generate": "next typegen",
+    "update:section-join-date": "tsx --env-file=.env scripts/update-section-join-date.ts"
   },
   "lint-staged": {
     "*": "prettier -w --ignore-unknown"
