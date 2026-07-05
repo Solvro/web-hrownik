@@ -101,12 +101,17 @@ export function PermissionMatrix({
         </p>
       ) : (
         <div className="overflow-x-auto rounded-md border">
-          <table className="w-full text-sm">
+          <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="border-b">
-                <th className="p-2 text-left font-medium">Uprawnienie</th>
+              <tr>
+                <th className="border p-2 text-left font-medium">
+                  Uprawnienie
+                </th>
                 {permissionGroups.map((group) => (
-                  <th key={group.id} className="p-2 text-center align-top">
+                  <th
+                    key={group.id}
+                    className="border p-2 text-center align-top"
+                  >
                     <div className="font-medium">{group.name}</div>
                     {group.description === null ||
                     group.description === "" ? null : (
@@ -146,11 +151,8 @@ export function PermissionMatrix({
             </thead>
             <tbody>
               {PERMISSION_MATRIX_COLUMNS.map((column) => (
-                <tr
-                  key={grantKey(column.resource, column.action)}
-                  className="border-b last:border-0"
-                >
-                  <td className="p-2 align-middle font-medium whitespace-nowrap">
+                <tr key={grantKey(column.resource, column.action)}>
+                  <td className="border p-2 align-middle font-medium whitespace-nowrap">
                     {column.resourceLabel}
                     <br />
                     <span className="text-muted-foreground font-normal">
@@ -160,8 +162,12 @@ export function PermissionMatrix({
                   {permissionGroups.map((group) => {
                     const key = `${group.id}:${grantKey(column.resource, column.action)}`;
                     return (
-                      <td key={key} className="p-2 text-center align-middle">
+                      <td
+                        key={key}
+                        className="border p-2 text-center align-middle"
+                      >
                         <Checkbox
+                          className="mx-auto"
                           checked={isGranted(
                             group.id,
                             column.resource,
