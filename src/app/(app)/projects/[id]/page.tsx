@@ -14,6 +14,12 @@ import { TeamPanel } from "@/components/projects/team-panel";
 import { ProjectStatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { db } from "@/db";
 import { githubActivityEvent } from "@/db/schema/github";
 import { project } from "@/db/schema/projects";
@@ -125,6 +131,14 @@ export default async function ProjectPage({
       getProjectDailyActivity(projectId),
     ]);
 
+  const missingDocumentation: string[] = [];
+  if (projectRow.projectCardDriveUrl === null) {
+    missingDocumentation.push("karty projektu");
+  }
+  if (projectRow.status === "completed" && projectRow.reportDriveUrl === null) {
+    missingDocumentation.push("sprawozdania");
+  }
+
   return (
     <div className="max-w-5xl space-y-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -151,14 +165,21 @@ export default async function ProjectPage({
                 <FileWarning className="size-5" />
               </a>
             ) : null}
-            {projectRow.projectCardDriveUrl === null ||
-            (projectRow.status === "completed" &&
-              projectRow.reportDriveUrl === null) ? (
-              <FileWarning
-                className="text-destructive size-5"
-                aria-label="Braki w dokumentacji projektu"
-              />
-            ) : null}
+            {missingDocumentation.length === 0 ? null : (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <FileWarning
+                      className="text-destructive size-5"
+                      aria-label={`Brak: ${missingDocumentation.join(", ")}`}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Brak: {missingDocumentation.join(", ")}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </div>
           <p className="text-muted-foreground flex items-center gap-2 text-sm">
             {projectRow.visibility === "public" ? "publiczny" : "wewnętrzny"}
