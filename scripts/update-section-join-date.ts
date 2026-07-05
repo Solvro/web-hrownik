@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { roleAssignment, roleDefinition } from "@/db/schema/roles";
 
 const dryRun = process.argv.includes("--dry-run");
+const applyAllSections = process.argv.includes("--apply-all-sections");
 
 const JULY_2026_START = new Date("2026-07-01T00:00:00Z");
 const JULY_2026_END = new Date("2026-07-07T23:59:59Z");
@@ -49,7 +50,7 @@ async function main() {
       continue;
     }
 
-    if (matchingAssignments.length > 1) {
+    if (matchingAssignments.length > 1 && !applyAllSections) {
       console.warn(
         `Member ${member_.fullName} has ${matchingAssignments.length} sections: ${matchingAssignments.map((ra) => ra.section?.name).join(", ")} — needs manual review`,
       );
@@ -57,28 +58,34 @@ async function main() {
       continue;
     }
 
-    const assignment = matchingAssignments[0];
-
-    const currentDate = new Date(assignment.startedAt);
-    const targetDate = new Date(member_.createdAt);
-    if (currentDate.getTime() === targetDate.getTime()) {
-      continue;
-    }
-
-    if (dryRun) {
+    if (matchingAssignments.length > 1) {
       console.info(
-        `Would update ${member_.fullName}: role assignment startedAt ${assignment.startedAt.toISOString()} → ${member_.createdAt.toISOString()}`,
-      );
-    } else {
-      await db
-        .update(roleAssignment)
-        .set({ startedAt: member_.createdAt })
-        .where(eq(roleAssignment.id, assignment.id));
-      console.info(
-        `Updated ${member_.fullName}: role assignment startedAt ${assignment.startedAt.toISOString()} → ${member_.createdAt.toISOString()}`,
+        `Member ${member_.fullName} has ${matchingAssignments.length} sections: ${matchingAssignments.map((ra) => ra.section?.name).join(", ")} — applying to all`,
       );
     }
-    updated++;
+
+    for (const assignment of matchingAssignments) {
+      const currentDate = new Date(assignment.startedAt);
+      const targetDate = new Date(member_.createdAt);
+      if (currentDate.getTime() === targetDate.getTime()) {
+        continue;
+      }
+
+      if (dryRun) {
+        console.info(
+          `Would update ${member_.fullName} (${assignment.section?.name}): role assignment startedAt ${assignment.startedAt.toISOString()} → ${member_.createdAt.toISOString()}`,
+        );
+      } else {
+        await db
+          .update(roleAssignment)
+          .set({ startedAt: member_.createdAt })
+          .where(eq(roleAssignment.id, assignment.id));
+        console.info(
+          `Updated ${member_.fullName} (${assignment.section?.name}): role assignment startedAt ${assignment.startedAt.toISOString()} → ${member_.createdAt.toISOString()}`,
+        );
+      }
+      updated++;
+    }
   }
 
   console.debug(
