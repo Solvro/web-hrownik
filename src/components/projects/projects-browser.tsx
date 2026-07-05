@@ -319,7 +319,7 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
                   className="hover:bg-accent min-w-0 rounded-lg border p-4"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <h2 className="min-w-0 font-medium break-words">
+                    <h2 className="min-w-0 font-medium wrap-break-word">
                       {project.name}
                     </h2>
                     <div className="flex shrink-0 items-center gap-1">
@@ -334,11 +334,11 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
                           <TooltipTrigger asChild>
                             <FileWarning
                               className="text-destructive size-4"
-                              aria-label={`Brak: ${missingDocumentation.join(", ")}`}
+                              aria-label={`Brak ${missingDocumentation.join(" i ")}`}
                             />
                           </TooltipTrigger>
                           <TooltipContent>
-                            Brak: {missingDocumentation.join(", ")}
+                            Brak {missingDocumentation.join(" i ")}
                           </TooltipContent>
                         </Tooltip>
                       )}

@@ -12,14 +12,9 @@ import { ProjectActivityPanel } from "@/components/projects/project-activity-pan
 import { ProjectLinkPills } from "@/components/projects/project-link-pills";
 import { TeamPanel } from "@/components/projects/team-panel";
 import { ProjectStatusBadge } from "@/components/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { db } from "@/db";
 import { githubActivityEvent } from "@/db/schema/github";
 import { project } from "@/db/schema/projects";
@@ -166,19 +161,31 @@ export default async function ProjectPage({
               </a>
             ) : null}
             {missingDocumentation.length === 0 ? null : (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <FileWarning
-                      className="text-destructive size-5"
-                      aria-label={`Brak: ${missingDocumentation.join(", ")}`}
-                    />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    Brak: {missingDocumentation.join(", ")}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Badge
+                variant="destructive"
+                className="gap-1"
+                asChild={canManage}
+              >
+                {canManage ? (
+                  <Link href={`/projects/${projectRow.slug}/edit`}>
+                    <FileWarning className="size-3" />
+                    {missingDocumentation.length === 2
+                      ? "Brak dokumentacji"
+                      : missingDocumentation[0] === "karty projektu"
+                        ? "Brak karty projektu"
+                        : "Brak sprawozdania"}
+                  </Link>
+                ) : (
+                  <>
+                    <FileWarning className="size-3" />
+                    {missingDocumentation.length === 2
+                      ? "Brak dokumentacji"
+                      : missingDocumentation[0] === "karty projektu"
+                        ? "Brak karty projektu"
+                        : "Brak sprawozdania"}
+                  </>
+                )}
+              </Badge>
             )}
           </div>
           <p className="text-muted-foreground flex items-center gap-2 text-sm">
