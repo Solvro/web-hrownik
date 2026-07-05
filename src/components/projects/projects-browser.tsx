@@ -19,6 +19,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { declineNumeric } from "@/lib/polish";
 
 type ProjectStatus = "active" | "completed" | "suspended";
@@ -41,6 +47,17 @@ export interface ProjectListItem {
 
 const pageSizeOptions = [12, 24, 48] as const;
 const defaultPageSize = 12;
+
+function missingDocuments(project: ProjectListItem): string[] {
+  const missing: string[] = [];
+  if (project.projectCardDriveUrl === null) {
+    missing.push("karty projektu");
+  }
+  if (project.status === "completed" && project.reportDriveUrl === null) {
+    missing.push("sprawozdania");
+  }
+  return missing;
+}
 
 const visibilityLabels: Record<ProjectVisibility, string> = {
   internal: "wewnętrzny",
@@ -176,213 +193,224 @@ export function ProjectsBrowser({ projects }: { projects: ProjectListItem[] }) {
   );
 
   return (
-    <div className="flex flex-1 flex-col gap-4">
-      <div className="grid gap-2 lg:grid-cols-[minmax(14rem,1fr)_auto]">
-        <ListFilters
-          query={query}
-          onQueryChange={(value) => {
-            setQuery(value);
-            setPage(1);
-            updateUrl({ q: value, page: 1 });
-          }}
-          queryPlaceholder="Szukaj po nazwie, statusie lub widoczności..."
-          selects={[
-            {
-              value: status,
-              onValueChange: (value) => {
-                setStatus(value as StatusFilter);
-                setPage(1);
-                updateUrl({ status: value, page: 1 });
+    <TooltipProvider>
+      <div className="flex flex-1 flex-col gap-4">
+        <div className="grid gap-2 lg:grid-cols-[minmax(14rem,1fr)_auto]">
+          <ListFilters
+            query={query}
+            onQueryChange={(value) => {
+              setQuery(value);
+              setPage(1);
+              updateUrl({ q: value, page: 1 });
+            }}
+            queryPlaceholder="Szukaj po nazwie, statusie lub widoczności..."
+            selects={[
+              {
+                value: status,
+                onValueChange: (value) => {
+                  setStatus(value as StatusFilter);
+                  setPage(1);
+                  updateUrl({ status: value, page: 1 });
+                },
+                placeholder: "Status",
+                options: [
+                  { value: "all", label: "Wszystkie statusy" },
+                  ...Object.entries(projectStatusLabels).map(
+                    ([value, label]) => ({
+                      value,
+                      label,
+                    }),
+                  ),
+                ],
+                className: "md:w-44",
               },
-              placeholder: "Status",
-              options: [
-                { value: "all", label: "Wszystkie statusy" },
-                ...Object.entries(projectStatusLabels).map(
-                  ([value, label]) => ({
+              {
+                value: visibility,
+                onValueChange: (value) => {
+                  setVisibility(value as VisibilityFilter);
+                  setPage(1);
+                  updateUrl({ visibility: value, page: 1 });
+                },
+                placeholder: "Widoczność",
+                options: [
+                  { value: "all", label: "Wszystkie widoczności" },
+                  ...Object.entries(visibilityLabels).map(([value, label]) => ({
                     value,
                     label,
-                  }),
-                ),
-              ],
-              className: "md:w-44",
-            },
-            {
-              value: visibility,
-              onValueChange: (value) => {
-                setVisibility(value as VisibilityFilter);
+                  })),
+                ],
+                className: "md:w-52",
+              },
+              {
+                value: sort,
+                onValueChange: (value) => {
+                  setSort(value as SortMode);
+                  updateUrl({ sort: value });
+                },
+                placeholder: "Sortowanie",
+                kind: "sort",
+                options: [
+                  { value: "name-asc", label: "nazwa A-Z" },
+                  { value: "name-desc", label: "nazwa Z-A" },
+                  { value: "status-asc", label: "status" },
+                  { value: "visibility-asc", label: "widoczność" },
+                ],
+                className: "md:w-44",
+              },
+            ]}
+          />
+          <Select
+            value={String(pageSize)}
+            onValueChange={(value) => {
+              setPageSize(Number(value));
+              localStorage.setItem("projects-page-size", value);
+              setPage(1);
+              updateUrl({ pageSize: value, page: 1 });
+            }}
+          >
+            <SelectTrigger className="w-full md:w-36">
+              <SelectValue placeholder="Na stronę" />
+            </SelectTrigger>
+            <SelectContent>
+              {pageSizeOptions.map((option) => (
+                <SelectItem key={option} value={String(option)}>
+                  {option} / stronę
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-2">
+            <Input
+              type="date"
+              aria-label="Data od"
+              value={startDate}
+              onChange={(event) => {
+                const value = event.target.value;
+                setStartDate(value);
                 setPage(1);
-                updateUrl({ visibility: value, page: 1 });
-              },
-              placeholder: "Widoczność",
-              options: [
-                { value: "all", label: "Wszystkie widoczności" },
-                ...Object.entries(visibilityLabels).map(([value, label]) => ({
-                  value,
-                  label,
-                })),
-              ],
-              className: "md:w-52",
-            },
-            {
-              value: sort,
-              onValueChange: (value) => {
-                setSort(value as SortMode);
-                updateUrl({ sort: value });
-              },
-              placeholder: "Sortowanie",
-              kind: "sort",
-              options: [
-                { value: "name-asc", label: "nazwa A-Z" },
-                { value: "name-desc", label: "nazwa Z-A" },
-                { value: "status-asc", label: "status" },
-                { value: "visibility-asc", label: "widoczność" },
-              ],
-              className: "md:w-44",
-            },
-          ]}
-        />
-        <Select
-          value={String(pageSize)}
-          onValueChange={(value) => {
-            setPageSize(Number(value));
-            localStorage.setItem("projects-page-size", value);
-            setPage(1);
-            updateUrl({ pageSize: value, page: 1 });
-          }}
-        >
-          <SelectTrigger className="w-full md:w-36">
-            <SelectValue placeholder="Na stronę" />
-          </SelectTrigger>
-          <SelectContent>
-            {pageSizeOptions.map((option) => (
-              <SelectItem key={option} value={String(option)}>
-                {option} / stronę
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <div className="flex items-center gap-2">
-          <Input
-            type="date"
-            aria-label="Data od"
-            value={startDate}
-            onChange={(event) => {
-              const value = event.target.value;
-              setStartDate(value);
-              setPage(1);
-              updateUrl({ startDate: value, page: 1 });
-            }}
-            className="w-40"
-          />
-          <Input
-            type="date"
-            aria-label="Data do"
-            value={endDate}
-            onChange={(event) => {
-              const value = event.target.value;
-              setEndDate(value);
-              setPage(1);
-              updateUrl({ endDate: value, page: 1 });
-            }}
-            className="w-40"
-          />
-        </div>
-      </div>
-
-      <div className="flex-1">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {paginated.map((project) => (
-            <Link
-              key={project.id}
-              href={`/projects/${project.slug}`}
-              transitionTypes={["nav-forward"]}
-              className="hover:bg-accent min-w-0 rounded-lg border p-4"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <h2 className="min-w-0 font-medium break-words">
-                  {project.name}
-                </h2>
-                <div className="flex shrink-0 items-center gap-1">
-                  {project.startedAt === null ? (
-                    <FileWarning
-                      className="text-destructive/70 size-3.5"
-                      aria-label="Brak daty rozpoczęcia"
-                    />
-                  ) : null}
-                  {project.projectCardDriveUrl === null ||
-                  (project.status === "completed" &&
-                    project.reportDriveUrl === null) ? (
-                    <FileWarning
-                      className="text-destructive size-4"
-                      aria-label="Braki w dokumentacji projektu"
-                    />
-                  ) : null}
-                  <ProjectStatusBadge status={project.status} />
-                </div>
-              </div>
-              <p className="text-muted-foreground mt-1 text-sm">
-                {visibilityLabels[project.visibility]}
-              </p>
-              <p className="text-muted-foreground mt-0.5 text-xs">
-                {project.startedAt === null
-                  ? ""
-                  : new Date(project.startedAt).toLocaleDateString("pl-PL")}
-                {project.startedAt !== null && project.endedAt !== null
-                  ? " – "
-                  : ""}
-                {project.endedAt === null
-                  ? ""
-                  : new Date(project.endedAt).toLocaleDateString("pl-PL")}
-              </p>
-            </Link>
-          ))}
+                updateUrl({ startDate: value, page: 1 });
+              }}
+              className="w-40"
+            />
+            <Input
+              type="date"
+              aria-label="Data do"
+              value={endDate}
+              onChange={(event) => {
+                const value = event.target.value;
+                setEndDate(value);
+                setPage(1);
+                updateUrl({ endDate: value, page: 1 });
+              }}
+              className="w-40"
+            />
+          </div>
         </div>
 
-        {paginated.length === 0 ? (
-          <p className="text-muted-foreground rounded-md border p-4 text-sm">
-            Brak projektów pasujących do filtrów.
-          </p>
-        ) : null}
-      </div>
+        <div className="flex-1">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {paginated.map((project) => {
+              const missingDocumentation = missingDocuments(project);
+              return (
+                <Link
+                  key={project.id}
+                  href={`/projects/${project.slug}`}
+                  transitionTypes={["nav-forward"]}
+                  className="hover:bg-accent min-w-0 rounded-lg border p-4"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <h2 className="min-w-0 font-medium break-words">
+                      {project.name}
+                    </h2>
+                    <div className="flex shrink-0 items-center gap-1">
+                      {project.startedAt === null ? (
+                        <FileWarning
+                          className="text-destructive/70 size-3.5"
+                          aria-label="Brak daty rozpoczęcia"
+                        />
+                      ) : null}
+                      {missingDocumentation.length === 0 ? null : (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <FileWarning
+                              className="text-destructive size-4"
+                              aria-label={`Brak: ${missingDocumentation.join(", ")}`}
+                            />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Brak: {missingDocumentation.join(", ")}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      <ProjectStatusBadge status={project.status} />
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground mt-1 text-sm">
+                    {visibilityLabels[project.visibility]}
+                  </p>
+                  <p className="text-muted-foreground mt-0.5 text-xs">
+                    {project.startedAt === null
+                      ? ""
+                      : new Date(project.startedAt).toLocaleDateString("pl-PL")}
+                    {project.startedAt !== null && project.endedAt !== null
+                      ? " – "
+                      : ""}
+                    {project.endedAt === null
+                      ? ""
+                      : new Date(project.endedAt).toLocaleDateString("pl-PL")}
+                  </p>
+                </Link>
+              );
+            })}
+          </div>
 
-      <div className="text-muted-foreground flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
-        <span>
-          Wyniki {filtered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}–
-          {Math.min(currentPage * pageSize, filtered.length)} z{" "}
-          {declineNumeric(filtered.length, "projekt", true)}
-        </span>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={currentPage === 1}
-            onClick={() => {
-              const nextPage = Math.max(1, currentPage - 1);
-              setPage(nextPage);
-              updateUrl({ page: nextPage });
-            }}
-          >
-            Poprzednia
-          </Button>
+          {paginated.length === 0 ? (
+            <p className="text-muted-foreground rounded-md border p-4 text-sm">
+              Brak projektów pasujących do filtrów.
+            </p>
+          ) : null}
+        </div>
+
+        <div className="text-muted-foreground flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
           <span>
-            Strona {currentPage} z {pageCount}
+            Wyniki{" "}
+            {filtered.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}–
+            {Math.min(currentPage * pageSize, filtered.length)} z{" "}
+            {declineNumeric(filtered.length, "projekt", true)}
           </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={currentPage === pageCount}
-            onClick={() => {
-              const nextPage = Math.min(pageCount, currentPage + 1);
-              setPage(nextPage);
-              updateUrl({ page: nextPage });
-            }}
-          >
-            Następna
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={currentPage === 1}
+              onClick={() => {
+                const nextPage = Math.max(1, currentPage - 1);
+                setPage(nextPage);
+                updateUrl({ page: nextPage });
+              }}
+            >
+              Poprzednia
+            </Button>
+            <span>
+              Strona {currentPage} z {pageCount}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={currentPage === pageCount}
+              onClick={() => {
+                const nextPage = Math.min(pageCount, currentPage + 1);
+                setPage(nextPage);
+                updateUrl({ page: nextPage });
+              }}
+            >
+              Następna
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }
