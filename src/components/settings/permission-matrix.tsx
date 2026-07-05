@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -141,8 +141,10 @@ export function PermissionMatrix({
                       <DeleteButton
                         action={deletePermissionGroup.bind(null, group.id)}
                         confirmMessage={`Na pewno usunąć grupę "${group.name}"?`}
+                        size="sm"
+                        ariaLabel={`Usuń grupę ${group.name}`}
                       >
-                        Usuń
+                        <Trash2 />
                       </DeleteButton>
                     </div>
                   </th>

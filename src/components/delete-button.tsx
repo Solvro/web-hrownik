@@ -17,10 +17,14 @@ export function DeleteButton({
   action,
   confirmMessage,
   children,
+  size,
+  ariaLabel,
 }: {
   action: () => Promise<void>;
   confirmMessage: string;
   children: React.ReactNode;
+  size?: React.ComponentProps<typeof Button>["size"];
+  ariaLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -53,7 +57,12 @@ export function DeleteButton({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="destructive">
+        <Button
+          type="button"
+          variant="destructive"
+          size={size}
+          aria-label={ariaLabel}
+        >
           {children}
         </Button>
       </DialogTrigger>
