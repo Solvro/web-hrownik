@@ -9,7 +9,7 @@ const DIRECTUS_URL =
   process.env.DIRECTUS_BOARD_URL ??
   "https://cms.solvro.pl/items/Board_members?fields=Term.term,Member.name,Member.subtitle";
 
-const BOARD_TERM_NAME_TEMPLATE = "Zarząd {roman}";
+const BOARD_TERM_NAME_TEMPLATE = "{roman} Zarząd";
 
 const dryRun = process.argv.includes("--dry-run");
 
@@ -133,6 +133,7 @@ async function main() {
   let skipped = 0;
   let hrNotesUpdated = 0;
   const processedHrNotesMemberIds = new Set<string>();
+  const processedAssignmentKeys = new Set<string>();
 
   for (const row of rows) {
     fetched++;
@@ -157,7 +158,7 @@ async function main() {
       const roman = termToRoman(termLabel);
       const termName = BOARD_TERM_NAME_TEMPLATE.replace("{roman}", roman);
       if (dryRun) {
-        console.info(`Would create term: ${termName} (${roman})`);
+        console.info(`Would create term: '${termName}'`);
         term = {
           id: `dry-run-${termKey}`,
           name: termName,
@@ -197,6 +198,12 @@ async function main() {
       continue;
     }
 
+    const assignmentKey = `${memberRow.id}-${term.id}`;
+    if (processedAssignmentKeys.has(assignmentKey)) {
+      skipped++;
+      continue;
+    }
+
     const existingAssignments = await db
       .select()
       .from(roleAssignment)
@@ -212,9 +219,11 @@ async function main() {
       continue;
     }
 
+    processedAssignmentKeys.add(assignmentKey);
+
     if (dryRun) {
       console.info(
-        `Would assign ${roleAssignmentDefinition.name} to ${memberName} for term ${termLabel}`,
+        `Would assign ${roleAssignmentDefinition.name} to ${memberName} for term '${term.name}'`,
       );
     } else {
       await db.insert(roleAssignment).values({
