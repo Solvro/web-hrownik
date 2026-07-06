@@ -91,6 +91,7 @@ export function MemberForm({
 }) {
   const router = useRouter();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
 
   const form = useForm<MemberFormInput, unknown, MemberFormValues>({
     resolver: zodResolver(memberFormSchema),
@@ -133,6 +134,7 @@ export function MemberForm({
 
   async function onSubmit(values: MemberFormValues) {
     setSubmitError(null);
+    setSubmitSuccess(false);
     try {
       if (mode === "create") {
         const result = await createMember(values);
@@ -142,11 +144,17 @@ export function MemberForm({
         });
       } else if (memberId !== undefined) {
         await updateMember(memberId, values);
+        setSubmitSuccess(true);
+        await new Promise((r) => setTimeout(r, 800));
         startTransition(() => {
           router.push(`/members/${memberId}`);
         });
       }
     } catch (error) {
+      console.error("MemberForm onSubmit error:", error);
+      form.setError("root", {
+        message: error instanceof Error ? error.message : "Coś poszło nie tak.",
+      });
       setSubmitError(
         error instanceof Error ? error.message : "Coś poszło nie tak.",
       );
@@ -792,14 +800,33 @@ export function MemberForm({
         ) : null}
 
         {submitError === null ? null : (
-          <FieldDescription className="text-destructive">
+          <div
+            role="alert"
+            className="border-destructive/50 bg-destructive/10 text-destructive rounded-md border px-4 py-3 text-sm"
+          >
             {submitError}
-          </FieldDescription>
+          </div>
+        )}
+        {submitSuccess ? (
+          <div
+            role="status"
+            className="rounded-md border border-emerald-500/50 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
+          >
+            Zapisano pomyślnie.
+          </div>
+        ) : null}
+        {form.formState.errors.root?.message === undefined ? null : (
+          <div
+            role="alert"
+            className="border-destructive/50 bg-destructive/10 text-destructive rounded-md border px-4 py-3 text-sm"
+          >
+            {form.formState.errors.root.message}
+          </div>
         )}
 
         <div className="flex gap-2">
           <Button type="submit" disabled={form.formState.isSubmitting}>
-            <Save /> Zapisz
+            <Save /> {form.formState.isSubmitting ? "Zapisywanie..." : "Zapisz"}
           </Button>
           <Button
             type="button"
