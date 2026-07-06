@@ -11,6 +11,10 @@ const DIRECTUS_URL =
 
 const dryRun = process.argv.includes("--dry-run");
 
+const SPECIAL_TERMS: Record<string, string> = {
+  Założyciele: "2018/2019",
+};
+
 const TERM_ROMAN: Record<string, string> = {
   "2026/2027": "IX",
   "2025/2026": "VIII",
@@ -124,7 +128,7 @@ async function main() {
     fetched++;
     const memberName = row.Member.name;
     const subtitle = row.Member.subtitle ?? null;
-    const termLabel = row.Term.term;
+    const termLabel = SPECIAL_TERMS[row.Term.term] ?? row.Term.term;
 
     const memberRow = byName.get(normalizeName(memberName));
     if (memberRow === undefined) {
