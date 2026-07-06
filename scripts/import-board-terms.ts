@@ -9,6 +9,7 @@ const DIRECTUS_URL =
   process.env.DIRECTUS_BOARD_URL ??
   "https://cms.solvro.pl/items/Board_members?fields=Term.term,Member.name,Member.subtitle";
 
+const SOLVRO_CREATION_DATE = new Date(Date.UTC(2018, 4, 28));
 const BOARD_TERM_NAME_TEMPLATE = "{roman} Zarząd";
 
 const dryRun = process.argv.includes("--dry-run");
@@ -53,8 +54,12 @@ function parseTermDates(term: string): { startsAt: Date; endsAt: Date } {
   }
   const startYear = Number(match[1]);
   const endYear = Number(match[2]);
+  const startsAt =
+    startYear === 2018
+      ? SOLVRO_CREATION_DATE
+      : new Date(Date.UTC(startYear, 3, 1));
   return {
-    startsAt: new Date(Date.UTC(startYear, 3, 1)),
+    startsAt,
     endsAt: new Date(Date.UTC(endYear, 2, 31, 23, 59, 59, 999)),
   };
 }
