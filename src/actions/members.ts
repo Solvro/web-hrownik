@@ -148,173 +148,191 @@ export async function updateMember(
   memberId: string,
   input: Partial<MemberFormValues>,
 ) {
-  const currentMember = await getCurrentMember();
-  if (currentMember === null) {
-    throw new Error("Unauthorized");
-  }
-  const permissions = await getMemberPermissions(currentMember.id);
-  const isFullAccess = can(permissions, "members", "write");
-  const isSelf = canEditOwnProfile(permissions, memberId);
-  if (!isFullAccess && !isSelf) {
-    throw new Error("Brak uprawnień do edycji tego profilu.");
-  }
+  const startMs = Date.now();
+  console.warn(`[updateMember] start memberId=${memberId}`, {
+    fieldCount: Object.keys(input).length,
+    keys: Object.keys(input),
+  });
 
-  const values = memberFormSchema.partial().parse(input);
-
-  if (values.parentId !== undefined && values.parentId === memberId) {
-    throw new Error("Członek nie może być swoim własnym rodzicem.");
-  }
-
-  // fullName, status, bio, HR notes, emails and roles are board-only;
-  // everything else (socials + study data) is self-editable per FEATURES.md.
-  await db
-    .update(member)
-    .set({
-      ...(isFullAccess &&
-        values.fullName !== undefined && {
-          fullName: values.fullName,
-        }),
-      ...(isFullAccess &&
-        values.parentId !== undefined && {
-          parentId: emptyToNull(values.parentId),
-        }),
-      ...(values.githubUsername !== undefined && {
-        githubUsername: emptyToNull(values.githubUsername),
-      }),
-      ...(values.discordId !== undefined && {
-        discordId: emptyToNull(values.discordId),
-      }),
-      ...(values.facebookUrl !== undefined && {
-        facebookUrl: emptyToNull(values.facebookUrl),
-      }),
-      ...(values.linkedinUrl !== undefined && {
-        linkedinUrl: emptyToNull(values.linkedinUrl),
-      }),
-      ...(values.instagramUrl !== undefined && {
-        instagramUrl: emptyToNull(values.instagramUrl),
-      }),
-      ...(values.websiteUrl !== undefined && {
-        websiteUrl: emptyToNull(values.websiteUrl),
-      }),
-      ...(values.photoUrl !== undefined && {
-        photoUrl: emptyToNull(values.photoUrl),
-      }),
-      ...(values.studentIndex !== undefined && {
-        studentIndex: emptyToNull(values.studentIndex),
-      }),
-      ...(values.studyDepartment !== undefined && {
-        studyDepartment: emptyToNull(values.studyDepartment),
-      }),
-      ...(values.studyField !== undefined && {
-        studyField: emptyToNull(values.studyField),
-      }),
-      ...(values.studyYear !== undefined && {
-        studyYear: emptyToNull(values.studyYear),
-      }),
-      ...(isFullAccess &&
-        values.bio !== undefined && {
-          bio: emptyToNull(values.bio),
-        }),
-      ...(isFullAccess &&
-        values.hrNotes !== undefined && {
-          hrNotes: emptyToNull(values.hrNotes),
-        }),
-      ...(isFullAccess &&
-        values.status !== undefined && {
-          status: values.status,
-        }),
-      updatedAt: new Date(),
-    })
-    .where(eq(member.id, memberId));
-
-  if (isFullAccess && values.emails !== undefined) {
-    await db.delete(memberEmail).where(eq(memberEmail.memberId, memberId));
-    if (values.emails.length > 0) {
-      await db.insert(memberEmail).values(
-        values.emails.map((email) => ({
-          memberId,
-          email: normalizeEmail(email.email),
-          kind: email.kind,
-        })),
-      );
+  try {
+    const currentMember = await getCurrentMember();
+    if (currentMember === null) {
+      throw new Error("Unauthorized");
     }
-  }
-
-  if (isFullAccess && values.roleAssignments !== undefined) {
-    const existingAssignments = await db.query.roleAssignment.findMany({
-      where: eq(roleAssignment.memberId, memberId),
-      with: { roleDefinition: true },
-    });
-    const replacedAssignmentIds = existingAssignments
-      .filter(
-        (assignment) =>
-          assignment.roleDefinition.scope !== "project" &&
-          assignment.roleDefinition.scope !== "project_team",
-      )
-      .map((assignment) => assignment.id);
-    if (replacedAssignmentIds.length > 0) {
-      await db
-        .delete(roleAssignment)
-        .where(inArray(roleAssignment.id, replacedAssignmentIds));
+    const permissions = await getMemberPermissions(currentMember.id);
+    const isFullAccess = can(permissions, "members", "write");
+    const isSelf = canEditOwnProfile(permissions, memberId);
+    if (!isFullAccess && !isSelf) {
+      throw new Error("Brak uprawnień do edycji tego profilu.");
     }
 
-    if (values.roleAssignments.length > 0) {
-      const roleDefinitions =
-        values.roleAssignments.length === 0
-          ? []
-          : await db.query.roleDefinition.findMany({
-              where: inArray(
-                roleDefinition.id,
-                values.roleAssignments.map((role) => role.roleDefinitionId),
-              ),
-            });
-      const roleDefinitionById = new Map(
-        roleDefinitions.map((role) => [role.id, role]),
-      );
+    const values = memberFormSchema.partial().parse(input);
 
-      const assignments = values.roleAssignments.map((role) => {
-        const definition = roleDefinitionById.get(role.roleDefinitionId);
-        if (definition === undefined) {
-          throw new Error("Nie znaleziono wybranej roli.");
-        }
-        if (
-          definition.scope === "project_team" ||
-          definition.scope === "project"
-        ) {
-          throw new Error("Role projektowe są zarządzane przy projekcie.");
-        }
-        if (
-          definition.scope === "board" &&
-          (role.boardTermId === undefined || role.boardTermId === "")
-        ) {
-          throw new Error("Rola zarządowa wymaga wskazania kadencji.");
-        }
-        return {
-          memberId,
-          roleDefinitionId: role.roleDefinitionId,
-          boardTermId: definition.scope === "board" ? role.boardTermId : null,
-          sectionId:
-            definition.scope === "section" ? (role.sectionId ?? null) : null,
-          projectId: null,
-          startedAt: parseDate(role.startedAt) ?? new Date(),
-          endedAt: parseDate(role.endedAt),
-        };
-      });
-      if (assignments.length > 0) {
-        await db.insert(roleAssignment).values(assignments);
+    if (values.parentId !== undefined && values.parentId === memberId) {
+      throw new Error("Członek nie może być swoim własnym rodzicem.");
+    }
+
+    // fullName, status, bio, HR notes, emails and roles are board-only;
+    // everything else (socials + study data) is self-editable per FEATURES.md.
+    await db
+      .update(member)
+      .set({
+        ...(isFullAccess &&
+          values.fullName !== undefined && {
+            fullName: values.fullName,
+          }),
+        ...(isFullAccess &&
+          values.parentId !== undefined && {
+            parentId: emptyToNull(values.parentId),
+          }),
+        ...(values.githubUsername !== undefined && {
+          githubUsername: emptyToNull(values.githubUsername),
+        }),
+        ...(values.discordId !== undefined && {
+          discordId: emptyToNull(values.discordId),
+        }),
+        ...(values.facebookUrl !== undefined && {
+          facebookUrl: emptyToNull(values.facebookUrl),
+        }),
+        ...(values.linkedinUrl !== undefined && {
+          linkedinUrl: emptyToNull(values.linkedinUrl),
+        }),
+        ...(values.instagramUrl !== undefined && {
+          instagramUrl: emptyToNull(values.instagramUrl),
+        }),
+        ...(values.websiteUrl !== undefined && {
+          websiteUrl: emptyToNull(values.websiteUrl),
+        }),
+        ...(values.photoUrl !== undefined && {
+          photoUrl: emptyToNull(values.photoUrl),
+        }),
+        ...(values.studentIndex !== undefined && {
+          studentIndex: emptyToNull(values.studentIndex),
+        }),
+        ...(values.studyDepartment !== undefined && {
+          studyDepartment: emptyToNull(values.studyDepartment),
+        }),
+        ...(values.studyField !== undefined && {
+          studyField: emptyToNull(values.studyField),
+        }),
+        ...(values.studyYear !== undefined && {
+          studyYear: emptyToNull(values.studyYear),
+        }),
+        ...(isFullAccess &&
+          values.bio !== undefined && {
+            bio: emptyToNull(values.bio),
+          }),
+        ...(isFullAccess &&
+          values.hrNotes !== undefined && {
+            hrNotes: emptyToNull(values.hrNotes),
+          }),
+        ...(isFullAccess &&
+          values.status !== undefined && {
+            status: values.status,
+          }),
+        updatedAt: new Date(),
+      })
+      .where(eq(member.id, memberId));
+
+    if (isFullAccess && values.emails !== undefined) {
+      await db.delete(memberEmail).where(eq(memberEmail.memberId, memberId));
+      if (values.emails.length > 0) {
+        await db.insert(memberEmail).values(
+          values.emails.map((email) => ({
+            memberId,
+            email: normalizeEmail(email.email),
+            kind: email.kind,
+          })),
+        );
       }
     }
-  }
 
-  if (values.githubUsername !== undefined) {
-    const githubUsername = emptyToNull(values.githubUsername);
-    if (githubUsername !== null) {
-      await reattributeActivityForMember(memberId, githubUsername);
+    if (isFullAccess && values.roleAssignments !== undefined) {
+      const existingAssignments = await db.query.roleAssignment.findMany({
+        where: eq(roleAssignment.memberId, memberId),
+        with: { roleDefinition: true },
+      });
+      const replacedAssignmentIds = existingAssignments
+        .filter(
+          (assignment) =>
+            assignment.roleDefinition.scope !== "project" &&
+            assignment.roleDefinition.scope !== "project_team",
+        )
+        .map((assignment) => assignment.id);
+      if (replacedAssignmentIds.length > 0) {
+        await db
+          .delete(roleAssignment)
+          .where(inArray(roleAssignment.id, replacedAssignmentIds));
+      }
+
+      if (values.roleAssignments.length > 0) {
+        const roleDefinitions =
+          values.roleAssignments.length === 0
+            ? []
+            : await db.query.roleDefinition.findMany({
+                where: inArray(
+                  roleDefinition.id,
+                  values.roleAssignments.map((role) => role.roleDefinitionId),
+                ),
+              });
+        const roleDefinitionById = new Map(
+          roleDefinitions.map((role) => [role.id, role]),
+        );
+
+        const assignments = values.roleAssignments.map((role) => {
+          const definition = roleDefinitionById.get(role.roleDefinitionId);
+          if (definition === undefined) {
+            throw new Error("Nie znaleziono wybranej roli.");
+          }
+          if (
+            definition.scope === "project_team" ||
+            definition.scope === "project"
+          ) {
+            throw new Error("Role projektowe są zarządzane przy projekcie.");
+          }
+          if (
+            definition.scope === "board" &&
+            (role.boardTermId === undefined || role.boardTermId === "")
+          ) {
+            throw new Error("Rola zarządowa wymaga wskazania kadencji.");
+          }
+          return {
+            memberId,
+            roleDefinitionId: role.roleDefinitionId,
+            boardTermId: definition.scope === "board" ? role.boardTermId : null,
+            sectionId:
+              definition.scope === "section" ? (role.sectionId ?? null) : null,
+            projectId: null,
+            startedAt: parseDate(role.startedAt) ?? new Date(),
+            endedAt: parseDate(role.endedAt),
+          };
+        });
+        if (assignments.length > 0) {
+          await db.insert(roleAssignment).values(assignments);
+        }
+      }
     }
-  }
 
-  revalidatePath(`/members/${memberId}`);
-  revalidatePath("/members");
+    if (values.githubUsername !== undefined) {
+      const githubUsername = emptyToNull(values.githubUsername);
+      if (githubUsername !== null) {
+        await reattributeActivityForMember(memberId, githubUsername);
+      }
+    }
+
+    revalidatePath(`/members/${memberId}`);
+    revalidatePath("/members");
+
+    console.warn(
+      `[updateMember] success memberId=${memberId} duration=${Date.now() - startMs}ms`,
+    );
+  } catch (error) {
+    console.error(
+      `[updateMember] error memberId=${memberId} duration=${Date.now() - startMs}ms`,
+      error,
+    );
+    throw error;
+  }
 }
 
 export async function deleteMember(memberId: string): Promise<void> {
