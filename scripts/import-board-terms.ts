@@ -9,6 +9,8 @@ const DIRECTUS_URL =
   process.env.DIRECTUS_BOARD_URL ??
   "https://cms.solvro.pl/items/Board_members?fields=Term.term,Member.name,Member.subtitle";
 
+const BOARD_TERM_NAME_TEMPLATE = "Zarząd {roman}";
+
 const dryRun = process.argv.includes("--dry-run");
 
 const SPECIAL_TERMS: Record<string, string> = {
@@ -52,9 +54,16 @@ function parseTermDates(term: string): { startsAt: Date; endsAt: Date } {
   const startYear = Number(match[1]);
   const endYear = Number(match[2]);
   return {
-    startsAt: new Date(startYear, 3, 1),
-    endsAt: new Date(endYear, 2, 31, 23, 59, 59, 999),
+    startsAt: new Date(Date.UTC(startYear, 3, 1)),
+    endsAt: new Date(Date.UTC(endYear, 2, 31, 23, 59, 59, 999)),
   };
+}
+
+function termDateKey(d: Date): string {
+  const y = d.getUTCFullYear();
+  const m = `${d.getUTCMonth() + 1}`.padStart(2, "0");
+  const day = `${d.getUTCDate()}`.padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function termToRoman(termLabel: string): string {
@@ -111,7 +120,7 @@ async function main() {
   for (const t of existingTerms) {
     const key =
       t.startsAt !== null && t.endsAt !== null
-        ? `${t.startsAt.toISOString()}-${t.endsAt.toISOString()}`
+        ? `${termDateKey(t.startsAt)}-${termDateKey(t.endsAt)}`
         : t.name;
     termsByDates.set(key, t);
   }
@@ -141,12 +150,12 @@ async function main() {
     matched++;
 
     const { startsAt, endsAt } = parseTermDates(termLabel);
-    const termKey = `${startsAt.toISOString()}-${endsAt.toISOString()}`;
+    const termKey = `${termDateKey(startsAt)}-${termDateKey(endsAt)}`;
     let term = termsByDates.get(termKey);
 
     if (term === undefined) {
       const roman = termToRoman(termLabel);
-      const termName = `Kadencja ${termLabel}`;
+      const termName = BOARD_TERM_NAME_TEMPLATE.replace("{roman}", roman);
       if (dryRun) {
         console.info(`Would create term: ${termName} (${roman})`);
         term = {
