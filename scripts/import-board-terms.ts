@@ -165,7 +165,7 @@ async function main() {
 
     const roleAssignmentDefinition =
       subtitle !== null &&
-      /prezes/i.test(subtitle) &&
+      /\bPrezes\b/i.test(subtitle) &&
       prezesRoleDefinition !== undefined
         ? prezesRoleDefinition
         : wiceprezesRoleDefinition;
