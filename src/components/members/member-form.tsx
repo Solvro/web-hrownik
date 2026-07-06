@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Save, Trash2 } from "lucide-react";
+import { Check, Plus, Save, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { startTransition, useState } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { useUnsavedChangesWarning } from "@/hooks/use-unsaved-changes-warning";
 import type { MemberFormInput, MemberFormValues } from "@/lib/schemas/members";
@@ -807,14 +808,6 @@ export function MemberForm({
             {submitError}
           </div>
         )}
-        {submitSuccess ? (
-          <div
-            role="status"
-            className="rounded-md border border-emerald-500/50 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
-          >
-            Zapisano pomyślnie.
-          </div>
-        ) : null}
         {form.formState.errors.root?.message === undefined ? null : (
           <div
             role="alert"
@@ -826,7 +819,14 @@ export function MemberForm({
 
         <div className="flex gap-2">
           <Button type="submit" disabled={form.formState.isSubmitting}>
-            <Save /> {form.formState.isSubmitting ? "Zapisywanie..." : "Zapisz"}
+            {form.formState.isSubmitting ? (
+              <Spinner />
+            ) : submitSuccess ? (
+              <Check />
+            ) : (
+              <Save />
+            )}{" "}
+            Zapisz
           </Button>
           <Button
             type="button"
