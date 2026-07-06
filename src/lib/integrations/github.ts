@@ -139,6 +139,15 @@ export interface GithubUserProfile {
   name: string | null;
 }
 
+function isNotFound(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    error.status === 404
+  );
+}
+
 export async function getGithubUserProfile(
   username: string,
 ): Promise<GithubUserProfile | null> {
@@ -153,7 +162,11 @@ export async function getGithubUserProfile(
     });
     return { login: user.login, name: user.name };
   } catch (error) {
-    console.warn(`Failed to fetch GitHub profile for ${username}:`, error);
+    if (isNotFound(error)) {
+      // 404 means the GitHub user doesn't exist — expected, no need to log
+    } else {
+      console.warn(`Failed to fetch GitHub profile for ${username}:`, error);
+    }
     return null;
   }
 }
