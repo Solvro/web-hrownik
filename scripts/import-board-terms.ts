@@ -123,6 +123,7 @@ async function main() {
   let assignmentsCreated = 0;
   let skipped = 0;
   let hrNotesUpdated = 0;
+  const processedHrNotesMemberIds = new Set<string>();
 
   for (const row of rows) {
     fetched++;
@@ -148,6 +149,16 @@ async function main() {
       const termName = `Kadencja ${termLabel}`;
       if (dryRun) {
         console.info(`Would create term: ${termName} (${roman})`);
+        term = {
+          id: `dry-run-${termKey}`,
+          name: termName,
+          startsAt,
+          endsAt,
+          description: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        } as (typeof existingTerms)[number];
+        termsByDates.set(termKey, term);
       } else {
         const [createdTerm] = await db
           .insert(boardTerm)
@@ -177,28 +188,26 @@ async function main() {
       continue;
     }
 
-    if (term !== undefined) {
-      const existingAssignments = await db
-        .select()
-        .from(roleAssignment)
-        .where(
-          and(
-            eq(roleAssignment.memberId, memberRow.id),
-            eq(roleAssignment.boardTermId, term.id),
-          ),
-        );
+    const existingAssignments = await db
+      .select()
+      .from(roleAssignment)
+      .where(
+        and(
+          eq(roleAssignment.memberId, memberRow.id),
+          eq(roleAssignment.boardTermId, term.id),
+        ),
+      );
 
-      if (existingAssignments.length > 0) {
-        skipped++;
-        continue;
-      }
+    if (existingAssignments.length > 0) {
+      skipped++;
+      continue;
     }
 
     if (dryRun) {
       console.info(
         `Would assign ${roleAssignmentDefinition.name} to ${memberName} for term ${termLabel}`,
       );
-    } else if (term !== undefined) {
+    } else {
       await db.insert(roleAssignment).values({
         memberId: memberRow.id,
         roleDefinitionId: roleAssignmentDefinition.id,
@@ -209,22 +218,25 @@ async function main() {
       assignmentsCreated++;
     }
 
-    if (subtitle !== null && /założyciel|founder/i.test(subtitle)) {
+    if (
+      subtitle !== null &&
+      /założyciel|founder/i.test(subtitle) &&
+      !processedHrNotesMemberIds.has(memberRow.id)
+    ) {
       const note = "Założyciel";
-      const currentNotes = memberRow.hrNotes ?? "";
-      if (!currentNotes.includes(note)) {
-        if (dryRun) {
-          console.info(`Would add "${note}" to hrNotes for ${memberName}`);
-        } else {
-          const newNotes =
-            currentNotes === "" ? note : `${currentNotes}\n${note}`;
-          await db
-            .update(member)
-            .set({ hrNotes: newNotes })
-            .where(eq(member.id, memberRow.id));
-          hrNotesUpdated++;
-        }
+      if (dryRun) {
+        console.info(`Would add "${note}" to hrNotes for ${memberName}`);
+      } else {
+        const currentNotes = memberRow.hrNotes ?? "";
+        const newNotes =
+          currentNotes === "" ? note : `${currentNotes}\n${note}`;
+        await db
+          .update(member)
+          .set({ hrNotes: newNotes })
+          .where(eq(member.id, memberRow.id));
       }
+      processedHrNotesMemberIds.add(memberRow.id);
+      hrNotesUpdated++;
     }
   }
 
