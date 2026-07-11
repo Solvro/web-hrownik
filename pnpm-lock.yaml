@@ -82,14 +82,14 @@ importers:
         specifier: ^20.5.3
         version: 20.5.3(@types/node@26.1.0)(conventional-commits-parser@6.4.0)(typescript@5.9.3)
       '@next/eslint-plugin-next':
-        specifier: ^16.2.9
-        version: 16.2.9
+        specifier: ^16.2.10
+        version: 16.2.10
       '@octokit/webhooks-types':
         specifier: ^7.6.1
         version: 7.6.1
       '@solvro/config':
         specifier: 3.0.0-beta.10
-        version: 3.0.0-beta.10(@next/eslint-plugin-next@16.2.9)(@typescript-eslint/parser@8.62.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(class-validator@0.15.1)(eslint@9.39.4(jiti@2.7.0))(prettier@3.9.4)(typescript@5.9.3)(zod@4.4.3)
+        version: 3.0.0-beta.10(@next/eslint-plugin-next@16.2.10)(@typescript-eslint/parser@8.62.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(class-validator@0.15.1)(eslint@9.39.4(jiti@2.7.0))(prettier@3.9.4)(typescript@5.9.3)(zod@4.4.3)
       '@tailwindcss/postcss':
         specifier: ^4
         version: 4.3.2
@@ -1227,6 +1227,9 @@ packages:
 
   '@next/env@16.2.10':
     resolution: {integrity: sha512-zLPxg9M0MEHmygpj5OuxjQ+vHMiy/K7cSp74G8ecYolmgUWw0RwN02tF56npup/+qaI8JB97hQgS/r2Hb6QwVA==}
+
+  '@next/eslint-plugin-next@16.2.10':
+    resolution: {integrity: sha512-Gs8D2m21VnJeFo9qvYIIqJH94frWerWYu41BprU1pLtRVF7PCQNLiFZZ3fG+iPuj3K83Cwv/rt+msLOy8Qgu3Q==}
 
   '@next/eslint-plugin-next@16.2.9':
     resolution: {integrity: sha512-UZi8+YT/MLgTC9nrrn2Xd4lBYv1B7lVmtWHfPcthAI5Tt/C1LuDe6DfmtCtJ+WQod3ksY4VrKSvk3oMVAnL7qw==}
@@ -6671,6 +6674,10 @@ snapshots:
 
   '@next/env@16.2.10': {}
 
+  '@next/eslint-plugin-next@16.2.10':
+    dependencies:
+      fast-glob: 3.3.1
+
   '@next/eslint-plugin-next@16.2.9':
     dependencies:
       fast-glob: 3.3.1
@@ -7599,7 +7606,7 @@ snapshots:
 
   '@sindresorhus/merge-streams@4.0.0': {}
 
-  '@solvro/config@3.0.0-beta.10(@next/eslint-plugin-next@16.2.9)(@typescript-eslint/parser@8.62.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(class-validator@0.15.1)(eslint@9.39.4(jiti@2.7.0))(prettier@3.9.4)(typescript@5.9.3)(zod@4.4.3)':
+  '@solvro/config@3.0.0-beta.10(@next/eslint-plugin-next@16.2.10)(@typescript-eslint/parser@8.62.1(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(class-validator@0.15.1)(eslint@9.39.4(jiti@2.7.0))(prettier@3.9.4)(typescript@5.9.3)(zod@4.4.3)':
     dependencies:
       '@adonisjs/eslint-config': 3.1.0(eslint-plugin-react-hooks@7.1.1(eslint@9.39.4(jiti@2.7.0)))(eslint-plugin-react@7.37.5(eslint@9.39.4(jiti@2.7.0)))(eslint@9.39.4(jiti@2.7.0))(prettier@3.9.4)(typescript@5.9.3)
       '@clack/prompts': 1.6.0
@@ -7608,7 +7615,7 @@ snapshots:
       '@eslint-community/eslint-plugin-eslint-comments': 4.7.2(eslint@9.39.4(jiti@2.7.0))
       '@eslint/config-helpers': 0.4.2
       '@eslint/js': 9.39.4
-      '@next/eslint-plugin-next': 16.2.9
+      '@next/eslint-plugin-next': 16.2.10
       '@solvro/utils': 1.6.0
       '@tanstack/eslint-plugin-query': 5.101.2(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3)
       '@trivago/prettier-plugin-sort-imports': 6.0.2(prettier@3.9.4)
