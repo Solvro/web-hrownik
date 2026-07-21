@@ -65,7 +65,7 @@
     "eslint-config-next": "16.2.10",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.8",
-    "prettier": "^3.9.5",
+    "prettier": "^3.9.6",
     "tailwindcss": "^4",
     "tsx": "^4.23.1",
     "typescript": "^5"
