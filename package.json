@@ -31,7 +31,7 @@
     "@octokit/auth-app": "^8.2.0",
     "@octokit/rest": "^22.0.1",
     "@t3-oss/env-nextjs": "^0.13.11",
-    "better-auth": "^1.6.25",
+    "better-auth": "^1.6.26",
     "better-auth-usos": "^1.1.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
