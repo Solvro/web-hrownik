@@ -149,7 +149,7 @@ export async function updateMember(
   input: Partial<MemberFormValues>,
 ) {
   const startMs = Date.now();
-  console.warn(`[updateMember] start memberId=${memberId}`, {
+  console.warn("[updateMember] start memberId=%s", memberId, {
     fieldCount: Object.keys(input).length,
     keys: Object.keys(input),
   });
@@ -324,11 +324,15 @@ export async function updateMember(
     revalidatePath("/members");
 
     console.warn(
-      `[updateMember] success memberId=${memberId} duration=${Date.now() - startMs}ms`,
+      "[updateMember] success memberId=%s duration=%dms",
+      memberId,
+      Date.now() - startMs,
     );
   } catch (error) {
     console.error(
-      `[updateMember] error memberId=${memberId} duration=${Date.now() - startMs}ms`,
+      "[updateMember] error memberId=%s duration=%dms",
+      memberId,
+      Date.now() - startMs,
       error,
     );
     throw error;
