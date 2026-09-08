@@ -24,8 +24,8 @@ importers:
         specifier: ^1.6.29 <1.7.0
         version: 1.6.30(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(kysely@0.29.5)(postgres@3.4.9))(next@16.3.4(@babel/core@7.29.7)(@types/node@26.4.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       better-auth-usos:
-        specifier: ^1.1.1
-        version: 1.1.1(better-auth@1.6.30(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(kysely@0.29.5)(postgres@3.4.9))(next@16.3.4(@babel/core@7.29.7)(@types/node@26.4.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(crypto-js@4.2.0)(oauth-1.0a@2.2.6)(zod@4.5.2)
+        specifier: ^1.1.2
+        version: 1.1.2(better-auth@1.6.30(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(kysely@0.29.5)(postgres@3.4.9))(next@16.3.4(@babel/core@7.29.7)(@types/node@26.4.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(oauth-1.0a@2.2.6)(zod@4.5.2)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -3072,11 +3072,10 @@ packages:
   before-after-hook@4.0.0:
     resolution: {integrity: sha512-q6tR3RPqIB1pMiTRMFcZwuG5T8vwp+vUvEG0vuI6B+Rikh5BfPp2fQ82c925FOs+b0lcFQ8CFrL+KbilfZFhOQ==}
 
-  better-auth-usos@1.1.1:
-    resolution: {integrity: sha512-urgF2KdRNIgdoJXkWpukmVSbfhlsN/5VKWj3XmaHFxpHjii0qhgEOpYpGt1AB1dkd/DKTHMn6mAV02AoEl29tg==}
+  better-auth-usos@1.1.2:
+    resolution: {integrity: sha512-8ygsaSChZpLRty015xbjG7XASoxif/Pa4iVrDn4YETEp8caHOyfdqhUt8Nk5a2G3+b5utlGyhEZFLx8oC9hy4Q==}
     peerDependencies:
       better-auth: ^1.5.0
-      crypto-js: ^4.2.0
       oauth-1.0a: ^2.2.6
       zod: ^3.0.0 || ^4.0.0
 
@@ -3381,10 +3380,6 @@ packages:
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
-
-  crypto-js@4.2.0:
-    resolution: {integrity: sha512-KALDyEYgpY+Rlob/iriUtjV6d5Eq+Y191A5g4UqLAi8CyGP9N1+FdVbkc1SxKc2r4YAYqG8JzO2KGL+AizD70Q==}
-    deprecated: Active development of CryptoJS has been discontinued. This library is no longer maintained.
 
   cssesc@3.0.0:
     resolution: {integrity: sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==}
@@ -8849,10 +8844,9 @@ snapshots:
 
   before-after-hook@4.0.0: {}
 
-  better-auth-usos@1.1.1(better-auth@1.6.30(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(kysely@0.29.5)(postgres@3.4.9))(next@16.3.4(@babel/core@7.29.7)(@types/node@26.4.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(crypto-js@4.2.0)(oauth-1.0a@2.2.6)(zod@4.5.2):
+  better-auth-usos@1.1.2(better-auth@1.6.30(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(kysely@0.29.5)(postgres@3.4.9))(next@16.3.4(@babel/core@7.29.7)(@types/node@26.4.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(oauth-1.0a@2.2.6)(zod@4.5.2):
     dependencies:
       better-auth: 1.6.30(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(kysely@0.29.5)(postgres@3.4.9))(next@16.3.4(@babel/core@7.29.7)(@types/node@26.4.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      crypto-js: 4.2.0
       oauth-1.0a: 2.2.6
       zod: 4.5.2
 
@@ -9123,8 +9117,6 @@ snapshots:
       path-key: 3.1.1
       shebang-command: 2.0.0
       which: 2.0.2
-
-  crypto-js@4.2.0: {}
 
   cssesc@3.0.0: {}
 
