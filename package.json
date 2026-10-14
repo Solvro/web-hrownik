@@ -43,7 +43,7 @@
     "postgres": "^3.4.9",
     "radix-ui": "^1.6.7",
     "react": "19.3.0",
-    "react-dom": "19.2.8",
+    "react-dom": "19.3.0",
     "react-hook-form": "^7.89.0",
     "recharts": "3.10.1",
     "shadcn": "^4.21.1",
