@@ -10,13 +10,20 @@ interface RelationSpec {
   [name: string]: RelationSpec | undefined;
 }
 
+type ColumnsSelection = Record<string, boolean>;
+
+interface RelationQuery {
+  columns?: ColumnsSelection;
+  with?: Record<string, true | RelationQuery>;
+}
+
 interface QueryConfiguration {
-  columns?: Record<string, boolean>;
+  columns?: ColumnsSelection;
   where?: SQL;
   orderBy?: SQL[];
   limit?: number;
   offset?: number;
-  with?: Record<string, true | { with: Record<string, unknown> }>;
+  with?: Record<string, true | RelationQuery>;
 }
 
 interface EndpointConfig {
@@ -30,7 +37,9 @@ interface EndpointConfig {
   defaultSort: string;
   searchable?: string[];
   relations?: RelationSpec;
-  columnsSelection?: Record<string, boolean>;
+  columnsSelection?: ColumnsSelection;
+  /** Columns selection applied to every included relation with this name, at any depth. */
+  relationColumns?: Partial<Record<string, ColumnsSelection>>;
 }
 
 const MAX_PAGE_SIZE = 100;
@@ -206,11 +215,19 @@ function buildRelations(
     }
   }
 
-  return buildAllowedRelations(requestedTree, config.relations);
+  return buildAllowedRelations(
+    requestedTree,
+    config.relations,
+    config.relationColumns ?? {},
+  );
 }
 
-function buildAllowedRelations(requested: RelationSpec, allowed: RelationSpec) {
-  const result: Record<string, true | { with: Record<string, unknown> }> = {};
+function buildAllowedRelations(
+  requested: RelationSpec,
+  allowed: RelationSpec,
+  relationColumns: Partial<Record<string, ColumnsSelection>>,
+) {
+  const result: Record<string, true | RelationQuery> = {};
 
   for (const [name, nestedRequested] of Object.entries(requested)) {
     const nestedAllowed = allowed[name];
@@ -222,8 +239,18 @@ function buildAllowedRelations(requested: RelationSpec, allowed: RelationSpec) {
       continue;
     }
 
-    const nested = buildAllowedRelations(nestedRequested, nestedAllowed);
-    result[name] = Object.keys(nested).length > 0 ? { with: nested } : true;
+    const nested = buildAllowedRelations(
+      nestedRequested,
+      nestedAllowed,
+      relationColumns,
+    );
+    const query: RelationQuery = {
+      ...(relationColumns[name] === undefined
+        ? {}
+        : { columns: relationColumns[name] }),
+      ...(Object.keys(nested).length > 0 ? { with: nested } : {}),
+    };
+    result[name] = Object.keys(query).length > 0 ? query : true;
   }
 
   return result;
