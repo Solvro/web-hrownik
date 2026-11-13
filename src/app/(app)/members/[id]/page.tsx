@@ -51,6 +51,7 @@ export default async function MemberProfilePage({
         with: { team: { with: { project: true } }, roleDefinition: true },
       },
       parent: true,
+      hrNote: true,
     },
   });
   if (profile === undefined) {
@@ -246,7 +247,7 @@ export default async function MemberProfilePage({
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground text-sm whitespace-pre-wrap">
-              {profile.hrNotes ?? "—"}
+              {profile.hrNote?.content ?? "—"}
             </p>
           </CardContent>
         </Card>

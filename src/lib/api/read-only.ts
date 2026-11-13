@@ -10,20 +10,13 @@ interface RelationSpec {
   [name: string]: RelationSpec | undefined;
 }
 
-type ColumnsSelection = Record<string, boolean>;
-
-interface RelationQuery {
-  columns?: ColumnsSelection;
-  with?: Record<string, true | RelationQuery>;
-}
-
 interface QueryConfiguration {
-  columns?: ColumnsSelection;
+  columns?: Record<string, boolean>;
   where?: SQL;
   orderBy?: SQL[];
   limit?: number;
   offset?: number;
-  with?: Record<string, true | RelationQuery>;
+  with?: Record<string, true | { with: Record<string, unknown> }>;
 }
 
 interface EndpointConfig {
@@ -37,10 +30,15 @@ interface EndpointConfig {
   defaultSort: string;
   searchable?: string[];
   relations?: RelationSpec;
-  columnsSelection?: ColumnsSelection;
-  /** Columns selection applied to every included relation with this name, at any depth. */
-  relationColumns?: Partial<Record<string, ColumnsSelection>>;
+  columnsSelection?: Record<string, boolean>;
 }
+
+// Keys that would reach Object.prototype through plain-object property access.
+const FORBIDDEN_RELATION_KEYS = new Set([
+  "__proto__",
+  "constructor",
+  "prototype",
+]);
 
 const MAX_PAGE_SIZE = 100;
 const DEFAULT_PAGE_SIZE = 50;
@@ -205,32 +203,32 @@ function buildRelations(
     return;
   }
 
-  const requestedTree: RelationSpec = {};
+  // Null-prototype objects: a request-controlled key like `__proto__` must
+  // never resolve to (and let us write onto) Object.prototype.
+  const requestedTree: RelationSpec = Object.create(null) as RelationSpec;
   for (const path of include.split(",")) {
     const parts = path.trim().split(".").filter(Boolean).slice(0, 5);
+    if (parts.some((part) => FORBIDDEN_RELATION_KEYS.has(part))) {
+      continue;
+    }
     let current = requestedTree;
     for (const part of parts) {
-      current[part] ??= {};
+      current[part] ??= Object.create(null) as RelationSpec;
       current = current[part];
     }
   }
 
-  return buildAllowedRelations(
-    requestedTree,
-    config.relations,
-    config.relationColumns ?? {},
-  );
+  return buildAllowedRelations(requestedTree, config.relations);
 }
 
-function buildAllowedRelations(
-  requested: RelationSpec,
-  allowed: RelationSpec,
-  relationColumns: Partial<Record<string, ColumnsSelection>>,
-) {
-  const result: Record<string, true | RelationQuery> = {};
+function buildAllowedRelations(requested: RelationSpec, allowed: RelationSpec) {
+  const result: Record<string, true | { with: Record<string, unknown> }> = {};
 
   for (const [name, nestedRequested] of Object.entries(requested)) {
-    const nestedAllowed = allowed[name];
+    // Own properties only: inherited keys like `constructor` must not pass.
+    const nestedAllowed = Object.hasOwn(allowed, name)
+      ? allowed[name]
+      : undefined;
     if (nestedAllowed === undefined) {
       continue;
     }
@@ -239,18 +237,8 @@ function buildAllowedRelations(
       continue;
     }
 
-    const nested = buildAllowedRelations(
-      nestedRequested,
-      nestedAllowed,
-      relationColumns,
-    );
-    const query: RelationQuery = {
-      ...(relationColumns[name] === undefined
-        ? {}
-        : { columns: relationColumns[name] }),
-      ...(Object.keys(nested).length > 0 ? { with: nested } : {}),
-    };
-    result[name] = Object.keys(query).length > 0 ? query : true;
+    const nested = buildAllowedRelations(nestedRequested, nestedAllowed);
+    result[name] = Object.keys(nested).length > 0 ? { with: nested } : true;
   }
 
   return result;

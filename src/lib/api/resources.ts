@@ -19,15 +19,6 @@ type BoardTermQueryConfiguration = Parameters<
   typeof db.query.boardTerm.findMany
 >[0];
 
-// Never exposed through the API, neither top-level nor via `include`.
-const memberHiddenColumns = { hrNotes: false };
-// Every relation name that resolves to the member table.
-const memberRelationColumns = {
-  member: memberHiddenColumns,
-  parent: memberHiddenColumns,
-  children: memberHiddenColumns,
-};
-
 const memberRelations: RelationSpec = {};
 const sectionRelations: RelationSpec = {};
 const projectRelations: RelationSpec = {};
@@ -106,11 +97,9 @@ export const memberApiConfig = {
     createdAt: member.createdAt,
     updatedAt: member.updatedAt,
   },
-  columnsSelection: memberHiddenColumns,
   defaultSort: "fullName",
   searchable: ["fullName", "githubUsername", "studentIndex", "bio"],
   relations: memberRelations,
-  relationColumns: memberRelationColumns,
 };
 
 export const projectApiConfig = {
@@ -139,7 +128,6 @@ export const projectApiConfig = {
   defaultSort: "name",
   searchable: ["name", "slug", "productionUrl"],
   relations: projectRelations,
-  relationColumns: memberRelationColumns,
 };
 
 export const sectionApiConfig = {
@@ -159,7 +147,6 @@ export const sectionApiConfig = {
   defaultSort: "name",
   searchable: ["name", "description"],
   relations: sectionRelations,
-  relationColumns: memberRelationColumns,
 };
 
 export const boardApiConfig = {
@@ -185,5 +172,4 @@ export const boardApiConfig = {
   defaultSort: "name",
   searchable: ["name", "description"],
   relations: boardTermRelations,
-  relationColumns: memberRelationColumns,
 };

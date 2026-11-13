@@ -141,6 +141,13 @@
       "when": 1783026560066,
       "tag": "0019_wide_skullbuster",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794589739656,
+      "tag": "0020_move_hr_notes_to_own_table",
+      "breakpoints": true
     }
   ]
 }
