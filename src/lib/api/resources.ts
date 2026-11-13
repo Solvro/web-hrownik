@@ -25,7 +25,6 @@ const projectRelations: RelationSpec = {};
 const teamRelations: RelationSpec = {};
 
 Object.assign(memberRelations, {
-  emails: {},
   parent: memberRelations,
   children: memberRelations,
   roleAssignments: {
@@ -98,7 +97,6 @@ export const memberApiConfig = {
     createdAt: member.createdAt,
     updatedAt: member.updatedAt,
   },
-  columnsSelection: { hrNotes: false },
   defaultSort: "fullName",
   searchable: ["fullName", "githubUsername", "studentIndex", "bio"],
   relations: memberRelations,

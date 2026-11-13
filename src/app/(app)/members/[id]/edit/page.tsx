@@ -28,6 +28,7 @@ export default async function EditMemberPage({
     with: {
       emails: true,
       roleAssignments: { with: { roleDefinition: true, section: true } },
+      hrNote: true,
     },
   });
   if (profile === undefined) {
@@ -98,7 +99,7 @@ export default async function EditMemberPage({
           studyField: profile.studyField ?? "",
           studyYear: toStudyYearInput(profile.studyYear),
           bio: profile.bio ?? "",
-          hrNotes: fullAccess ? (profile.hrNotes ?? "") : "",
+          hrNotes: fullAccess ? (profile.hrNote?.content ?? "") : "",
           status: profile.status,
           emails: profile.emails.map((email) => ({
             email: email.email,

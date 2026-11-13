@@ -11,6 +11,7 @@ import { roleAssignment, roleDefinition } from "@/db/schema/roles";
 import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
 import { reattributeActivityForMember } from "@/lib/integrations/github-activity";
+import { appendMemberHrNote, setMemberHrNote } from "@/lib/member-hr-notes";
 import type { MemberImportSheetType } from "@/lib/member-import";
 import { emailPattern, parseMemberImportFile } from "@/lib/member-import";
 import { runOnboardingAutomations } from "@/lib/onboarding";
@@ -59,10 +60,11 @@ export async function createMember(input: MemberFormValues) {
       studyField: emptyToNull(values.studyField),
       studyYear: emptyToNull(values.studyYear),
       bio: emptyToNull(values.bio),
-      hrNotes: emptyToNull(values.hrNotes),
       status: values.status,
     })
     .returning();
+
+  await setMemberHrNote(created.id, emptyToNull(values.hrNotes));
 
   if (values.emails.length > 0) {
     await db.insert(memberEmail).values(
@@ -223,16 +225,16 @@ export async function updateMember(
             bio: emptyToNull(values.bio),
           }),
         ...(isFullAccess &&
-          values.hrNotes !== undefined && {
-            hrNotes: emptyToNull(values.hrNotes),
-          }),
-        ...(isFullAccess &&
           values.status !== undefined && {
             status: values.status,
           }),
         updatedAt: new Date(),
       })
       .where(eq(member.id, memberId));
+
+    if (isFullAccess && values.hrNotes !== undefined) {
+      await setMemberHrNote(memberId, emptyToNull(values.hrNotes));
+    }
 
     if (isFullAccess && values.emails !== undefined) {
       await db.delete(memberEmail).where(eq(memberEmail.memberId, memberId));
@@ -606,7 +608,6 @@ export async function commitMemberImport(
     id: string;
     parentId: string | null;
     parentNameRaw: string | null;
-    hrNotes: string | null;
   }[] = [];
 
   for (const row of rows) {
@@ -658,12 +659,13 @@ export async function commitMemberImport(
           studyField: emptyToNull(row.studyField),
           studyYear: emptyToNull(row.studyYear),
           status: row.status,
-          hrNotes,
           ...(row.joinedAt !== "" && {
             createdAt: new Date(`${row.joinedAt}T00:00:00`),
           }),
         })
         .returning();
+
+      await setMemberHrNote(created.id, hrNotes);
 
       if (email !== null) {
         await db
@@ -700,7 +702,6 @@ export async function commitMemberImport(
         id: created.id,
         parentId: explicitParentId,
         parentNameRaw: row.parentNameRaw === "" ? null : row.parentNameRaw,
-        hrNotes,
       });
       results.push({
         rowNumber: row.rowNumber,
@@ -737,12 +738,7 @@ export async function commitMemberImport(
         candidates.length === 0
           ? `Rodzic (nie znaleziono w bazie): ${created.parentNameRaw}`
           : `Rodzic (niejednoznaczny — kilku członków o tym imieniu i nazwisku): ${created.parentNameRaw}`;
-      await db
-        .update(member)
-        .set({
-          hrNotes: [created.hrNotes, note].filter(Boolean).join("\n"),
-        })
-        .where(eq(member.id, created.id));
+      await appendMemberHrNote(created.id, note);
     }
   }
 

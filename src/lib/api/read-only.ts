@@ -33,6 +33,13 @@ interface EndpointConfig {
   columnsSelection?: Record<string, boolean>;
 }
 
+// Keys that would reach Object.prototype through plain-object property access.
+const FORBIDDEN_RELATION_KEYS = new Set([
+  "__proto__",
+  "constructor",
+  "prototype",
+]);
+
 const MAX_PAGE_SIZE = 100;
 const DEFAULT_PAGE_SIZE = 50;
 const RESERVED_PARAMS = new Set([
@@ -196,12 +203,17 @@ function buildRelations(
     return;
   }
 
-  const requestedTree: RelationSpec = {};
+  // Null-prototype objects: a request-controlled key like `__proto__` must
+  // never resolve to (and let us write onto) Object.prototype.
+  const requestedTree: RelationSpec = Object.create(null) as RelationSpec;
   for (const path of include.split(",")) {
     const parts = path.trim().split(".").filter(Boolean).slice(0, 5);
+    if (parts.some((part) => FORBIDDEN_RELATION_KEYS.has(part))) {
+      continue;
+    }
     let current = requestedTree;
     for (const part of parts) {
-      current[part] ??= {};
+      current[part] ??= Object.create(null) as RelationSpec;
       current = current[part];
     }
   }
@@ -213,7 +225,10 @@ function buildAllowedRelations(requested: RelationSpec, allowed: RelationSpec) {
   const result: Record<string, true | { with: Record<string, unknown> }> = {};
 
   for (const [name, nestedRequested] of Object.entries(requested)) {
-    const nestedAllowed = allowed[name];
+    // Own properties only: inherited keys like `constructor` must not pass.
+    const nestedAllowed = Object.hasOwn(allowed, name)
+      ? allowed[name]
+      : undefined;
     if (nestedAllowed === undefined) {
       continue;
     }
