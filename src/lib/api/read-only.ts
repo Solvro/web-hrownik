@@ -30,7 +30,6 @@ interface EndpointConfig {
   defaultSort: string;
   searchable?: string[];
   relations?: RelationSpec;
-  columnsSelection?: Record<string, boolean>;
 }
 
 // Keys that would reach Object.prototype through plain-object property access.
@@ -275,7 +274,6 @@ export async function listReadOnly(request: Request, config: EndpointConfig) {
 
   const [items, totalRows] = await Promise.all([
     config.query.findMany({
-      columns: config.columnsSelection,
       where,
       orderBy,
       limit: pageSize,
@@ -319,7 +317,6 @@ export async function getReadOnly(
   }
 
   const item = await config.query.findFirst({
-    columns: config.columnsSelection,
     where: eq(idColumn, id),
     ...(withRelations === undefined ? {} : { with: withRelations }),
   });

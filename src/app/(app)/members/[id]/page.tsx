@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/db";
 import { boardTerm } from "@/db/schema/boards";
 import { githubActivityEvent } from "@/db/schema/github";
-import { member } from "@/db/schema/members";
+import { member, memberHrNote } from "@/db/schema/members";
 import { roleAssignment, roleDefinition } from "@/db/schema/roles";
 import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
@@ -51,7 +51,6 @@ export default async function MemberProfilePage({
         with: { team: { with: { project: true } }, roleDefinition: true },
       },
       parent: true,
-      hrNote: true,
     },
   });
   if (profile === undefined) {
@@ -98,6 +97,11 @@ export default async function MemberProfilePage({
   const canManageRoles =
     permissions !== null && can(permissions, "roles", "write");
   const canViewHrNotes = canManageMembers;
+  const hrNote = canViewHrNotes
+    ? await db.query.memberHrNote.findFirst({
+        where: eq(memberHrNote.memberId, id),
+      })
+    : undefined;
 
   const [roleDefinitions, boardTerms, sections] = canManageRoles
     ? await Promise.all([
@@ -247,7 +251,7 @@ export default async function MemberProfilePage({
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground text-sm whitespace-pre-wrap">
-              {profile.hrNote?.content ?? "—"}
+              {hrNote?.content ?? "—"}
             </p>
           </CardContent>
         </Card>

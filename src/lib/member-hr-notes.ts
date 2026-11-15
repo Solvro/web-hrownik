@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { memberHrNote } from "@/db/schema/members";
@@ -28,11 +28,16 @@ export async function appendMemberHrNote(
   memberId: string,
   line: string,
 ): Promise<void> {
-  const existing = await db.query.memberHrNote.findFirst({
-    where: eq(memberHrNote.memberId, memberId),
-  });
-  await setMemberHrNote(
-    memberId,
-    existing === undefined ? line : `${existing.content}\n${line}`,
-  );
+  const now = new Date();
+  // Single upsert so concurrent appends to the same member can't drop a line.
+  await db
+    .insert(memberHrNote)
+    .values({ memberId, content: line, updatedAt: now })
+    .onConflictDoUpdate({
+      target: memberHrNote.memberId,
+      set: {
+        content: sql`${memberHrNote.content} || E'\n' || excluded.content`,
+        updatedAt: now,
+      },
+    });
 }
