@@ -9,7 +9,7 @@ import {
   projectRepository,
   teamRepository,
 } from "./github";
-import { member, memberEmail } from "./members";
+import { member, memberEmail, memberHrNote } from "./members";
 import { project, projectStatus, team, teamMember } from "./projects";
 import {
   permissionGrant,
@@ -33,10 +33,18 @@ export const memberRelations = relations(member, ({ many, one }) => ({
   }),
   children: many(member, { relationName: "memberParent" }),
   emails: many(memberEmail),
+  hrNote: one(memberHrNote),
   sections: many(memberSection),
   roleAssignments: many(roleAssignment),
   teamMemberships: many(teamMember),
   activityEvents: many(githubActivityEvent),
+}));
+
+export const memberHrNoteRelations = relations(memberHrNote, ({ one }) => ({
+  member: one(member, {
+    fields: [memberHrNote.memberId],
+    references: [member.id],
+  }),
 }));
 
 export const memberEmailRelations = relations(memberEmail, ({ one }) => ({

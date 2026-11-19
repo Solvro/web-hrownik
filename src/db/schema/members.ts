@@ -27,9 +27,18 @@ export const member = pgTable("member", {
   studyField: text("study_field"),
   studyYear: text("study_year"),
   bio: text("bio"),
-  hrNotes: text("hr_notes"),
   status: memberStatusEnum("status").notNull().default("active"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Board-only notes live outside `member` so no generic read of member rows
+// (e.g. the public API's `include`) can ever reach them.
+export const memberHrNote = pgTable("member_hr_note", {
+  memberId: text("member_id")
+    .primaryKey()
+    .references(() => member.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 

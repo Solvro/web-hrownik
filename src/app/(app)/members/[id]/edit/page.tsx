@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { MemberForm } from "@/components/members/member-form";
 import { db } from "@/db";
 import { boardTerm } from "@/db/schema/boards";
-import { member } from "@/db/schema/members";
+import { member, memberHrNote } from "@/db/schema/members";
 import { roleDefinition } from "@/db/schema/roles";
 import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
@@ -50,6 +50,12 @@ export default async function EditMemberPage({
       </p>
     );
   }
+
+  const hrNote = fullAccess
+    ? await db.query.memberHrNote.findFirst({
+        where: eq(memberHrNote.memberId, id),
+      })
+    : undefined;
 
   const [
     sections,
@@ -98,7 +104,7 @@ export default async function EditMemberPage({
           studyField: profile.studyField ?? "",
           studyYear: toStudyYearInput(profile.studyYear),
           bio: profile.bio ?? "",
-          hrNotes: fullAccess ? (profile.hrNotes ?? "") : "",
+          hrNotes: hrNote?.content ?? "",
           status: profile.status,
           emails: profile.emails.map((email) => ({
             email: email.email,

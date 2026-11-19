@@ -2,8 +2,8 @@ import { and, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { boardTerm } from "@/db/schema/boards";
-import { member } from "@/db/schema/members";
 import { roleAssignment, roleDefinition } from "@/db/schema/roles";
+import { appendMemberHrNote } from "@/lib/member-hr-notes";
 
 const DIRECTUS_URL =
   process.env.DIRECTUS_BOARD_URL ??
@@ -250,13 +250,7 @@ async function main() {
       if (dryRun) {
         console.info(`Would add "${note}" to hrNotes for ${memberName}`);
       } else {
-        const currentNotes = memberRow.hrNotes ?? "";
-        const newNotes =
-          currentNotes === "" ? note : `${currentNotes}\n${note}`;
-        await db
-          .update(member)
-          .set({ hrNotes: newNotes })
-          .where(eq(member.id, memberRow.id));
+        await appendMemberHrNote(memberRow.id, note);
       }
       processedHrNotesMemberIds.add(memberRow.id);
       hrNotesUpdated++;
