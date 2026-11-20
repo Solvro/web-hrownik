@@ -7,4 +7,5 @@ export * from "./schema/boards";
 export * from "./schema/roles";
 export * from "./schema/github";
 export * from "./schema/api-keys";
+export * from "./schema/recruitment";
 export * from "./schema/relations";

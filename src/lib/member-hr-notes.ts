@@ -1,5 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 
+import type { DatabaseExecutor } from "@/db";
 import { db } from "@/db";
 import { memberHrNote } from "@/db/schema/members";
 
@@ -7,14 +8,17 @@ import { memberHrNote } from "@/db/schema/members";
 export async function setMemberHrNote(
   memberId: string,
   content: string | null,
+  executor: DatabaseExecutor = db,
 ): Promise<void> {
   if (content === null || content.trim() === "") {
-    await db.delete(memberHrNote).where(eq(memberHrNote.memberId, memberId));
+    await executor
+      .delete(memberHrNote)
+      .where(eq(memberHrNote.memberId, memberId));
     return;
   }
 
   const now = new Date();
-  await db
+  await executor
     .insert(memberHrNote)
     .values({ memberId, content, updatedAt: now })
     .onConflictDoUpdate({

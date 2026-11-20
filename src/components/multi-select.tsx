@@ -31,11 +31,17 @@ export function MultiSelect({
   value,
   onChange,
   placeholder = "Wybierz...",
+  id,
+  "aria-label": ariaLabel,
+  "aria-invalid": ariaInvalid,
 }: {
   options: MultiSelectOption[];
   value: string[];
   onChange: (value: string[]) => void;
   placeholder?: string;
+  id?: string;
+  "aria-label"?: string;
+  "aria-invalid"?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const listboxId = useId();
@@ -58,6 +64,7 @@ export function MultiSelect({
               {option.label}
               <button
                 type="button"
+                aria-label={`Usuń: ${option.label}`}
                 onClick={() => {
                   toggle(option.value);
                 }}
@@ -76,6 +83,9 @@ export function MultiSelect({
             role="combobox"
             aria-expanded={open}
             aria-controls={listboxId}
+            aria-label={ariaLabel}
+            aria-invalid={ariaInvalid}
+            id={id}
             className="w-full justify-between font-normal"
           >
             <span className="text-muted-foreground">

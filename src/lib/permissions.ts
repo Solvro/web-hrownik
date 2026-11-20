@@ -163,6 +163,25 @@ export function can(
   return permissions.grants.has(grantKey(resource, action));
 }
 
+/**
+ * Throws unless the member holds the grant. For logic shared by server
+ * actions and tests, where the caller has already resolved the session.
+ */
+export async function assertCan(
+  memberId: string | null,
+  resource: PermissionResourceKey,
+  action: string,
+  deniedMessage: string,
+): Promise<void> {
+  if (memberId === null) {
+    throw new Error("Unauthorized");
+  }
+  const permissions = await getMemberPermissions(memberId);
+  if (!can(permissions, resource, action)) {
+    throw new Error(deniedMessage);
+  }
+}
+
 /** Board (or anyone with projects:write) manages every project; a project's own leads manage only that one. */
 export function canManageProject(
   permissions: MemberPermissions,

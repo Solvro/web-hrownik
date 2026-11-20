@@ -5,11 +5,10 @@ import { useMemo, useState } from "react";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import * as z from "zod";
 
-import type {
-  MemberImportPreviewResult,
-  MemberImportSummary,
+import {
+  commitLegacyMemberImport,
+  previewLegacyMemberImport,
 } from "@/actions/members";
-import { commitMemberImport, previewMemberImport } from "@/actions/members";
 import { MultiSelect } from "@/components/multi-select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,6 +37,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { LegacyImportPreviewResult } from "@/lib/member-import/legacy";
+import type { ImportSummary } from "@/lib/member-import/summary";
 import type { MemberImportFormValues } from "@/lib/schemas/members";
 import {
   memberImportCommitSchema,
@@ -51,11 +52,11 @@ const sheetTypeLabels: Record<MemberImportFormValues["sheetType"], string> = {
   honorary: "Honorowi",
 };
 
-export function MemberImportForm() {
-  const [preview, setPreview] = useState<MemberImportPreviewResult | null>(
+export function LegacyMemberImportForm() {
+  const [preview, setPreview] = useState<LegacyImportPreviewResult | null>(
     null,
   );
-  const [summary, setSummary] = useState<MemberImportSummary | null>(null);
+  const [summary, setSummary] = useState<ImportSummary | null>(null);
 
   if (summary !== null) {
     return (
@@ -92,7 +93,7 @@ export function MemberImportForm() {
 function MemberImportUploadForm({
   onParsed,
 }: {
-  onParsed: (preview: MemberImportPreviewResult) => void;
+  onParsed: (preview: LegacyImportPreviewResult) => void;
 }) {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -105,7 +106,10 @@ function MemberImportUploadForm({
     setSubmitError(null);
     try {
       const fileContents = await values.file.text();
-      const preview = await previewMemberImport(values.sheetType, fileContents);
+      const preview = await previewLegacyMemberImport(
+        values.sheetType,
+        fileContents,
+      );
       onParsed(preview);
     } catch (error) {
       setSubmitError(
@@ -201,9 +205,9 @@ function MemberImportReviewTable({
   onBack,
   onCommitted,
 }: {
-  preview: MemberImportPreviewResult;
+  preview: LegacyImportPreviewResult;
   onBack: () => void;
-  onCommitted: (summary: MemberImportSummary) => void;
+  onCommitted: (summary: ImportSummary) => void;
 }) {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -240,7 +244,7 @@ function MemberImportReviewTable({
   async function onSubmit(values: ReviewFormValues) {
     setSubmitError(null);
     try {
-      const summary = await commitMemberImport(values.rows);
+      const summary = await commitLegacyMemberImport(values.rows);
       onCommitted(summary);
     } catch (error) {
       setSubmitError(
@@ -416,7 +420,7 @@ function MemberImportReviewTable({
   );
 }
 
-function ImportSummaryView({ summary }: { summary: MemberImportSummary }) {
+function ImportSummaryView({ summary }: { summary: ImportSummary }) {
   const problemRows = summary.rows.filter((row) => row.outcome !== "created");
 
   return (
