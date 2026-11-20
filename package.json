@@ -45,6 +45,7 @@
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "react-hook-form": "^7.92.0",
+    "read-excel-file": "^9.3.20",
     "recharts": "3.10.1",
     "shadcn": "^4.23.0",
     "tailwind-merge": "^3.7.0",
@@ -68,7 +69,10 @@
     "prettier": "^3.9.10",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
-    "typescript": "^6"
+    "typescript": "^6",
+    "vite": "^8.3.8",
+    "vitest": "^4.1.12",
+    "write-excel-file": "^4.1.1"
   },
   "packageManager": "pnpm@10.18.0",
   "engines": {
