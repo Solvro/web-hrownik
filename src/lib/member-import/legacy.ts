@@ -57,7 +57,8 @@ export interface ParsedMemberImportRow {
   studyYear: string | null;
   sectionNames: string[];
   parentName: string | null;
-  joinedAt: Date | null;
+  /** As written in the sheet (YYYY-MM-DD), so no time zone shifts it. */
+  joinedAt: string | null;
   noteLines: string[];
 }
 
@@ -247,11 +248,11 @@ export function parseMemberImportFile(
       rawYear === undefined ? null : normalizeStudyYear(rawYear);
 
     const rawJoinedAt = cleanText(get(row, commonHeaders.joinedAt));
-    let joinedAt: Date | null = null;
-    if (rawJoinedAt !== undefined) {
-      const parsed = new Date(`${rawJoinedAt}T00:00:00`);
-      joinedAt = Number.isNaN(parsed.getTime()) ? null : parsed;
-    }
+    const joinedAt =
+      rawJoinedAt === undefined ||
+      Number.isNaN(new Date(`${rawJoinedAt}T00:00:00`).getTime())
+        ? null
+        : rawJoinedAt;
 
     const sectionNames: string[] = [];
     switch (sheetType) {
@@ -504,8 +505,7 @@ export async function previewLegacyImport({
       studyDepartment: row.studyDepartment ?? "",
       studyField: row.studyField ?? "",
       studyYear: row.studyYear ?? "",
-      joinedAt:
-        row.joinedAt === null ? "" : row.joinedAt.toISOString().slice(0, 10),
+      joinedAt: row.joinedAt ?? "",
       sectionNames: row.sectionNames,
       parentId: parentCandidates.length === 1 ? parentCandidates[0] : "",
       parentNameRaw: row.parentName ?? "",
