@@ -18,6 +18,7 @@
     "lint": "eslint . --max-warnings=0",
     "prepare": "husky || true",
     "start": "next start",
+    "test": "vitest run",
     "types:check": "tsc --noEmit",
     "types:generate": "next typegen",
     "update:section-join-date": "tsx --env-file=.env scripts/update-section-join-date.ts"
