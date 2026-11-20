@@ -51,6 +51,19 @@ export async function getUniversityInfoOptions(): Promise<UniversityInfoOptions>
   return toUniversityInfoOptions(payload.data);
 }
 
+/**
+ * For flows that work without study data (the recruitment import): empty
+ * options instead of an error when ToPWR is unreachable.
+ */
+export async function getUniversityInfoOptionsOrEmpty(): Promise<UniversityInfoOptions> {
+  try {
+    return await getUniversityInfoOptions();
+  } catch (error) {
+    console.warn("ToPWR is unavailable, continuing without study data:", error);
+    return { departments: [], fieldsOfStudy: [] };
+  }
+}
+
 export function toUniversityInfoOptions(
   data: TopwrDepartment[],
 ): UniversityInfoOptions {

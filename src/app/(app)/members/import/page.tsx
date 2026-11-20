@@ -1,11 +1,13 @@
 import { asc } from "drizzle-orm";
+import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
 
 import { RecruitmentImportWizard } from "@/components/members/import/recruitment-import-wizard";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { db } from "@/db";
 import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
-import { getUniversityInfoOptions } from "@/lib/integrations/topwr";
+import { getUniversityInfoOptionsOrEmpty } from "@/lib/integrations/topwr";
 import { can, getMemberPermissions } from "@/lib/permissions";
 
 export default async function ImportMembersPage() {
@@ -25,7 +27,7 @@ export default async function ImportMembersPage() {
 
   const [sections, universityInfo] = await Promise.all([
     db.query.section.findMany({ orderBy: asc(section.name) }),
-    getUniversityInfoOptions(),
+    getUniversityInfoOptionsOrEmpty(),
   ]);
   // Today in Poland as YYYY-MM-DD (the en-CA locale formats dates that way).
   const today = new Date().toLocaleDateString("en-CA", {
@@ -51,6 +53,17 @@ export default async function ImportMembersPage() {
           Import starego arkusza (legacy)
         </Link>
       </div>
+      {universityInfo.departments.length === 0 ? (
+        <Alert className="max-w-3xl">
+          <TriangleAlert />
+          <AlertTitle>Brak danych o wydziałach i kierunkach z ToPWR</AlertTitle>
+          <AlertDescription>
+            ToPWR jest teraz niedostępne. Import zadziała, ale bez wydziału i
+            kierunku — uzupełnisz je później na profilach albo spróbuj za
+            chwilę.
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <RecruitmentImportWizard
         sections={sections.map(({ id, name }) => ({ id, name }))}
         universityInfo={universityInfo}

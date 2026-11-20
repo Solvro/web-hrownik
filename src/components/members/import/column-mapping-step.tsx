@@ -83,10 +83,12 @@ const confidenceLabels: Record<MappingConfidence, string> = {
 
 export function ColumnMappingStep({
   analysis,
+  hasEditedRows,
   onBack,
   onConfirm,
 }: {
   analysis: RecruitmentAnalysis;
+  hasEditedRows: boolean;
   onBack: () => void;
   onConfirm: (mapping: ColumnMapping) => Promise<string | null>;
 }) {
@@ -126,6 +128,13 @@ export function ColumnMappingStep({
         termin rozmowy, wolne myśli czy wstępne wybory sekcji — nie są
         importowane.
       </p>
+
+      {hasEditedRows ? (
+        <p className="text-sm">
+          Poprawki z podglądu zostaną zachowane, jeśli nie zmienisz mapowania.
+          Zmiana mapowania wczyta wiersze z pliku od nowa.
+        </p>
+      ) : null}
 
       {analysis.missingFields.length === 0 ? null : (
         <Alert variant="destructive">

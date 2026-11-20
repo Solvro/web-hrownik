@@ -10,7 +10,7 @@ import { teamMember } from "@/db/schema/projects";
 import { roleAssignment, roleDefinition } from "@/db/schema/roles";
 import { getCurrentMember } from "@/lib/current-member";
 import { reattributeActivityForMember } from "@/lib/integrations/github-activity";
-import { getUniversityInfoOptions } from "@/lib/integrations/topwr";
+import { getUniversityInfoOptionsOrEmpty } from "@/lib/integrations/topwr";
 import { setMemberHrNote } from "@/lib/member-hr-notes";
 import type {
   LegacyImportPreviewResult,
@@ -43,6 +43,7 @@ import type {
   MemberImportCommitInput,
 } from "@/lib/schemas/members";
 import { revokeTeamAccess } from "@/lib/team-sync";
+import { emptyToNull } from "@/lib/utils";
 
 export async function createMember(input: MemberFormValues) {
   const currentMember = await getCurrentMember();
@@ -402,7 +403,7 @@ export async function analyzeRecruitmentImport(
     actorMemberId: currentMember?.id ?? null,
     file: formData.get("file"),
     mapping: formData.get("mapping") ?? undefined,
-    university: await getUniversityInfoOptions(),
+    university: await getUniversityInfoOptionsOrEmpty(),
   });
 }
 
@@ -414,16 +415,12 @@ export async function commitRecruitmentImport(
   const result = await commitRecruitmentRows({
     actorMemberId: currentMember?.id ?? null,
     input,
-    university: await getUniversityInfoOptions(),
+    university: await getUniversityInfoOptionsOrEmpty(),
   });
   if (result.ok && result.summary.created > 0) {
     revalidatePath("/members");
   }
   return result;
-}
-
-function emptyToNull(value: string | undefined): string | null {
-  return value === undefined || value === "" ? null : value;
 }
 
 function normalizeEmail(email: string): string {

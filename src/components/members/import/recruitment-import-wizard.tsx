@@ -25,14 +25,11 @@ import { cn } from "@/lib/utils";
 type WizardState =
   | { step: "upload" }
   | {
-      step: "mapping";
+      step: "mapping" | "preview";
       upload: RecruitmentUpload;
       analysis: RecruitmentAnalysis;
-    }
-  | {
-      step: "preview";
-      upload: RecruitmentUpload;
-      analysis: RecruitmentAnalysis;
+      /** Rows as edited in the preview, kept while the mapping stays the same. */
+      editedRows?: RecruitmentImportRowInput[];
     }
   | { step: "summary"; summary: ImportSummary<RecruitmentImportRowResult> };
 
@@ -84,10 +81,11 @@ export function RecruitmentImportWizard({
   async function onMappingConfirmed(
     upload: RecruitmentUpload,
     analysis: RecruitmentAnalysis,
+    editedRows: RecruitmentImportRowInput[] | undefined,
     mapping: ColumnMapping,
   ): Promise<string | null> {
     if (sameMapping(mapping, analysis.mapping) && analysis.rows.length > 0) {
-      setState({ step: "preview", upload, analysis });
+      setState({ step: "preview", upload, analysis, editedRows });
       return null;
     }
     const result = await analyze(upload.file, mapping);
@@ -142,11 +140,17 @@ export function RecruitmentImportWizard({
         <ColumnMappingStep
           key={JSON.stringify(state.analysis.mapping)}
           analysis={state.analysis}
+          hasEditedRows={state.editedRows !== undefined}
           onBack={() => {
             setState({ step: "upload" });
           }}
           onConfirm={async (mapping) =>
-            onMappingConfirmed(state.upload, state.analysis, mapping)
+            onMappingConfirmed(
+              state.upload,
+              state.analysis,
+              state.editedRows,
+              mapping,
+            )
           }
         />
       ) : null}
@@ -154,10 +158,11 @@ export function RecruitmentImportWizard({
       {state.step === "preview" ? (
         <ImportPreviewTable
           analysis={state.analysis}
+          initialRows={state.editedRows}
           sections={sections}
           universityInfo={universityInfo}
-          onBack={() => {
-            setState({ ...state, step: "mapping" });
+          onBack={(editedRows) => {
+            setState({ ...state, step: "mapping", editedRows });
           }}
           onSubmit={async (rows) => onCommit(state.upload, rows)}
         />

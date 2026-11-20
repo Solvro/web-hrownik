@@ -247,6 +247,19 @@ describe("analyzing an Eventownik export", () => {
     expect(analysis.rows).toEqual([]);
   });
 
+  it("numbers rows as in the spreadsheet, blank rows included", async () => {
+    const [headers, first, second] = eventownikTable();
+
+    const analysis = await analyzeOk(
+      xlsxFile([[], headers, first, [], second]),
+    );
+
+    expect(analysis.rows.map((r) => [r.rowNumber, r.fullName])).toEqual([
+      [3, "Anna Testowa"],
+      [5, "Bartłomiej Przykładowy"],
+    ]);
+  });
+
   it("accepts the same export saved as CSV", async () => {
     const csv = eventownikTable()
       .map((cells) =>
@@ -523,20 +536,27 @@ describe("committing a recruitment import", () => {
       "a field from another department",
       { studyDepartment: "Wydział Matematyki" },
     ],
-  ])("rejects a row with %s", async (_, change) => {
+    ["a field without its department", { studyDepartment: "" }],
+  ])("fails only the row with %s", async (_, change) => {
     const analysis = await analyzeOk();
 
-    const result = await commitRecruitmentRows({
-      actorMemberId: adminId,
-      input: { edition, joinedAt, rows: [{ ...row(analysis, 2), ...change }] },
-      university,
-    });
+    const summary = await commit([
+      { ...row(analysis, 2), ...change },
+      row(analysis, 7),
+    ]);
 
-    expect(result).toEqual({
-      ok: false,
-      error: "Nieznany wydział lub kierunek (wiersze: 2).",
-    });
-    expect(await importedMembers()).toEqual([]);
+    expect(summary.rows).toEqual([
+      {
+        rowNumber: 2,
+        fullName: "Anna Testowa",
+        outcome: "error",
+        detail: "Nieznany wydział lub kierunek — wybierz je z listy ToPWR.",
+      },
+      expect.objectContaining({ rowNumber: 7, outcome: "created" }),
+    ]);
+    expect((await importedMembers()).map((m) => m.fullName)).toEqual([
+      "Filip Literówka",
+    ]);
   });
 
   it("skips rows the board left unticked", async () => {

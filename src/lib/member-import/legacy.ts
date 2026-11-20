@@ -20,6 +20,7 @@ import type {
   MemberImportCommitInput,
   MemberStatus,
 } from "@/lib/schemas/members";
+import { emptyToNull } from "@/lib/utils";
 
 import { extractGithubUsername } from "./normalize";
 import type { ImportRowResult, ImportSummary } from "./summary";
@@ -144,7 +145,7 @@ function cleanText(value: string | undefined): string | undefined {
   return trimmed;
 }
 
-function splitList(value: string | undefined): string[] {
+function splitCommaList(value: string | undefined): string[] {
   const cleaned = cleanText(value);
   if (cleaned === undefined) {
     return [];
@@ -159,7 +160,7 @@ function splitList(value: string | undefined): string[] {
 
 const emailPattern = /^[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+$/;
 
-function normalizeStudyYear(raw: string): string {
+function fixStudyYearSpelling(raw: string): string {
   return raw
     .replace(/inżynierki$/i, "inżynierski")
     .replace(/magisterki$/i, "magisterski");
@@ -248,7 +249,7 @@ function parseMemberImportFile(
 
     const rawYear = cleanText(get(row, commonHeaders.year));
     const studyYear =
-      rawYear === undefined ? null : normalizeStudyYear(rawYear);
+      rawYear === undefined ? null : fixStudyYearSpelling(rawYear);
 
     const rawJoinedAt = cleanText(get(row, commonHeaders.joinedAt));
     const joinedAt =
@@ -261,8 +262,8 @@ function parseMemberImportFile(
     switch (sheetType) {
       case "active": {
         sectionNames.push(
-          ...splitList(get(row, "Główna sekcja")),
-          ...splitList(get(row, "Inne sekcje")),
+          ...splitCommaList(get(row, "Główna sekcja")),
+          ...splitCommaList(get(row, "Inne sekcje")),
         );
         addNote(
           noteLines,
@@ -279,7 +280,7 @@ function parseMemberImportFile(
         break;
       }
       case "new": {
-        sectionNames.push(...splitList(get(row, "Obecna sekcja")));
+        sectionNames.push(...splitCommaList(get(row, "Obecna sekcja")));
         addNote(
           noteLines,
           "Obecny projekt",
@@ -290,7 +291,7 @@ function parseMemberImportFile(
         break;
       }
       case "honorary": {
-        sectionNames.push(...splitList(get(row, "Sekcje")));
+        sectionNames.push(...splitCommaList(get(row, "Sekcje")));
         addNote(noteLines, "Projekty", cleanText(get(row, "Projekty")));
         addNote(
           noteLines,
@@ -302,7 +303,7 @@ function parseMemberImportFile(
         break;
       }
       case "inactive": {
-        sectionNames.push(...splitList(get(row, "Sekcje")));
+        sectionNames.push(...splitCommaList(get(row, "Sekcje")));
         addNote(noteLines, "Projekty", cleanText(get(row, "Projekty")));
         addNote(
           noteLines,
@@ -586,6 +587,7 @@ export async function commitLegacyImport({
   }
 
   const results: ImportRowResult[] = [];
+  let sectionMemberRole: { id: string } | undefined;
   const createdRows: {
     id: string;
     parentId: string | null;
@@ -628,8 +630,13 @@ export async function commitLegacyImport({
         row.noteLines.length > 0 ? row.noteLines.join("\n") : null;
       const explicitParentId = row.parentId === "" ? null : row.parentId;
 
-      const sectionMemberRole =
-        sectionIds.length > 0 ? await getSectionMemberRole(db) : null;
+      if (sectionIds.length > 0) {
+        sectionMemberRole ??= await getSectionMemberRole(db);
+      }
+      const sectionRoleId =
+        sectionIds.length > 0 && sectionMemberRole !== undefined
+          ? sectionMemberRole.id
+          : null;
 
       const created = await db.transaction(async (tx) =>
         createMemberRecord(tx, {
@@ -651,10 +658,10 @@ export async function commitLegacyImport({
           hrNotes,
           emails: email === null ? [] : [{ email, kind: row.emailKind }],
           roleAssignments:
-            sectionMemberRole === null
+            sectionRoleId === null
               ? []
               : sectionIds.map((sectionId) => ({
-                  roleDefinitionId: sectionMemberRole.id,
+                  roleDefinitionId: sectionRoleId,
                   boardTermId: null,
                   sectionId,
                   projectId: null,
@@ -719,8 +726,4 @@ export async function commitLegacyImport({
   }
 
   return summarizeImport(results);
-}
-
-function emptyToNull(value: string): string | null {
-  return value === "" ? null : value;
 }

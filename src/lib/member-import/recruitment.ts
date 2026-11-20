@@ -16,6 +16,7 @@ import {
   recruitmentAnalyzeInputSchema,
   recruitmentCommitSchema,
 } from "@/lib/schemas/member-import";
+import { emptyToNull } from "@/lib/utils";
 
 import type {
   ColumnMapping,
@@ -170,13 +171,6 @@ export async function commitRecruitmentRows({
   }
   const { edition, joinedAt } = parsed.data;
   const rows = parsed.data.rows.filter((row) => row.include);
-  const unknownStudies = rows.filter((row) => !isKnownStudies(row, university));
-  if (unknownStudies.length > 0) {
-    return {
-      ok: false,
-      error: `Nieznany wydział lub kierunek (wiersze: ${unknownStudies.map((row) => row.rowNumber).join(", ")}).`,
-    };
-  }
   const startedAt = new Date(`${joinedAt}T00:00:00`);
 
   const identities = await loadMemberIdentities(db);
@@ -198,8 +192,19 @@ export async function commitRecruitmentRows({
       continue;
     }
 
+    if (!isKnownStudies(row, university)) {
+      results.push({
+        rowNumber: row.rowNumber,
+        fullName: row.fullName,
+        outcome: "error",
+        detail: "Nieznany wydział lub kierunek — wybierz je z listy ToPWR.",
+      });
+      continue;
+    }
+
+    let created: typeof member.$inferSelect;
     try {
-      const created = await db.transaction(async (tx) => {
+      created = await db.transaction(async (tx) => {
         const createdMember = await createMemberRecord(tx, {
           values: {
             fullName: row.fullName,
@@ -231,23 +236,6 @@ export async function commitRecruitmentRows({
         });
         return createdMember;
       });
-      rememberIdentity(identities, identity, {
-        kind: "member",
-        name: created.fullName,
-      });
-
-      const onboarding = await runOnboardingAutomations({
-        member: { githubUsername: created.githubUsername },
-        sendGithubInvite: row.onboarding.githubInvite,
-        sendDiscordInvite: row.onboarding.discordInvite,
-      });
-      results.push({
-        rowNumber: row.rowNumber,
-        fullName: row.fullName,
-        outcome: "created",
-        memberId: created.id,
-        onboarding,
-      });
     } catch (error) {
       console.error(
         "[commitRecruitmentRows] row %d failed",
@@ -260,7 +248,27 @@ export async function commitRecruitmentRows({
         outcome: "error",
         detail: describeRowError(error),
       });
+      continue;
     }
+    rememberIdentity(identities, identity, {
+      kind: "member",
+      name: created.fullName,
+    });
+
+    // After the row's transaction: invites are side effects outside the
+    // database and never undo (or misreport) the created member.
+    const onboarding = await runOnboardingAutomations({
+      member: { githubUsername: created.githubUsername },
+      sendGithubInvite: row.onboarding.githubInvite,
+      sendDiscordInvite: row.onboarding.discordInvite,
+    });
+    results.push({
+      rowNumber: row.rowNumber,
+      fullName: row.fullName,
+      outcome: "created",
+      memberId: created.id,
+      onboarding,
+    });
   }
 
   return { ok: true, summary: summarizeImport(results) };
@@ -291,7 +299,7 @@ function buildRecruitmentPreview({
   };
 
   for (const [dataRowIndex, cells] of table.rows.entries()) {
-    const rowNumber = dataRowIndex + 2; // 1-based, after the header row
+    const rowNumber = table.firstRowNumber + dataRowIndex;
     const read = (field: RecruitmentImportField) => {
       const columnIndex = mapping[field];
       return columnIndex === undefined
@@ -509,25 +517,26 @@ async function loadMemberIdentities(
   return index;
 }
 
-/** Department and field must come from ToPWR (as the pickers offer them) and agree. */
+/**
+ * Department and field must come from ToPWR (as the pickers offer them); a
+ * field of study always comes with its own department.
+ */
 function isKnownStudies(
   row: RecruitmentImportRow,
   university: UniversityReference,
 ): boolean {
-  const departmentKnown =
+  if (row.studyField !== "") {
+    return university.fieldsOfStudy.some(
+      (field) =>
+        field.value === row.studyField &&
+        field.department === row.studyDepartment,
+    );
+  }
+  return (
     row.studyDepartment === "" ||
     university.departments.some(
       (department) => department.value === row.studyDepartment,
-    );
-  const field = university.fieldsOfStudy.find(
-    (option) => option.value === row.studyField,
-  );
-  return (
-    departmentKnown &&
-    (row.studyField === "" ||
-      (field !== undefined &&
-        (row.studyDepartment === "" ||
-          field.department === row.studyDepartment)))
+    )
   );
 }
 
@@ -623,8 +632,4 @@ function rawValueWarning(message: string, raw: string): string {
 
 function memberOwner(name: string): IdentityOwner {
   return { kind: "member", name };
-}
-
-function emptyToNull(value: string): string | null {
-  return value === "" ? null : value;
 }

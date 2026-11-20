@@ -49,24 +49,29 @@ const emptySelectValue = "__empty";
 
 export function ImportPreviewTable({
   analysis,
+  initialRows,
   sections,
   universityInfo,
   onBack,
   onSubmit,
 }: {
   analysis: RecruitmentAnalysis;
+  /** Earlier edits of the same rows, when coming back from the mapping step. */
+  initialRows?: RecruitmentImportRowInput[];
   sections: { id: string; name: string }[];
   universityInfo: UniversityInfoOptions;
-  onBack: () => void;
+  onBack: (editedRows: RecruitmentImportRowInput[]) => void;
   onSubmit: (rows: RecruitmentImportRowInput[]) => Promise<string | null>;
 }) {
   const [showAll, setShowAll] = useState(false);
   const form = useForm<PreviewFormInput, unknown, PreviewFormValues>({
     resolver: zodResolver(previewFormSchema),
     defaultValues: {
-      rows: analysis.rows.map(
-        ({ accepted, warnings, duplicateReason, ...row }) => row,
-      ),
+      rows:
+        initialRows ??
+        analysis.rows.map(
+          ({ accepted, warnings, duplicateReason, ...row }) => row,
+        ),
     },
   });
   const { fields } = useFieldArray({ control: form.control, name: "rows" });
@@ -196,7 +201,13 @@ export function ImportPreviewTable({
             ? "Importuję…"
             : `Importuj zaznaczonych (${includedCount})`}
         </Button>
-        <Button type="button" variant="outline" onClick={onBack}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            onBack(form.getValues("rows"));
+          }}
+        >
           Wróć do mapowania
         </Button>
       </div>
@@ -344,7 +355,6 @@ function PreviewRow({
                 );
                 if (
                   currentField !== undefined &&
-                  next !== "" &&
                   currentField.department !== next
                 ) {
                   form.setValue(`rows.${index}.studyField`, "");
@@ -372,7 +382,19 @@ function PreviewRow({
             <Combobox
               options={fieldOptions}
               value={field.value}
-              onValueChange={field.onChange}
+              onValueChange={(value) => {
+                field.onChange(value);
+                // A field of study always belongs to its own department.
+                const picked = universityInfo.fieldsOfStudy.find(
+                  (option) => option.value === value,
+                );
+                if (picked !== undefined) {
+                  form.setValue(
+                    `rows.${index}.studyDepartment`,
+                    picked.department,
+                  );
+                }
+              }}
               placeholder="Kierunek"
               aria-label={label("Kierunek")}
             />
