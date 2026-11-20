@@ -1,4 +1,4 @@
-import { MemberImportForm } from "@/components/members/member-import-form";
+import { LegacyMemberImportForm } from "@/components/members/legacy-member-import-form";
 import { getCurrentMember } from "@/lib/current-member";
 import { can, getMemberPermissions } from "@/lib/permissions";
 
@@ -26,7 +26,7 @@ export default async function ImportMembersPage() {
         już istniejący członek zostaną pominięte, więc plik można wgrać ponownie
         bez tworzenia duplikatów.
       </p>
-      <MemberImportForm />
+      <LegacyMemberImportForm />
     </div>
   );
 }
