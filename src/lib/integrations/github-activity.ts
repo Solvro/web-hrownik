@@ -1,6 +1,7 @@
 import type { Octokit } from "@octokit/rest";
 import { and, desc, eq, gte, ilike, isNotNull, isNull, sql } from "drizzle-orm";
 
+import type { DatabaseExecutor } from "@/db";
 import { db } from "@/db";
 import { githubActivityEvent } from "@/db/schema/github";
 import { member } from "@/db/schema/members";
@@ -75,8 +76,9 @@ async function getMemberIdByGithubLogin(): Promise<Map<string, string>> {
 export async function reattributeActivityForMember(
   memberId: string,
   githubUsername: string,
+  executor: DatabaseExecutor = db,
 ): Promise<number> {
-  const updated = await db
+  const updated = await executor
     .update(githubActivityEvent)
     .set({ memberId })
     .where(

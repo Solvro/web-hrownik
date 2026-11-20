@@ -28,7 +28,7 @@ export default solvro(
     },
   },
   {
-    files: ["drizzle.config.ts"],
+    files: ["drizzle.config.ts", "vitest.config.ts"],
     rules: {
       "import/no-default-export": "off",
     },

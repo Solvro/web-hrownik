@@ -4,10 +4,10 @@
 
 ## Założenia i decyzje
 
-- **Stack**: Next.js 16 (App Router — uwaga: ma breaking changes względem danych treningowych, przed pisaniem kodu sprawdzać `node_modules/next/dist/docs/`), TypeScript, Tailwind v4, shadcn/ui, Drizzle ORM + Postgres (`docker-compose.yml`), better-auth, `@solvro/config`.
+- **Stack**: Next.js 16 (App Router — uwaga: ma breaking changes względem danych treningowych, przed pisaniem kodu sprawdzać `node_modules/next/dist/docs/`), TypeScript, Tailwind v4, shadcn/ui, Drizzle ORM + Postgres (lokalnie z `compose.yaml` — Postgres 17 jak w CI), better-auth, `@solvro/config`, Vitest (`pnpm test`).
 - **Formularze**: zawsze shadcn + react-hook-form + zod, zgodnie z `AGENTS.md` (`Field`/`FieldLabel`/`FieldError` + `Controller`).
 - **Integracje** (GitHub, Discord, Solvro Auth/Keycloak) — dostępy są gotowe po stronie organizacji, ale plan zakłada **generyczne nazwy zmiennych środowiskowych** jako placeholdery do uzupełnienia w `.env` (patrz sekcja Konfiguracja).
-- **Eventownik (import zgłoszeń rekrutacyjnych)** — poza MVP; realizowane w Fazie 4 jako import pliku XLSX eksportowanego z Eventownika (bez zmian po stronie Eventownika).
+- **Eventownik (import zgłoszeń rekrutacyjnych)** — poza MVP; zrealizowane w Fazie 4 jako import pliku XLSX eksportowanego z Eventownika (bez zmian po stronie Eventownika).
 - **„Grupka"** (auto-dodawanie do grupy mailingowej w onboardingu) — cel nieokreślony, w MVP zostaje jako jawne TODO/no-op hook w pipeline onboardingu, bez konkretnej integracji.
 - **USOS** — logowanie przez plugin [`better-auth-usos`](https://www.npmjs.com/package/better-auth-usos). Zintegrowane w Fazie 0 (`usosAuth` w `src/lib/auth.ts`).
 - Plan pisany pod model danych, który da się rozbudowywać — ale **bez budowania na zapas** rzeczy spoza Fazy 1 (np. tabel pod Eventownik czy ranking aktywności trafiają dopiero do faz, w których faktycznie są potrzebne).
@@ -126,7 +126,7 @@ Uwagi:
 - `/` — strona startowa z kafelkami nawigacji filtrowanymi przez `filterNavItems`.
 - `/members` — lista członków (filtry, polskie statusy).
 - `/members/new` — formularz onboardingu (`member-form.tsx`, RHF + zod + shadcn), z checkboxami wysyłki zaproszeń GitHub/Discord.
-- `/members/import` — import z arkusza CSV/TSV (patrz niżej).
+- `/members/import` — import przyjętych z rekrutacji (Faza 4); `/members/import/legacy` — import historycznego arkusza CSV/TSV (patrz niżej).
 - `/members/[id]` — profil: dane, aktywność GitHub, timeline projektów (`team_member`), historia ról (`role_assignment`), notatki HR tylko dla zarządu.
 - `/members/[id]/edit` — edycja: pełna dla `members:write`, ograniczona dla właściciela profilu.
 - `/members/[id]/activity` — aktywność GitHub członka.
@@ -136,21 +136,21 @@ Uwagi:
 
 Server actions (`src/actions/`):
 
-- `members.ts`: `createMember`, `updateMember`, `deleteMember`, `previewMemberImport`, `commitMemberImport`,
+- `members.ts`: `createMember`, `updateMember`, `deleteMember`, `previewLegacyMemberImport`, `commitLegacyMemberImport`, `analyzeRecruitmentImport`, `commitRecruitmentImport` (Faza 4),
 - `sections.ts`: `createSection`, `updateSection`, `deleteSection`,
 - `roles.ts`: `assignRole`, `endRoleAssignment`, `createRoleDefinition`, `updateRoleDefinition`, `deleteRoleDefinition`,
 - `projects.ts`: `createProject`, `updateProject`, `deleteProject`, `createTeam`, `updateTeamName`, `deleteTeam`, `addTeamMember`, `assignProjectMemberToTeam`, `updateTeamMemberDetails`, `removeTeamMember`, `updateTeamRepositories`, `assignRepoToTeam`, `syncProjectActivity`, `addProjectStatusEntry`, `deleteProjectStatusEntry`,
 - `auth.ts`: `signOutAction`.
 
-### Import członków z arkusza (migracja)
+### Import członków z arkusza (migracja, od Fazy 4 jako legacy)
 
-- `/members/import` → `member-import-form.tsx`: wybór typu arkusza (`active`/`new`/`inactive`/`honorary` — status wynika z zakładki) + plik CSV/TSV (`parseDelimitedText`, `src/lib/csv.ts`, separator wykrywany automatycznie).
-- `parseMemberImportFile` (`src/lib/member-import.ts`) mapuje stałe nagłówki historycznego arkusza (`Imię`, `Nazwisko`, `Index`, `Mail`, `Github`, `Messenger`, …) i zbiera resztę kolumn jako linie notatek HR.
-- `previewMemberImport` zwraca edytowalny podgląd (duplikaty po indeksie/e-mailu, podpowiedź rodzica po nazwisku), `commitMemberImport` tworzy członków, brakujące sekcje (tworzone automatycznie) i role „członek sekcji"; **nie wysyła** zaproszeń.
+- `/members/import/legacy` → `legacy-member-import-form.tsx`: wybór typu arkusza (`active`/`new`/`inactive`/`honorary` — status wynika z zakładki) + plik CSV/TSV (`parseDelimitedText`, `src/lib/csv.ts`, separator wykrywany automatycznie).
+- `parseMemberImportFile` (`src/lib/member-import/legacy.ts`) mapuje stałe nagłówki historycznego arkusza (`Imię`, `Nazwisko`, `Index`, `Mail`, `Github`, `Messenger`, …) i zbiera resztę kolumn jako linie notatek HR.
+- `previewLegacyMemberImport` zwraca edytowalny podgląd (duplikaty po indeksie/e-mailu, podpowiedź rodzica po nazwisku), `commitLegacyMemberImport` tworzy członków (przez `createMemberRecord`), brakujące sekcje (tworzone automatycznie) i role „członek sekcji"; **nie wysyła** zaproszeń. Logika w `previewLegacyImport` / `commitLegacyImport` (`src/lib/member-import/legacy.ts`).
 
 ### Automatyzacje onboardingu — `src/lib/onboarding.ts`
 
-`runOnboardingAutomations({ member, sendGithubInvite, sendDiscordInvite })` wołane z `createMember` po zapisaniu członka; każdy krok fail-soft (ostrzeżenie w logu, rekord członka zostaje):
+`runOnboardingAutomations({ member, sendGithubInvite, sendDiscordInvite })` wołane z `createMember` (i z importu rekrutacji, Faza 4) po zapisaniu członka; każdy krok fail-soft (ostrzeżenie w logu, rekord członka zostaje):
 
 1. Zaproszenie do organizacji GitHub — `inviteMemberToOrg(githubUsername)` (`src/lib/integrations/github.ts`, GitHub App przez `@octokit/auth-app`).
 2. Link zaproszenia na Discorda — `createOnboardingInvite()` (`src/lib/integrations/discord.ts`, kanał `DISCORD_INVITE_CHANNEL_ID`); wynik pokazywany po utworzeniu członka. Role discordowe nie są nadawane przy onboardingu, tylko przez sync zespołów.
@@ -254,109 +254,96 @@ api_key_endpoint_stat (src/db/schema/api-keys.ts)
 
 ---
 
-## Faza 4 — Rekrutacja przez Eventownik (następna)
+## Faza 4 — Rekrutacja przez Eventownik ✅ zrobione
 
-Zakres: import przyjętych kandydatów z **pliku XLSX eksportowanego z Eventownika** (wydarzenie rekrutacyjne) jako nowych członków. To staje się **główną ścieżką importu**; dotychczasowy import CSV/TSV historycznego arkusza zostaje jako legacy. Zmiany po stronie Eventownika są poza zakresem — bezpośrednie API to przyszłe rozszerzenie (4.2).
+Import przyjętych kandydatów z **pliku XLSX eksportowanego z Eventownika** (wydarzenie rekrutacyjne) jako nowych członków — **główna ścieżka importu**. Dotychczasowy import historycznego arkusza CSV/TSV został jako legacy. Bez zmian po stronie Eventownika; bezpośrednie API to przyszłe rozszerzenie (4.2).
 
 ### Format źródłowy (eksport Eventownika v3)
 
-- Produkcyjny backend to `backend-eventownik-v3` (NestJS). Eksport `GET /api/v3/events/:id/import-export/participants?format=xlsx` daje jeden arkusz: `participantUuid`, `email`, a potem **nazwy atrybutów formularza** w kolejności z formularza.
-- Nazwy kolumn to dowolne pytania z formularza i **mogą się zmieniać między edycjami** (duplikaty nazw dostają sufiks ` (uuid)`). Wartości wielokrotne (multiselect, bloki) są łączone `"; "`, bloki (np. „Termin rozmowy") są eksportowane jako UUID, nie nazwy.
-- Kolumny w bieżącej rekrutacji: `Imię`, `Nazwisko`, `Indeks`, `Kierunek`, `Wydział` (kody `W1`…`W14` / `Inny`), `Rok i stopień` (`1 rok, I stopień`), 2 długie pytania otwarte, `Link do GitHub albo portfolio`, `Zadanie rekrutacyjne`, `Termin rozmowy`, `Wolne myśli`, `Facebook`, `GitHub`, `Discord`, `Sekcje`, `Wstępny wybór sekcji`, `Sekcja na rozmowę`, `Sekcja ostateczna`.
-- Przyjęci kandydaci = wiersze z niepustą `Sekcja ostateczna` (tylko oni wypełniają też formularz z Facebookiem/GitHubem/Discordem).
-
-### Przepływ (`/members/import`)
-
-1. **Upload** — formularz (shadcn + react-hook-form + zod): plik `.xlsx` (dodatkowo `.csv`, bo parser i tak zwraca `string[][]`) + etykieta edycji (np. „Rekrutacja 2026Z") + data dołączenia (domyślnie dziś). Plik idzie przez `FormData` do server action; parsowanie po stronie serwera (`read-excel-file/node`). `serverActions.bodySizeLimit` w `next.config.ts` podnieść do ~`5mb` (eksport ze 122 osób ma ~80 KB, ale z zapasem).
-2. **Mapowanie kolumn** — serwer zwraca nagłówki pliku i automatycznie wykryte mapowanie (pole HRownika → kolumna, z poziomem pewności). Board widzi listę pól HRownika, każde z selectem „kolumna z pliku / brak", wstępnie wypełnionym. Wymagane: imię i nazwisko (dwie kolumny albo jedna „pełne imię i nazwisko") oraz e-mail; bez nich nie da się przejść dalej. Zmiana mapowania wysyła plik ponownie z nadpisanym mapowaniem (bezstanowo, bez cache'owania pliku na serwerze).
-3. **Podgląd i korekta** — edytowalna tabela wierszy (react-hook-form `useFieldArray` + zod per wiersz), domyślnie tylko przyjęci (przełącznik „pokaż wszystkich zgłoszonych"). Per wiersz: checkbox „importuj", imię i nazwisko, e-mail (+ rodzaj login/powiadomienia), indeks, GitHub, Discord, Facebook, **wydział (select z ToPWR)**, **kierunek (combobox z ToPWR, filtrowany po wydziale)**, **rok (select z `studyYearOptions`)**, **sekcje (multi-select z istniejących sekcji)**, ostrzeżenia (duplikat, niedopasowany kierunek/sekcja, nieprawidłowy indeks). Błędy walidacji blokują zatwierdzenie.
-4. **Zatwierdzenie** — każdy wiersz tworzony w osobnej transakcji; podsumowanie per wiersz (utworzony / pominięty duplikat / błąd).
-
-### Wykrywanie kolumn (`src/lib/member-import/columns.ts`)
-
-- Normalizacja nagłówka: lowercase, usunięcie diakrytyków (NFD + `ł→l`), znaki nie-alfanumeryczne → spacja, zwinięte spacje.
-- Każde pole HRownika ma listę reguł `{ pattern: RegExp, score }` (od najbardziej do najmniej specyficznej) i opcjonalne wzorce wykluczające. Wynik kolumny = najwyższy pasujący `score` + bonus za dokładne dopasowanie + **bonus/kara za kształt wartości** (np. ≥80% niepustych wartości pasuje do `^\d{6}$` dla indeksu, zawiera `@` dla e-maila, `github.com` dla GitHuba). Przypisanie zachłanne po wyniku malejąco, jedna kolumna na pole.
-- Reguły (na znormalizowanych nagłówkach):
-
-  | Pole              | Reguły (priorytet malejąco)                                 | Wykluczenia                               |
-  | ----------------- | ----------------------------------------------------------- | ----------------------------------------- |
-  | `firstName`       | `^imie$`, `first ?name`                                     | `nazwisko`                                |
-  | `lastName`        | `^nazwisko$`, `last ?name`, `surname`                       |                                           |
-  | `fullName`        | `imie i nazwisko`, `full ?name`                             |                                           |
-  | `email`           | `^e ?mail$`, `e ?mail`                                      |                                           |
-  | `externalId`      | `participant ?uuid`, `^uuid$`                               |                                           |
-  | `studentIndex`    | `^(nr )?indeks`, `index`, `album`                           |                                           |
-  | `studyDepartment` | `wydzial`, `faculty`                                        |                                           |
-  | `studyField`      | `kierunek`, `field of study`                                |                                           |
-  | `studyYear`       | `rok i stopien`, `^rok`, `stopien`                          | `rozmow`                                  |
-  | `githubUsername`  | `^github$`, `github`                                        | `portfolio` (niższy score, jako fallback) |
-  | `discordId`       | `discord`                                                   |                                           |
-  | `facebookUrl`     | `facebook`, `messenger`, `^fb$`                             |                                           |
-  | `sections`        | `sekcja ostateczn`, `sekcj.* (przyjet\|final)`, `^sekcje?$` | `wstepn`, `na rozmow`                     |
-
-- **Nic poza powyższymi polami nie trafia do bazy.** Długie odpowiedzi (kompetencje, pasje), `Zadanie rekrutacyjne`, `Termin rozmowy`, `Wolne myśli`, wstępne/rozmowowe sekcje nie mają pola docelowego, więc nie da się ich zaimportować nawet przez ręczne mapowanie. Notatki HR (`member_hr_note`) nie są wypełniane z pliku.
-
-### Normalizacja wartości (`src/lib/member-import/normalize.ts`, czyste funkcje)
-
-- E-mail: lowercase, walidacja; `@student.pwr.edu.pl` / `@pwr.edu.pl` → `login`, inne → `notification`.
-- Indeks: tylko `^\d{6}$`, inaczej puste + ostrzeżenie w wierszu (do ręcznej poprawy).
-- GitHub: username z URL-a (`extractGithubUsername`), fallback na kolumnę portfolio tylko gdy to link do `github.com`.
-- Discord: `discord.com/users/<id>` → `<id>`, w pozostałych przypadkach username bez `@`.
-- Facebook: tylko URL `http(s)://`, inaczej puste.
-- Rok: regex `(\d)\s*rok.*?\b(I{1,2})\s*stopie` → `I/II/III/IV inżynierski` dla I stopnia, `I/II magisterski` dla II stopnia; „doktor" → `doktorat`. Niedopasowane → puste + ostrzeżenie.
-- Listy (sekcje): split na `;` i `,` — **nie** na `/` (bo `AI/ML`, `UI/UX Design`).
-
-### Wydział i kierunek z ToPWR
-
-- Dane z istniejącego `getUniversityInfoOptions()` (`src/lib/integrations/topwr.ts`, cache Next.js). Kody wydziałów w ToPWR to dokładnie `W1`…`W14` (sprawdzone) → mapowanie po `code` na `department.value` (pełna nazwa, tak samo jak zapisuje formularz członka). `Inny`/nieznany → puste.
-- Kierunek: dopasowanie w obrębie wydziału i typu studiów (I stopień → `1DEGREE`, II → `2DEGREE`): najpierw równość znormalizowanych nazw, potem podobieństwo tokenów (Dice/Jaccard ≥ próg); poniżej progu → puste + ostrzeżenie z surową wartością z pliku, board wybiera z comboboxa.
-- `getUniversityInfoOptions` trzeba rozszerzyć o `code` wydziału w zwracanych opcjach.
-
-### Sekcje
-
-- Domyślne sekcje wiersza = wartości z kolumny „sekcja ostateczna", dopasowane do **istniejących** sekcji po znormalizowanej nazwie (+ mała mapa aliasów, np. `ai ml` ↔ `AI/ML`, `pm` ↔ `Project Management`). Niedopasowane nazwy → ostrzeżenie w wierszu; **import nigdy nie tworzy nowych sekcji** (w przeciwieństwie do legacy).
-- W podglądzie sekcje są w pełni edytowalne (multi-select z `src/components/multi-select.tsx`): można zawęzić do podzbioru, zostawić jedną albo wyczyścić. Domyślne wartości to tylko propozycja.
-- Zatwierdzenie → `role_assignment` z rolą „członek sekcji" (`getSectionMemberRole`) i `startedAt` = data dołączenia z kroku 1.
-
-### Duplikaty
-
-- Wiersz oznaczony jako duplikat (domyślnie `include = false`, z powodem), gdy istnieje członek z tym samym: `externalId` w `member_recruitment`, indeksem, dowolnym e-mailem z `member_email` albo GitHub username. Board może świadomie odznaczyć wiersz; nadpisywania istniejących członków nie ma.
-- Ponowne wgranie kolejnego eksportu z tej samej rekrutacji jest bezpieczne.
+- Backend `backend-eventownik-v3` (NestJS), eksport `GET /api/v3/events/:id/import-export/participants?format=xlsx`: jeden arkusz — `participantUuid`, `email`, potem **nazwy atrybutów formularza** w kolejności z formularza. Nazwy kolumn to pytania z formularza i **zmieniają się między edycjami** (duplikaty nazw dostają sufiks ` (uuid)`); wartości wielokrotne są łączone `"; "`, bloki (np. „Termin rozmowy") eksportowane jako UUID.
+- Bieżąca rekrutacja: `Imię`, `Nazwisko`, `Indeks`, `Kierunek`, `Wydział` (`W1`…`W14` / `Inny`), `Rok i stopień` (`1 rok, I stopień`), 2 pytania otwarte, `Link do GitHub albo portfolio`, `Zadanie rekrutacyjne`, `Termin rozmowy`, `Wolne myśli`, `Facebook`, `GitHub`, `Discord`, `Sekcje`, `Wstępny wybór sekcji`, `Sekcja na rozmowę`, `Sekcja ostateczna`. Przyjęci = wiersze z niepustą `Sekcja ostateczna`.
 
 ### Model danych
 
 ```
-member_recruitment (src/db/schema/recruitment.ts)
+member_recruitment (src/db/schema/recruitment.ts, migracja 0021_add_member_recruitment)
   id, member_id -> member.id (cascade)
-  source: enum('eventownik')
-  external_participant_id (participantUuid z Eventownika)
+  source: enum recruitment_source('eventownik')
+  external_participant_id (participantUuid; null, gdy plik nie ma tej kolumny)
   edition (np. "Rekrutacja 2026Z")
   imported_at, imported_by_member_id -> member.id (set null)
   unique(source, external_participant_id)
 ```
 
-Służy do deduplikacji, pokazania „skąd przyszedł" na profilu (później) i jako klucz dla przyszłej synchronizacji przez API. Nowi członkowie dostają status `new`.
+Deduplikacja, „skąd przyszedł" (na profilu — później) i klucz przyszłej synchronizacji przez API. Zaimportowani członkowie dostają status `new`.
 
-### Commit i przyszłe automatyzacje onboardingu
+### Przepływ (`/members/import`, `src/components/members/import/`)
 
-- Wydzielić `createMemberRecord(tx, input)` do `src/lib/members/create-member.ts`: insert `member`, `member_email`, przypisania ról sekcyjnych, `reattributeActivityForMember`. Używane przez `createMember`, nowy import i import legacy — jedna ścieżka tworzenia członka.
-- Wiersz w schemacie commita ma pole `onboarding: { githubInvite: boolean; discordInvite: boolean }` z `.default(false)`. UI na razie **nie renderuje** tych checkboxów, więc zawsze `false`. Po utworzeniu członka commit woła `runOnboardingAutomations` z tymi flagami (dziś no-op), a wynik (`githubInviteSent`, `discordInviteUrl`) jest już częścią typu wyniku wiersza.
-- Włączenie auto-zaproszeń później = dwie kolumny checkboxów (+ „zaznacz wszystkim") w tabeli podglądu i wyświetlenie wyniku w podsumowaniu. Docelowo (Fazy 5–7) zaznaczenie checkboxa = zgoda na sugerowane akcje dostępów dla utworzonych członków (wykonywane od razu), a pozostałe sugerowane akcje trafiają do rozbieżności.
+1. **Plik** (`import-upload-step.tsx`, RHF + zod `recruitmentUploadSchema`) — `.xlsx` albo `.csv` (≤ 5 MB), etykieta edycji, data dołączenia (domyślnie dziś w strefie Europe/Warsaw). Plik idzie w `FormData` do `analyzeRecruitmentImport`; parsowanie na serwerze (`readImportTable`, `src/lib/member-import/file.ts`: `read-excel-file/node`, liczby jako tekst, pierwszy arkusz). `experimental.serverActions.bodySizeLimit = "6mb"` w `next.config.ts` (limit pliku 5 MB + narzut multipart). Opcje ToPWR przez `getUniversityInfoOptionsOrEmpty` — gdy ToPWR nie odpowiada, strona pokazuje komunikat, a import działa bez wydziału i kierunku.
+2. **Mapowanie kolumn** (`column-mapping-step.tsx`, `columnMappingFormSchema`) — pole HRownika → kolumna z pliku / „nie importuj", wstępnie wypełnione wykrytym mapowaniem z poziomem pewności. Wymagane: imię i nazwisko (dwie kolumny albo jedna) oraz e-mail; jedna kolumna może zasilać tylko jedno pole. Zmiana mapowania wysyła plik ponownie z nadpisanym mapowaniem (bezstanowo — plik zostaje w przeglądarce).
+3. **Podgląd i korekta** (`import-preview-table.tsx`, `useFieldArray` + `recruitmentImportRowSchema`) — domyślnie tylko przyjęci, przełącznik „Pokaż wszystkich zgłoszonych". Per wiersz: „importuj", imię i nazwisko, e-mail + rodzaj, indeks, GitHub, Discord, Facebook, wydział (select z ToPWR), kierunek (combobox filtrowany po wydziale i stopniu), rok (`studyYearOptions`), sekcje (`MultiSelect` z istniejących sekcji), uwagi (ostrzeżenia z surową wartością, powód duplikatu). Wybór kierunku ustawia jego wydział, zmiana wydziału czyści niepasujący kierunek. Walidacja dotyczy tylko zaznaczonych wierszy i blokuje zatwierdzenie (z listą numerów wierszy, zgodnych z arkuszem — puste wiersze są liczone). Powrót do mapowania zachowuje poprawki, dopóki mapowanie się nie zmieni.
+4. **Podsumowanie** (`import-summary.tsx`) — per wiersz: dodano (link do profilu) / pominięto duplikat / błąd.
 
-### Legacy
+`recruitment-import-wizard.tsx` prowadzi kroki. Na `/members/import` jest dyskretny link „Import starego arkusza (legacy)".
 
-- Obecny import CSV/TSV (4 typy arkusza) przenieść na `/members/import/legacy` z ostrzeżeniem „Import historycznego arkusza członków — tylko do migracji danych". Na `/members/import` tylko dyskretny link „Import starego arkusza (legacy)".
-- Kod legacy: `src/lib/member-import/legacy.ts`, `src/components/members/legacy-member-import-form.tsx`; akcje `previewLegacyMemberImport` / `commitLegacyMemberImport` (przejdzie na `createMemberRecord`, zachowując obecne zachowanie, w tym tworzenie brakujących sekcji).
+### Wykrywanie kolumn (`src/lib/member-import/columns.ts`)
 
-### Pliki
+- `normalizeHeader`: bez sufiksu ` (uuid)`, potem `normalizeForMatching` (lowercase, bez diakrytyków — NFD + `ł→l`, znaki nie-alfanumeryczne → spacja).
+- `detectColumns`: każde pole ma reguły `{ pattern, score }` + wykluczenia (tabela poniżej); wynik kolumny = najlepsza reguła + 10 za dopasowanie całego nagłówka + 20, gdy ≥ 80% niepustych wartości ma oczekiwany kształt (`@`, `^\d{6}$`, UUID, `github.com`, `facebook.com`), a dla e-maila/indeksu/UUID −50, gdy pasuje < 20%. Przypisanie zachłanne od najwyższego wyniku (remis → kolumna bardziej na lewo), minimum 50; pewność: ≥ 100 wysoka, ≥ 75 średnia, niżej niska.
 
-- `src/lib/member-import/{columns,normalize,recruitment,legacy}.ts` — wykrywanie kolumn, normalizacja, budowa wierszy podglądu, legacy parser.
-- `src/lib/members/create-member.ts` — wspólne tworzenie członka.
-- `src/lib/schemas/member-import.ts` — zod: upload, mapowanie, wiersz podglądu/commita.
-- `src/db/schema/recruitment.ts` (+ relacje, migracja `pnpm db:generate`).
-- `src/actions/members.ts` — `analyzeRecruitmentImport(formData)`, `commitRecruitmentImport(rows)`, akcje legacy.
-- `src/components/members/import/` — `recruitment-import-wizard.tsx` (kroki), `column-mapping-step.tsx`, `import-preview-table.tsx`, `import-summary.tsx`.
-- `src/app/(app)/members/import/page.tsx`, `src/app/(app)/members/import/legacy/page.tsx`.
+  | Pole              | Reguły (priorytet malejąco)                                 | Wykluczenia           |
+  | ----------------- | ----------------------------------------------------------- | --------------------- |
+  | `firstName`       | `^imie$`, `first ?name`                                     | `nazwisko`            |
+  | `lastName`        | `^nazwisko$`, `last ?name`, `surname`                       |                       |
+  | `fullName`        | `imie i nazwisko`, `full ?name`                             |                       |
+  | `email`           | `^e ?mail$`, `e ?mail`                                      |                       |
+  | `externalId`      | `participant ?uuid`, `^uuid$`                               |                       |
+  | `studentIndex`    | `^(nr )?indeks`, `indeks`, `index`, `album`                 |                       |
+  | `studyDepartment` | `wydzial`, `faculty`                                        |                       |
+  | `studyField`      | `kierunek`, `field of study`                                |                       |
+  | `studyYear`       | `rok i stopien`, `^rok`, `stopien`                          | `rozmow`              |
+  | `githubUsername`  | `^github$`, `github`                                        | `portfolio`           |
+  | `githubPortfolio` | `portfolio` (GitHub tylko z linku do github.com)            |                       |
+  | `discordId`       | `discord`                                                   |                       |
+  | `facebookUrl`     | `facebook`, `^fb$`, `messenger`                             |                       |
+  | `sections`        | `sekcja ostateczn`, `sekcj.* (przyjet\|final)`, `^sekcje?$` | `wstepn`, `na rozmow` |
+
+- **Nic poza tymi polami nie trafia do bazy** — odpowiedzi otwarte, zadanie, termin rozmowy, wolne myśli i wstępne sekcje nie mają pola docelowego, więc nie da się ich zaimportować nawet ręcznym mapowaniem; notatki HR nie są wypełniane z pliku.
+- Na prawdziwym eksporcie (122 zgłoszenia, 21 kolumn) wszystkie 13 pól jest wykrywanych z wysoką pewnością, a liczba przyjętych (46) zgadza się z niepustą `Sekcja ostateczna`.
+
+### Normalizacja i dopasowanie (`normalize.ts`, `matching.ts` — czyste funkcje)
+
+- E-mail: lowercase + walidacja zod; `@student.pwr.edu.pl` / `@pwr.edu.pl` → `login`, inne → `notification`.
+- Indeks: tylko `^\d{6}$`, inaczej puste + ostrzeżenie.
+- GitHub: username z linku `github.com/…` albo goły login (`@` zdejmowane); fallback na kolumnę portfolio tylko dla linku do github.com. `extractGithubUsername` jest wspólny z legacy.
+- Discord: `discord(app).com/users/<id>` → `<id>`; inne linki (np. zaproszenia `discord.gg`) → puste + ostrzeżenie; poza tym nazwa bez `@`.
+- Facebook: pierwszy link `http(s)://` z odpowiedzi, inaczej puste + ostrzeżenie.
+- Rok: `(\d)\s*rok…(I{1,2})\s*stopie` → `I…IV inżynierski` / `I–II magisterski`, „doktor…" → `doktorat`; reszta → puste + ostrzeżenie.
+- Listy: split na `;` i `,`, nigdy na `/` (`AI/ML`, `UI/UX Design`).
+- Wydział: kod `W1`…`W14` → `department.value` z ToPWR (pełna nazwa jak w formularzu członka; `getUniversityInfoOptions` zwraca teraz `code` wydziału i `name` kierunku); `Inny` → puste bez ostrzeżenia.
+- Kierunek: w obrębie wydziału i stopnia (z roku): równość znormalizowanych nazw (bez nawiasów, warianty „w języku angielskim / po angielsku / w j. ang." ujednolicone), potem jedyny najbardziej podobny kandydat z podobieństwem `1 − odległość Levenshteina / dłuższa długość` ≥ 0,85. Skróty („IST") i niejednoznaczne → puste + ostrzeżenie.
+- Sekcje: tylko **istniejące** sekcje, po znormalizowanej nazwie bez spacji + grupy aliasów (`AI/ML`↔`AI`/`ML`, `Project Management`↔`PM`, `UI/UX Design`↔`UI/UX`, `Promotion`↔`Promocja`/`Marketing`); niedopasowane → ostrzeżenie. **Import nigdy nie tworzy sekcji.**
+
+### Duplikaty
+
+- Wiersz jest duplikatem, gdy istnieje członek z tym samym `external_participant_id` (Eventownik), e-mailem z `member_email`, indeksem albo loginem GitHub (bez rozróżniania wielkości liter), albo gdy ta sama osoba jest wcześniej w pliku jako przyjęta. Duplikat ma `include = false`, powód w uwagach i nie da się go zaznaczyć; przy zatwierdzeniu duplikaty są sprawdzane ponownie i pomijane — nikt nie jest nadpisywany, ponowne wgranie eksportu jest bezpieczne.
+
+### Zatwierdzenie i automatyzacje
+
+- `createMemberRecord(tx, input)` (`src/lib/members/create-member.ts`) — jedyna ścieżka tworzenia członka (`createMember`, import rekrutacji, import legacy): `member`, notatka HR, `member_email`, role, `reattributeActivityForMember`; `getSectionMemberRole` obok.
+- `commitRecruitmentRows` tworzy każdy wiersz w osobnej transakcji (członek + `member_email` + rola „członek" sekcji od daty dołączenia + `member_recruitment`); błąd wiersza nie cofa pozostałych, wynik per wiersz (`created` / `skipped_duplicate` / `error`). Wydział i kierunek są sprawdzane względem ToPWR (kierunek zawsze z własnym wydziałem) — niezgodny wiersz kończy się błędem wiersza.
+- Wiersz ma `onboarding: { githubInvite, discordInvite }` (domyślnie `false`, UI ich jeszcze nie pokazuje); po utworzeniu członka (poza transakcją wiersza) wołane jest `runOnboardingAutomations` z tymi flagami, a jego wynik jest w wyniku wiersza. Włączenie auto-zaproszeń = dwie kolumny checkboxów w podglądzie; docelowo (Fazy 5–7) zgoda na sugerowane akcje dostępów.
+
+### Akcje i uprawnienia
+
+- `src/actions/members.ts`: `analyzeRecruitmentImport(formData)` i `commitRecruitmentImport(input)` — cienkie wrappery (sesja → członek, ToPWR) nad `analyzeRecruitmentFile` / `commitRecruitmentRows` (`src/lib/member-import/recruitment.ts`), które same autoryzują (`assertCan(…, "members", "write", …)`, `src/lib/permissions.ts`) i walidują wejście zodem. Oczekiwane błędy (zły plik, brak wierszy, złe mapowanie, nieprawidłowe dane) wracają jako `{ ok: false, error }` (komunikaty z wyjątków są w produkcji ukrywane), brak uprawnień rzuca wyjątek.
+- Legacy: `previewLegacyMemberImport` / `commitLegacyMemberImport` nad `previewLegacyImport` / `commitLegacyImport`; strona `/members/import/legacy` z ostrzeżeniem „Import historycznego arkusza członków — tylko do migracji danych".
+
+### Testy i środowisko lokalne
+
+- `compose.yaml` — Postgres 17 (jak w CI), healthcheck, port hosta `POSTGRES_PORT` (domyślnie 5432); opis w README.
+- Vitest (`vitest.config.ts`, `pnpm test`): `tests/unit` (tabele wejście → wynik dla wykrywania kolumn, normalizacji i dopasowań ToPWR/sekcji) i `tests/integration` (prawdziwy Postgres: syntetyczny XLSX → analiza → zatwierdzenie → stan bazy; ponowny import, błąd wiersza, ręczne mapowanie, złe pliki, uprawnienia, regresja legacy). Testy integracyjne tworzą na serwerze z `TEST_DATABASE_URL` jednorazową bazę (migracje + seed) i usuwają ją po przebiegu; w CI krok „Run tests" na istniejącym serwisie Postgres.
+- Syntetyczny eksport (`tests/fixtures/eventownik-export.ts`) ma układ kolumn prawdziwego eksportu i zmyślone osoby; prawdziwe eksporty trzymamy wyłącznie w ignorowanym `data/member-imports/`.
 
 ### 4.2 — przyszłość: bezpośrednie API Eventownika
 

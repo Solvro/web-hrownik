@@ -33,6 +33,9 @@ export function Combobox({
   emptyText = "Brak wyników.",
   disabled,
   className,
+  id,
+  "aria-label": ariaLabel,
+  "aria-invalid": ariaInvalid,
 }: {
   options: ComboboxOption[];
   value: string;
@@ -42,6 +45,9 @@ export function Combobox({
   emptyText?: string;
   disabled?: boolean;
   className?: string;
+  id?: string;
+  "aria-label"?: string;
+  "aria-invalid"?: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
   const selected = options.find((option) => option.value === value);
@@ -54,6 +60,9 @@ export function Combobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
+          aria-label={ariaLabel}
+          aria-invalid={ariaInvalid}
+          id={id}
           disabled={disabled}
           className={cn("w-full justify-between font-normal", className)}
         >
