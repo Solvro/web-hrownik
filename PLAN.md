@@ -4,7 +4,7 @@
 
 ## Założenia i decyzje
 
-- **Stack**: Next.js 16 (App Router — uwaga: ma breaking changes względem danych treningowych, przed pisaniem kodu sprawdzać `node_modules/next/dist/docs/`), TypeScript, Tailwind v4, shadcn/ui, Drizzle ORM + Postgres (`docker-compose.yml`), better-auth, `@solvro/config`.
+- **Stack**: Next.js 16 (App Router — uwaga: ma breaking changes względem danych treningowych, przed pisaniem kodu sprawdzać `node_modules/next/dist/docs/`), TypeScript, Tailwind v4, shadcn/ui, Drizzle ORM + Postgres (lokalnie z `compose.yaml` — do dodania w Fazie 4), better-auth, `@solvro/config`.
 - **Formularze**: zawsze shadcn + react-hook-form + zod, zgodnie z `AGENTS.md` (`Field`/`FieldLabel`/`FieldError` + `Controller`).
 - **Integracje** (GitHub, Discord, Solvro Auth/Keycloak) — dostępy są gotowe po stronie organizacji, ale plan zakłada **generyczne nazwy zmiennych środowiskowych** jako placeholdery do uzupełnienia w `.env` (patrz sekcja Konfiguracja).
 - **Eventownik (import zgłoszeń rekrutacyjnych)** — poza MVP; realizowane w Fazie 4 jako import pliku XLSX eksportowanego z Eventownika (bez zmian po stronie Eventownika).
@@ -357,6 +357,7 @@ Służy do deduplikacji, pokazania „skąd przyszedł" na profilu (później) i
 - `src/actions/members.ts` — `analyzeRecruitmentImport(formData)`, `commitRecruitmentImport(rows)`, akcje legacy.
 - `src/components/members/import/` — `recruitment-import-wizard.tsx` (kroki), `column-mapping-step.tsx`, `import-preview-table.tsx`, `import-summary.tsx`.
 - `src/app/(app)/members/import/page.tsx`, `src/app/(app)/members/import/legacy/page.tsx`.
+- `compose.yaml` — Postgres 17 (jak w CI) do lokalnego developmentu i testów na prawdziwej bazie.
 
 ### 4.2 — przyszłość: bezpośrednie API Eventownika
 

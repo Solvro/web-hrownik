@@ -54,4 +54,11 @@ A page imports its form/action/schema via `@/components/...`, `@/actions/...`, `
 
 # Verifying changes
 
-Never run `pnpm build`, `pnpm dev`, or any manual/browser smoke test — not during work, not as verification. Don't run `pnpm lint`/`pnpm types:check` after every individual change either. Do all of that once, at the very end of the whole prompt/task, to verify the complete set of changes.
+`pnpm dev`, `pnpm build`, and manual/browser smoke tests are allowed when they're useful for verification, as long as you manage them yourself and clean up afterwards:
+
+- Run long-lived processes (dev server, `pnpm start`, Docker containers) in the background, track what you started, and stop all of it before finishing. Never leave servers, watchers, browsers, or containers running, and never kill processes you didn't start.
+- If the default port is taken, use another one rather than killing whatever holds it.
+- Remove temporary files, screenshots, build artifacts outside the usual ignored paths, and test data you inserted into a shared/dev database. Prefer a disposable database for anything that writes data.
+- Leave the working tree as you found it, apart from the intended changes.
+
+Don't run `pnpm lint`/`pnpm types:check` after every individual change. Run the full set of checks at the end of the task (and at meaningful milestones in long tasks) to verify the complete set of changes.
