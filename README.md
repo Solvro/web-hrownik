@@ -27,3 +27,25 @@ When those sources drift apart, it becomes hard to know which data is current, w
 HRownik reduces duplicated work and stale records. Instead of updating the same member, project or team information across multiple tools, Solvro can maintain it in one place and use that source to support the rest of the organization.
 
 The goal is not just to store data, but to preserve organizational continuity: who was involved, when things changed, how projects evolved, and what the current state of the organization actually is.
+
+## Local Development
+
+Requirements: Node.js ≥ 22.12, pnpm and Docker.
+
+```bash
+cp .env.example .env            # fill in at least the admin account
+docker compose up -d --wait     # Postgres 17, same as CI; POSTGRES_PORT=5433 if 5432 is taken
+pnpm install
+pnpm db:migrate
+pnpm db:seed                    # roles, permission groups and the admin account
+pnpm dev
+```
+
+Tests:
+
+```bash
+pnpm test --project unit        # pure logic, no database needed
+TEST_DATABASE_URL=postgresql://hrownik:hrownik@localhost:5432/hrownik pnpm test
+```
+
+Integration tests create a throwaway database on the server `TEST_DATABASE_URL` points at (migrated and seeded from scratch) and drop it when they finish, so the database named in the URL is never modified.

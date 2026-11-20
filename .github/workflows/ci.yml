@@ -88,6 +88,13 @@ jobs:
         run: pnpm run types:check
         if: always()
 
+      - name: Run tests
+        run: pnpm run test
+        if: always()
+        env:
+          # Integration tests create (and drop) their own database on this server.
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hrownik
+
       - name: Build
         run: pnpm run build
         if: always()
