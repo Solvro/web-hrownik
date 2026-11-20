@@ -414,6 +414,7 @@ export async function commitRecruitmentImport(
   const result = await commitRecruitmentRows({
     actorMemberId: currentMember?.id ?? null,
     input,
+    university: await getUniversityInfoOptions(),
   });
   if (result.ok && result.summary.created > 0) {
     revalidatePath("/members");

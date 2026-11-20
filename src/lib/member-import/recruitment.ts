@@ -152,9 +152,11 @@ export async function analyzeRecruitmentFile({
 export async function commitRecruitmentRows({
   actorMemberId,
   input,
+  university,
 }: {
   actorMemberId: string | null;
   input: unknown;
+  university: UniversityReference;
 }): Promise<RecruitmentCommitResult> {
   await assertCan(actorMemberId, "members", "write", deniedMessage);
 
@@ -168,6 +170,13 @@ export async function commitRecruitmentRows({
   }
   const { edition, joinedAt } = parsed.data;
   const rows = parsed.data.rows.filter((row) => row.include);
+  const unknownStudies = rows.filter((row) => !isKnownStudies(row, university));
+  if (unknownStudies.length > 0) {
+    return {
+      ok: false,
+      error: `Nieznany wydział lub kierunek (wiersze: ${unknownStudies.map((row) => row.rowNumber).join(", ")}).`,
+    };
+  }
   const startedAt = new Date(`${joinedAt}T00:00:00`);
 
   const identities = await loadMemberIdentities(db);
@@ -258,7 +267,7 @@ export async function commitRecruitmentRows({
 }
 
 /** Pure part of the analysis: table + mapping + reference data → preview rows. */
-export function buildRecruitmentPreview({
+function buildRecruitmentPreview({
   table,
   mapping,
   sections,
@@ -431,7 +440,7 @@ interface MemberIdentity {
 type IdentityOwner =
   { kind: "member"; name: string } | { kind: "row"; rowNumber: number };
 
-export interface MemberIdentityIndex {
+interface MemberIdentityIndex {
   byExternalId: Map<string, IdentityOwner>;
   byEmail: Map<string, IdentityOwner>;
   byStudentIndex: Map<string, IdentityOwner>;
@@ -439,7 +448,7 @@ export interface MemberIdentityIndex {
 }
 
 /** Everything a recruitment row is deduplicated against, keyed case-insensitively. */
-export async function loadMemberIdentities(
+async function loadMemberIdentities(
   executor: DatabaseExecutor,
 ): Promise<MemberIdentityIndex> {
   const [members, emails, recruitments] = await Promise.all([
@@ -498,6 +507,28 @@ export async function loadMemberIdentities(
     );
   }
   return index;
+}
+
+/** Department and field must come from ToPWR (as the pickers offer them) and agree. */
+function isKnownStudies(
+  row: RecruitmentImportRow,
+  university: UniversityReference,
+): boolean {
+  const departmentKnown =
+    row.studyDepartment === "" ||
+    university.departments.some(
+      (department) => department.value === row.studyDepartment,
+    );
+  const field = university.fieldsOfStudy.find(
+    (option) => option.value === row.studyField,
+  );
+  return (
+    departmentKnown &&
+    (row.studyField === "" ||
+      (field !== undefined &&
+        (row.studyDepartment === "" ||
+          field.department === row.studyDepartment)))
+  );
 }
 
 function rowIdentity(row: RecruitmentImportRow): MemberIdentity {

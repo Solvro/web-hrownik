@@ -77,6 +77,7 @@ async function commit(rows: unknown[]) {
   const result = await commitRecruitmentRows({
     actorMemberId: adminId,
     input: { edition, joinedAt, rows },
+    university,
   });
   if (!result.ok) {
     throw new Error(result.error);
@@ -504,12 +505,36 @@ describe("committing a recruitment import", () => {
     const result = await commitRecruitmentRows({
       actorMemberId: adminId,
       input: { edition, joinedAt, rows: analysis.rows },
+      university,
     });
 
     expect(result).toEqual({
       ok: false,
       error:
         "Dane importu są nieprawidłowe — wróć do podglądu i popraw zaznaczone pola.",
+    });
+    expect(await importedMembers()).toEqual([]);
+  });
+
+  it.each([
+    ["an unknown field of study", { studyField: "Kierunek spoza ToPWR" }],
+    ["an unknown department", { studyDepartment: "Wydział Magii" }],
+    [
+      "a field from another department",
+      { studyDepartment: "Wydział Matematyki" },
+    ],
+  ])("rejects a row with %s", async (_, change) => {
+    const analysis = await analyzeOk();
+
+    const result = await commitRecruitmentRows({
+      actorMemberId: adminId,
+      input: { edition, joinedAt, rows: [{ ...row(analysis, 2), ...change }] },
+      university,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: "Nieznany wydział lub kierunek (wiersze: 2).",
     });
     expect(await importedMembers()).toEqual([]);
   });
@@ -563,6 +588,7 @@ describe("authorization", () => {
         commitRecruitmentRows({
           actorMemberId,
           input: { edition, joinedAt, rows: [] },
+          university,
         }),
       ).rejects.toThrow(
         actorMemberId === null
