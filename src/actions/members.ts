@@ -14,6 +14,10 @@ import { reattributeActivityForMember } from "@/lib/integrations/github-activity
 import { appendMemberHrNote, setMemberHrNote } from "@/lib/member-hr-notes";
 import type { MemberImportSheetType } from "@/lib/member-import";
 import { emailPattern, parseMemberImportFile } from "@/lib/member-import";
+import {
+  createMemberRecord,
+  getSectionMemberRole,
+} from "@/lib/members/create-member";
 import { runOnboardingAutomations } from "@/lib/onboarding";
 import {
   can,
@@ -43,88 +47,67 @@ export async function createMember(input: MemberFormValues) {
 
   const values = memberFormSchema.parse(input);
 
-  const [created] = await db
-    .insert(member)
-    .values({
-      fullName: values.fullName,
-      parentId: emptyToNull(values.parentId),
-      githubUsername: emptyToNull(values.githubUsername),
-      discordId: emptyToNull(values.discordId),
-      facebookUrl: emptyToNull(values.facebookUrl),
-      linkedinUrl: emptyToNull(values.linkedinUrl),
-      instagramUrl: emptyToNull(values.instagramUrl),
-      websiteUrl: emptyToNull(values.websiteUrl),
-      photoUrl: emptyToNull(values.photoUrl),
-      studentIndex: emptyToNull(values.studentIndex),
-      studyDepartment: emptyToNull(values.studyDepartment),
-      studyField: emptyToNull(values.studyField),
-      studyYear: emptyToNull(values.studyYear),
-      bio: emptyToNull(values.bio),
-      status: values.status,
-    })
-    .returning();
+  const roleDefinitions =
+    values.roleAssignments.length === 0
+      ? []
+      : await db.query.roleDefinition.findMany({
+          where: inArray(
+            roleDefinition.id,
+            values.roleAssignments.map((role) => role.roleDefinitionId),
+          ),
+        });
+  const roleDefinitionById = new Map(
+    roleDefinitions.map((role) => [role.id, role]),
+  );
+  const roleAssignments = values.roleAssignments.map((role) => {
+    const definition = roleDefinitionById.get(role.roleDefinitionId);
+    if (definition === undefined) {
+      throw new Error("Nie znaleziono wybranej roli.");
+    }
+    if (definition.scope === "project_team" || definition.scope === "project") {
+      throw new Error("Role projektowe są zarządzane przy projekcie.");
+    }
+    if (
+      definition.scope === "board" &&
+      (role.boardTermId === undefined || role.boardTermId === "")
+    ) {
+      throw new Error("Rola zarządowa wymaga wskazania kadencji.");
+    }
+    return {
+      roleDefinitionId: role.roleDefinitionId,
+      boardTermId: definition.scope === "board" ? role.boardTermId : null,
+      sectionId:
+        definition.scope === "section" ? (role.sectionId ?? null) : null,
+      projectId: null,
+      startedAt: parseDate(role.startedAt) ?? new Date(),
+      endedAt: parseDate(role.endedAt),
+    };
+  });
 
-  await setMemberHrNote(created.id, emptyToNull(values.hrNotes));
-
-  if (values.emails.length > 0) {
-    await db.insert(memberEmail).values(
-      values.emails.map((email) => ({
-        memberId: created.id,
-        email: normalizeEmail(email.email),
-        kind: email.kind,
-      })),
-    );
-  }
-
-  if (values.roleAssignments.length > 0) {
-    const roleDefinitions =
-      values.roleAssignments.length === 0
-        ? []
-        : await db.query.roleDefinition.findMany({
-            where: inArray(
-              roleDefinition.id,
-              values.roleAssignments.map((role) => role.roleDefinitionId),
-            ),
-          });
-    const roleDefinitionById = new Map(
-      roleDefinitions.map((role) => [role.id, role]),
-    );
-
-    await db.insert(roleAssignment).values(
-      values.roleAssignments.map((role) => {
-        const definition = roleDefinitionById.get(role.roleDefinitionId);
-        if (definition === undefined) {
-          throw new Error("Nie znaleziono wybranej roli.");
-        }
-        if (
-          definition.scope === "project_team" ||
-          definition.scope === "project"
-        ) {
-          throw new Error("Role projektowe są zarządzane przy projekcie.");
-        }
-        if (
-          definition.scope === "board" &&
-          (role.boardTermId === undefined || role.boardTermId === "")
-        ) {
-          throw new Error("Rola zarządowa wymaga wskazania kadencji.");
-        }
-        return {
-          memberId: created.id,
-          roleDefinitionId: role.roleDefinitionId,
-          boardTermId: definition.scope === "board" ? role.boardTermId : null,
-          sectionId:
-            definition.scope === "section" ? (role.sectionId ?? null) : null,
-          projectId: null,
-          startedAt: parseDate(role.startedAt) ?? new Date(),
-          endedAt: parseDate(role.endedAt),
-        };
-      }),
-    );
-  }
-
-  if (created.githubUsername !== null) {
-    await reattributeActivityForMember(created.id, created.githubUsername);
-  }
+  const created = await db.transaction(async (tx) =>
+    createMemberRecord(tx, {
+      values: {
+        fullName: values.fullName,
+        parentId: emptyToNull(values.parentId),
+        githubUsername: emptyToNull(values.githubUsername),
+        discordId: emptyToNull(values.discordId),
+        facebookUrl: emptyToNull(values.facebookUrl),
+        linkedinUrl: emptyToNull(values.linkedinUrl),
+        instagramUrl: emptyToNull(values.instagramUrl),
+        websiteUrl: emptyToNull(values.websiteUrl),
+        photoUrl: emptyToNull(values.photoUrl),
+        studentIndex: emptyToNull(values.studentIndex),
+        studyDepartment: emptyToNull(values.studyDepartment),
+        studyField: emptyToNull(values.studyField),
+        studyYear: emptyToNull(values.studyYear),
+        bio: emptyToNull(values.bio),
+        status: values.status,
+      },
+      hrNotes: emptyToNull(values.hrNotes),
+      emails: values.emails,
+      roleAssignments,
+    }),
+  );
 
   const automationResult = await runOnboardingAutomations({
     member: { githubUsername: created.githubUsername },
@@ -646,56 +629,50 @@ export async function commitMemberImport(
         row.noteLines.length > 0 ? row.noteLines.join("\n") : null;
       const explicitParentId = row.parentId === "" ? null : row.parentId;
 
-      const [created] = await db
-        .insert(member)
-        .values({
-          fullName: row.fullName,
-          parentId: explicitParentId,
-          githubUsername: emptyToNull(row.githubUsername),
-          discordId: emptyToNull(row.discordId),
-          facebookUrl: emptyToNull(row.facebookUrl),
-          studentIndex,
-          studyDepartment: emptyToNull(row.studyDepartment),
-          studyField: emptyToNull(row.studyField),
-          studyYear: emptyToNull(row.studyYear),
-          status: row.status,
-          ...(row.joinedAt !== "" && {
-            createdAt: new Date(`${row.joinedAt}T00:00:00`),
-          }),
-        })
-        .returning();
+      const sectionMemberRole =
+        sectionIds.length > 0 ? await getSectionMemberRole(db) : null;
 
-      await setMemberHrNote(created.id, hrNotes);
+      const created = await db.transaction(async (tx) =>
+        createMemberRecord(tx, {
+          values: {
+            fullName: row.fullName,
+            parentId: explicitParentId,
+            githubUsername: emptyToNull(row.githubUsername),
+            discordId: emptyToNull(row.discordId),
+            facebookUrl: emptyToNull(row.facebookUrl),
+            studentIndex,
+            studyDepartment: emptyToNull(row.studyDepartment),
+            studyField: emptyToNull(row.studyField),
+            studyYear: emptyToNull(row.studyYear),
+            status: row.status,
+            ...(row.joinedAt !== "" && {
+              createdAt: new Date(`${row.joinedAt}T00:00:00`),
+            }),
+          },
+          hrNotes,
+          emails: email === null ? [] : [{ email, kind: row.emailKind }],
+          roleAssignments:
+            sectionMemberRole === null
+              ? []
+              : sectionIds.map((sectionId) => ({
+                  roleDefinitionId: sectionMemberRole.id,
+                  boardTermId: null,
+                  sectionId,
+                  projectId: null,
+                  startedAt:
+                    row.joinedAt === ""
+                      ? new Date()
+                      : new Date(`${row.joinedAt}T00:00:00`),
+                  endedAt: null,
+                })),
+        }),
+      );
 
       if (email !== null) {
-        await db
-          .insert(memberEmail)
-          .values({ memberId: created.id, email, kind: row.emailKind })
-          .onConflictDoNothing({ target: memberEmail.email });
         emailToId.set(email, created.id);
-      }
-      if (sectionIds.length > 0) {
-        const sectionMemberRole = await getSectionMemberRole();
-        await db.insert(roleAssignment).values(
-          sectionIds.map((sectionId) => ({
-            memberId: created.id,
-            roleDefinitionId: sectionMemberRole.id,
-            boardTermId: null,
-            sectionId,
-            projectId: null,
-            startedAt:
-              row.joinedAt === ""
-                ? new Date()
-                : new Date(`${row.joinedAt}T00:00:00`),
-            endedAt: null,
-          })),
-        );
       }
       if (studentIndex !== null) {
         indexToId.set(studentIndex.toLowerCase(), created.id);
-      }
-      if (created.githubUsername !== null) {
-        await reattributeActivityForMember(created.id, created.githubUsername);
       }
       addToNameIndex(nameToIds, row.fullName, created.id);
       createdRows.push({
@@ -754,19 +731,6 @@ export async function commitMemberImport(
 
 function emptyToNull(value: string | undefined): string | null {
   return value === undefined || value === "" ? null : value;
-}
-
-async function getSectionMemberRole() {
-  const role = await db.query.roleDefinition.findFirst({
-    where: and(
-      eq(roleDefinition.scope, "section"),
-      eq(roleDefinition.name, "członek"),
-    ),
-  });
-  if (role === undefined) {
-    throw new Error("Nie znaleziono roli członka sekcji.");
-  }
-  return role;
 }
 
 function normalizeEmail(email: string): string {
