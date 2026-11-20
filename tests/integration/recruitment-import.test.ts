@@ -8,7 +8,7 @@ import { section } from "@/db/schema/sections";
 import type { RecruitmentAnalysis } from "@/lib/member-import/recruitment";
 import {
   analyzeRecruitmentFile,
-  commitRecruitmentImport,
+  commitRecruitmentRows,
 } from "@/lib/member-import/recruitment";
 
 import {
@@ -74,7 +74,7 @@ function reviewedRows(analysis: RecruitmentAnalysis) {
 }
 
 async function commit(rows: unknown[]) {
-  const result = await commitRecruitmentImport({
+  const result = await commitRecruitmentRows({
     actorMemberId: adminId,
     input: { edition, joinedAt, rows },
   });
@@ -501,7 +501,7 @@ describe("committing a recruitment import", () => {
   it("rejects the whole submission when an included row is invalid", async () => {
     const analysis = await analyzeOk();
 
-    const result = await commitRecruitmentImport({
+    const result = await commitRecruitmentRows({
       actorMemberId: adminId,
       input: { edition, joinedAt, rows: analysis.rows },
     });
@@ -560,7 +560,7 @@ describe("authorization", () => {
           : "Tylko zarząd może importować członków.",
       );
       await expect(
-        commitRecruitmentImport({
+        commitRecruitmentRows({
           actorMemberId,
           input: { edition, joinedAt, rows: [] },
         }),

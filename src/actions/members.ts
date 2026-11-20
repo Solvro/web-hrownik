@@ -11,9 +11,18 @@ import { roleAssignment, roleDefinition } from "@/db/schema/roles";
 import { section } from "@/db/schema/sections";
 import { getCurrentMember } from "@/lib/current-member";
 import { reattributeActivityForMember } from "@/lib/integrations/github-activity";
+import { getUniversityInfoOptions } from "@/lib/integrations/topwr";
 import { appendMemberHrNote, setMemberHrNote } from "@/lib/member-hr-notes";
 import type { MemberImportSheetType } from "@/lib/member-import";
 import { emailPattern, parseMemberImportFile } from "@/lib/member-import";
+import type {
+  RecruitmentAnalysisResult,
+  RecruitmentCommitResult,
+} from "@/lib/member-import/recruitment";
+import {
+  analyzeRecruitmentFile,
+  commitRecruitmentRows,
+} from "@/lib/member-import/recruitment";
 import {
   createMemberRecord,
   getSectionMemberRole,
@@ -24,6 +33,7 @@ import {
   canEditOwnProfile,
   getMemberPermissions,
 } from "@/lib/permissions";
+import type { RecruitmentCommitInput } from "@/lib/schemas/member-import";
 import {
   memberFormSchema,
   memberImportCommitSchema,
@@ -727,6 +737,38 @@ export async function commitMemberImport(
     errors: results.filter((r) => r.outcome === "error").length,
     rows: results,
   };
+}
+
+/**
+ * Step 1–2 of the recruitment import: parse the uploaded Eventownik export
+ * (FormData `file`, optional `mapping` override as JSON) into a column
+ * mapping and editable preview rows. Nothing is written.
+ */
+export async function analyzeRecruitmentImport(
+  formData: FormData,
+): Promise<RecruitmentAnalysisResult> {
+  const currentMember = await getCurrentMember();
+  return analyzeRecruitmentFile({
+    actorMemberId: currentMember?.id ?? null,
+    file: formData.get("file"),
+    mapping: formData.get("mapping") ?? undefined,
+    university: await getUniversityInfoOptions(),
+  });
+}
+
+/** Final step of the recruitment import: create the reviewed rows. */
+export async function commitRecruitmentImport(
+  input: RecruitmentCommitInput,
+): Promise<RecruitmentCommitResult> {
+  const currentMember = await getCurrentMember();
+  const result = await commitRecruitmentRows({
+    actorMemberId: currentMember?.id ?? null,
+    input,
+  });
+  if (result.ok && result.summary.created > 0) {
+    revalidatePath("/members");
+  }
+  return result;
 }
 
 function emptyToNull(value: string | undefined): string | null {

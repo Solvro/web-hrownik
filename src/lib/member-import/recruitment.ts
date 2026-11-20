@@ -149,7 +149,7 @@ export async function analyzeRecruitmentFile({
  * re-checked against the database at commit time and skipped — existing
  * members are never overwritten, so re-importing an export is safe.
  */
-export async function commitRecruitmentImport({
+export async function commitRecruitmentRows({
   actorMemberId,
   input,
 }: {
@@ -241,7 +241,7 @@ export async function commitRecruitmentImport({
       });
     } catch (error) {
       console.error(
-        "[commitRecruitmentImport] row %d failed",
+        "[commitRecruitmentRows] row %d failed",
         row.rowNumber,
         error,
       );
