@@ -8,7 +8,7 @@ import {
 } from "@/actions/members";
 import { ColumnMappingStep } from "@/components/members/import/column-mapping-step";
 import { ImportPreviewTable } from "@/components/members/import/import-preview-table";
-import { ImportSummary } from "@/components/members/import/import-summary";
+import { RecruitmentImportSummary } from "@/components/members/import/import-summary";
 import type { RecruitmentUpload } from "@/components/members/import/import-upload-step";
 import { ImportUploadStep } from "@/components/members/import/import-upload-step";
 import type { UniversityInfoOptions } from "@/lib/integrations/topwr";
@@ -18,7 +18,7 @@ import type {
   RecruitmentAnalysisResult,
   RecruitmentImportRowResult,
 } from "@/lib/member-import/recruitment";
-import type { ImportSummary as ImportSummaryData } from "@/lib/member-import/summary";
+import type { ImportSummary } from "@/lib/member-import/summary";
 import type { RecruitmentImportRowInput } from "@/lib/schemas/member-import";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +34,7 @@ type WizardState =
       upload: RecruitmentUpload;
       analysis: RecruitmentAnalysis;
     }
-  | { step: "summary"; summary: ImportSummaryData<RecruitmentImportRowResult> };
+  | { step: "summary"; summary: ImportSummary<RecruitmentImportRowResult> };
 
 const steps = [
   { key: "upload", label: "Plik" },
@@ -164,7 +164,7 @@ export function RecruitmentImportWizard({
       ) : null}
 
       {state.step === "summary" ? (
-        <ImportSummary
+        <RecruitmentImportSummary
           summary={state.summary}
           onRestart={() => {
             setState({ step: "upload" });

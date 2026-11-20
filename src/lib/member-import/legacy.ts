@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import * as z from "zod";
 
 import { db } from "@/db";
 import { member } from "@/db/schema/members";
@@ -10,12 +11,14 @@ import {
   getSectionMemberRole,
 } from "@/lib/members/create-member";
 import { assertCan } from "@/lib/permissions";
-import { memberImportCommitSchema } from "@/lib/schemas/members";
+import {
+  memberImportCommitSchema,
+  memberImportSheetTypeOptions,
+} from "@/lib/schemas/members";
 import type {
   EmailKind,
   MemberImportCommitInput,
   MemberStatus,
-  memberImportSheetTypeOptions,
 } from "@/lib/schemas/members";
 
 import { extractGithubUsername } from "./normalize";
@@ -154,7 +157,7 @@ function splitList(value: string | undefined): string[] {
     );
 }
 
-export const emailPattern = /^[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+$/;
+const emailPattern = /^[^\s@]+@[^\s@][^\s.@]*\.[^\s@]+$/;
 
 function normalizeStudyYear(raw: string): string {
   return raw
@@ -162,7 +165,7 @@ function normalizeStudyYear(raw: string): string {
     .replace(/magisterki$/i, "magisterski");
 }
 
-export function parseMemberImportFile(
+function parseMemberImportFile(
   sheetType: MemberImportSheetType,
   fileContents: string,
 ): MemberImportParseResult {
@@ -465,7 +468,7 @@ export async function previewLegacyImport({
   await assertCan(actorMemberId, "members", "write", deniedMessage);
 
   const { rows, missingColumns, blankRowsSkipped } = parseMemberImportFile(
-    sheetType,
+    z.enum(memberImportSheetTypeOptions).parse(sheetType),
     fileContents,
   );
 

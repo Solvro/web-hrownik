@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { RecruitmentImportRowResult } from "@/lib/member-import/recruitment";
-import type { ImportSummary as ImportSummaryData } from "@/lib/member-import/summary";
+import type { ImportSummary } from "@/lib/member-import/summary";
 
 const outcomeLabels: Record<RecruitmentImportRowResult["outcome"], string> = {
   created: "dodano",
@@ -11,11 +11,11 @@ const outcomeLabels: Record<RecruitmentImportRowResult["outcome"], string> = {
   error: "błąd",
 };
 
-export function ImportSummary({
+export function RecruitmentImportSummary({
   summary,
   onRestart,
 }: {
-  summary: ImportSummaryData<RecruitmentImportRowResult>;
+  summary: ImportSummary<RecruitmentImportRowResult>;
   onRestart: () => void;
 }) {
   return (

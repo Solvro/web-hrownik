@@ -13,7 +13,7 @@ import {
 import { githubUsernamePattern } from "@/lib/member-import/normalize";
 import { studyYearOptions } from "@/lib/schemas/members";
 
-export const maxImportFileBytes = 5 * 1024 * 1024;
+const maxImportFileBytes = 5 * 1024 * 1024;
 
 const importFileSchema = z
   .instanceof(File, { message: "Wybierz plik" })
@@ -40,7 +40,7 @@ export const recruitmentUploadSchema = z.object({
 
 export type RecruitmentUploadValues = z.infer<typeof recruitmentUploadSchema>;
 
-export const columnMappingSchema = z
+const columnMappingSchema = z
   .partialRecord(z.enum(recruitmentImportFields), z.int().nonnegative())
   .refine(
     (mapping) => {

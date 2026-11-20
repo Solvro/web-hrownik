@@ -38,7 +38,7 @@ export function matchDepartment(
  * field-of-study match: tolerates a typo or two, but not a name that merely
  * contains another ("Informatyka" vs "Teleinformatyka").
  */
-export const fieldOfStudySimilarityThreshold = 0.85;
+const fieldOfStudySimilarityThreshold = 0.85;
 
 /**
  * Field of study within the matched department (and studies cycle, when the
