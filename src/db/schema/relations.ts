@@ -11,6 +11,7 @@ import {
 } from "./github";
 import { member, memberEmail, memberHrNote } from "./members";
 import { project, projectStatus, team, teamMember } from "./projects";
+import { memberRecruitment } from "./recruitment";
 import {
   permissionGrant,
   permissionGroup,
@@ -38,7 +39,18 @@ export const memberRelations = relations(member, ({ many, one }) => ({
   roleAssignments: many(roleAssignment),
   teamMemberships: many(teamMember),
   activityEvents: many(githubActivityEvent),
+  recruitments: many(memberRecruitment),
 }));
+
+export const memberRecruitmentRelations = relations(
+  memberRecruitment,
+  ({ one }) => ({
+    member: one(member, {
+      fields: [memberRecruitment.memberId],
+      references: [member.id],
+    }),
+  }),
+);
 
 export const memberHrNoteRelations = relations(memberHrNote, ({ one }) => ({
   member: one(member, {

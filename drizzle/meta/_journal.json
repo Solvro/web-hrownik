@@ -148,6 +148,13 @@
       "when": 1794589739656,
       "tag": "0020_move_hr_notes_to_own_table",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1795136594854,
+      "tag": "0021_add_member_recruitment",
+      "breakpoints": true
     }
   ]
 }

@@ -32,3 +32,7 @@ export const activityTypeEnum = pgEnum("activity_type", [
   "pull_request",
   "issue",
 ]);
+
+export const recruitmentSourceEnum = pgEnum("recruitment_source", [
+  "eventownik",
+]);
