@@ -554,9 +554,8 @@ describe("committing a recruitment import", () => {
       },
       expect.objectContaining({ rowNumber: 7, outcome: "created" }),
     ]);
-    expect((await importedMembers()).map((m) => m.fullName)).toEqual([
-      "Filip Literówka",
-    ]);
+    const members = await importedMembers();
+    expect(members.map((m) => m.fullName)).toEqual(["Filip Literówka"]);
   });
 
   it("skips rows the board left unticked", async () => {
