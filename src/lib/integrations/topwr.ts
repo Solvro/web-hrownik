@@ -2,14 +2,14 @@ import { env } from "@/env";
 
 const TOPWR_REVALIDATE_SECONDS = 60 * 60 * 24;
 
-interface TopwrFieldOfStudy {
+export interface TopwrFieldOfStudy {
   id: number;
   departmentId: number;
   name: string;
   studiesType: string;
 }
 
-interface TopwrDepartment {
+export interface TopwrDepartment {
   id: number;
   name: string;
   code: string;
@@ -21,11 +21,12 @@ interface TopwrDepartmentsResponse {
 }
 
 export interface UniversityInfoOptions {
-  departments: { id: string; value: string; label: string }[];
+  departments: { id: string; value: string; label: string; code: string }[];
   fieldsOfStudy: {
     id: string;
     value: string;
     label: string;
+    name: string;
     department: string;
     studiesType: string;
   }[];
@@ -47,16 +48,24 @@ export async function getUniversityInfoOptions(): Promise<UniversityInfoOptions>
   }
 
   const payload = (await response.json()) as TopwrDepartmentsResponse;
-  const departments = payload.data.map((department) => ({
+  return toUniversityInfoOptions(payload.data);
+}
+
+export function toUniversityInfoOptions(
+  data: TopwrDepartment[],
+): UniversityInfoOptions {
+  const departments = data.map((department) => ({
     id: String(department.id),
     value: department.name,
     label: `${department.code} · ${department.name}`,
+    code: department.code,
   }));
-  const fieldsOfStudy = payload.data.flatMap((department) =>
+  const fieldsOfStudy = data.flatMap((department) =>
     (department.fieldsOfStudy ?? []).map((field) => ({
       id: String(field.id),
       value: formatFieldOfStudy(field, department),
       label: formatFieldOfStudy(field),
+      name: field.name,
       department: department.name,
       studiesType: field.studiesType,
     })),
