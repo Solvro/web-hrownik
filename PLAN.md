@@ -237,7 +237,7 @@ api_key_endpoint_stat (src/db/schema/api-keys.ts)
 
 - Klucze: `createApiKey`, `deleteApiKey` (`src/actions/api-keys.ts`), `generateApiKeySecret`, `hashApiKeySecret`, `getApiKeyDisplayPrefix` (`src/lib/api-keys.ts`); surowy klucz pokazywany tylko raz.
 - Autoryzacja: `authenticateApiKey` (`src/lib/api/authenticate.ts`) — `Authorization: Bearer <klucz>`, zliczanie użyć per zasób.
-- Endpointy (`GET`): `/api/v1/members[/id]`, `/api/v1/projects[/id]`, `/api/v1/sections[/id]`, `/api/v1/boards[/id]`, `/api/v1/boards/active` — przez `listReadOnly` / `getReadOnly` (`src/lib/api/read-only.ts`; paginacja `page`/`pageSize` lub `limit`/`offset`, relacje przez `include`) z konfiguracjami `memberApiConfig`, `projectApiConfig`, `sectionApiConfig`, `boardApiConfig` (`src/lib/api/resources.ts`). Prywatne pola członka (notatki HR itp.) nie są zwracane.
+- Endpointy (`GET`): `/api/v1/members[/id]`, `/api/v1/projects[/id]`, `/api/v1/sections[/id]`, `/api/v1/boards[/id]`, `/api/v1/boards/active` — przez `listReadOnly` / `getReadOnly` (`src/lib/api/read-only.ts`; paginacja `page`/`pageSize` lub `limit`/`offset`, relacje przez `include`) z konfiguracjami `memberApiConfig`, `projectApiConfig`, `sectionApiConfig`, `boardApiConfig` (`src/lib/api/resources.ts`). Zwracane są tylko kolumny z allow-list per tabela (`pick(...)` w `resources.ts`; nowa kolumna jest prywatna, dopóki jej tam nie dodasz) — `studentIndex` i `discordId` są prywatne; nieznany `include` zwraca 400.
 
 ### Panel GitHub (`/settings/github`)
 

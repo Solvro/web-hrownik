@@ -1,12 +1,24 @@
+import type { Column } from "drizzle-orm";
+
 import { db } from "@/db";
 import { boardTerm } from "@/db/schema/boards";
+import {
+  githubActivityEvent,
+  projectRepository,
+  teamRepository,
+} from "@/db/schema/github";
 import { member } from "@/db/schema/members";
-import { project } from "@/db/schema/projects";
-import { section } from "@/db/schema/sections";
+import { project, team, teamMember } from "@/db/schema/projects";
+import { roleAssignment, roleDefinition } from "@/db/schema/roles";
+import { memberSection, section } from "@/db/schema/sections";
 
-interface RelationSpec {
-  [name: string]: RelationSpec | undefined;
+export interface RelationNode {
+  /** Public columns of the related table; anything not listed is never selected. */
+  columns: Record<string, Column>;
+  with: Record<string, RelationNode>;
 }
+
+type Relations = Record<string, RelationNode>;
 
 type MemberQueryConfiguration = Parameters<typeof db.query.member.findMany>[0];
 type ProjectQueryConfiguration = Parameters<
@@ -19,51 +31,200 @@ type BoardTermQueryConfiguration = Parameters<
   typeof db.query.boardTerm.findMany
 >[0];
 
-const memberRelations: RelationSpec = {};
-const sectionRelations: RelationSpec = {};
-const projectRelations: RelationSpec = {};
-const teamRelations: RelationSpec = {};
+function pick<T extends object, K extends keyof T>(
+  table: T,
+  keys: readonly K[],
+) {
+  return Object.fromEntries(keys.map((key) => [key, table[key]])) as Pick<T, K>;
+}
+
+// Allow-lists: a new column is private until it is added here.
+const memberColumns = pick(member, [
+  "id",
+  "userId",
+  "parentId",
+  "fullName",
+  "githubUsername",
+  "facebookUrl",
+  "linkedinUrl",
+  "instagramUrl",
+  "websiteUrl",
+  "photoUrl",
+  "studyDepartment",
+  "studyField",
+  "studyYear",
+  "bio",
+  "status",
+  "createdAt",
+  "updatedAt",
+]);
+const projectColumns = pick(project, [
+  "id",
+  "name",
+  "slug",
+  "status",
+  "visibility",
+  "productionUrl",
+  "driveFolderUrl",
+  "projectCardDriveUrl",
+  "reportDriveUrl",
+  "startedAt",
+  "endedAt",
+  "createdAt",
+  "updatedAt",
+]);
+const sectionColumns = pick(section, ["id", "name", "description"]);
+const boardTermColumns = pick(boardTerm, [
+  "id",
+  "name",
+  "startsAt",
+  "endsAt",
+  "description",
+  "createdAt",
+  "updatedAt",
+]);
+const teamColumns = pick(team, [
+  "id",
+  "projectId",
+  "name",
+  "githubTeamSlug",
+  "discordRoleId",
+]);
+const roleDefinitionColumns = pick(roleDefinition, [
+  "id",
+  "scope",
+  "name",
+  "githubTeamSlug",
+  "discordRoleId",
+]);
+const roleAssignmentColumns = pick(roleAssignment, [
+  "id",
+  "memberId",
+  "roleDefinitionId",
+  "boardTermId",
+  "sectionId",
+  "projectId",
+  "startedAt",
+  "endedAt",
+]);
+const teamMemberColumns = pick(teamMember, [
+  "id",
+  "teamId",
+  "memberId",
+  "roleDefinitionId",
+  "joinedAt",
+  "leftAt",
+]);
+const memberSectionColumns = pick(memberSection, [
+  "id",
+  "memberId",
+  "sectionId",
+  "joinedAt",
+  "leftAt",
+]);
+const projectRepositoryColumns = pick(projectRepository, [
+  "id",
+  "projectId",
+  "githubRepoFullName",
+  "githubRepoId",
+  "addedAt",
+]);
+const teamRepositoryColumns = pick(teamRepository, [
+  "id",
+  "teamId",
+  "projectRepositoryId",
+]);
+const activityEventColumns = pick(githubActivityEvent, [
+  "id",
+  "projectRepositoryId",
+  "projectId",
+  "memberId",
+  "githubLogin",
+  "type",
+  "externalId",
+  "occurredAt",
+  "url",
+  "title",
+]);
+
+const leaf = (columns: Record<string, Column>): RelationNode => ({
+  columns,
+  with: {},
+});
+
+const memberRelations: Relations = {};
+const sectionRelations: Relations = {};
+const projectRelations: Relations = {};
+const teamRelations: Relations = {};
+
+const memberNode = { columns: memberColumns, with: memberRelations };
+const sectionNode = { columns: sectionColumns, with: sectionRelations };
+const projectNode = { columns: projectColumns, with: projectRelations };
+const teamNode = { columns: teamColumns, with: teamRelations };
+const roleDefinitionNode = leaf(roleDefinitionColumns);
 
 Object.assign(memberRelations, {
-  parent: memberRelations,
-  children: memberRelations,
+  parent: memberNode,
+  children: memberNode,
   roleAssignments: {
-    roleDefinition: {},
-    section: sectionRelations,
-    project: projectRelations,
+    columns: roleAssignmentColumns,
+    with: {
+      roleDefinition: roleDefinitionNode,
+      section: sectionNode,
+      project: projectNode,
+    },
   },
   teamMemberships: {
-    roleDefinition: {},
-    team: teamRelations,
+    columns: teamMemberColumns,
+    with: { roleDefinition: roleDefinitionNode, team: teamNode },
   },
 });
 
 Object.assign(sectionRelations, {
-  members: {
-    member: memberRelations,
+  members: { columns: memberSectionColumns, with: { member: memberNode } },
+  roleAssignments: {
+    columns: roleAssignmentColumns,
+    with: { member: leaf(memberColumns), roleDefinition: roleDefinitionNode },
   },
-  roleAssignments: { member: {}, roleDefinition: {} },
 });
 
 Object.assign(projectRelations, {
-  repositories: {},
-  roleAssignments: { member: {}, roleDefinition: {} },
-  teams: teamRelations,
-  activityEvents: { member: {}, projectRepository: {} },
+  repositories: leaf(projectRepositoryColumns),
+  roleAssignments: {
+    columns: roleAssignmentColumns,
+    with: { member: leaf(memberColumns), roleDefinition: roleDefinitionNode },
+  },
+  teams: teamNode,
+  activityEvents: {
+    columns: activityEventColumns,
+    with: {
+      member: leaf(memberColumns),
+      projectRepository: leaf(projectRepositoryColumns),
+    },
+  },
 });
 
 Object.assign(teamRelations, {
-  project: projectRelations,
-  members: { member: memberRelations, roleDefinition: {} },
-  repositories: { projectRepository: {} },
+  project: projectNode,
+  members: {
+    columns: teamMemberColumns,
+    with: { member: memberNode, roleDefinition: roleDefinitionNode },
+  },
+  repositories: {
+    columns: teamRepositoryColumns,
+    with: { projectRepository: leaf(projectRepositoryColumns) },
+  },
 });
 
-const boardTermRelations: RelationSpec = {
+const boardTermRelations: Relations = {
   roleAssignments: {
-    roleDefinition: {},
-    member: memberRelations,
-    section: sectionRelations,
-    project: projectRelations,
+    columns: roleAssignmentColumns,
+    with: {
+      roleDefinition: roleDefinitionNode,
+      member: memberNode,
+      section: sectionNode,
+      project: projectNode,
+    },
   },
 };
 
@@ -76,29 +237,9 @@ export const memberApiConfig = {
   },
   resource: "members",
   table: member,
-  columns: {
-    id: member.id,
-    userId: member.userId,
-    parentId: member.parentId,
-    fullName: member.fullName,
-    githubUsername: member.githubUsername,
-    discordId: member.discordId,
-    facebookUrl: member.facebookUrl,
-    linkedinUrl: member.linkedinUrl,
-    instagramUrl: member.instagramUrl,
-    websiteUrl: member.websiteUrl,
-    photoUrl: member.photoUrl,
-    studentIndex: member.studentIndex,
-    studyDepartment: member.studyDepartment,
-    studyField: member.studyField,
-    studyYear: member.studyYear,
-    bio: member.bio,
-    status: member.status,
-    createdAt: member.createdAt,
-    updatedAt: member.updatedAt,
-  },
+  columns: memberColumns,
   defaultSort: "fullName",
-  searchable: ["fullName", "githubUsername", "studentIndex", "bio"],
+  searchable: ["fullName", "githubUsername", "bio"],
   relations: memberRelations,
 };
 
@@ -111,20 +252,7 @@ export const projectApiConfig = {
   },
   resource: "projects",
   table: project,
-  columns: {
-    id: project.id,
-    name: project.name,
-    slug: project.slug,
-    status: project.status,
-    visibility: project.visibility,
-    productionUrl: project.productionUrl,
-    driveFolderUrl: project.driveFolderUrl,
-    projectCardDriveUrl: project.projectCardDriveUrl,
-    reportDriveUrl: project.reportDriveUrl,
-    endedAt: project.endedAt,
-    createdAt: project.createdAt,
-    updatedAt: project.updatedAt,
-  },
+  columns: projectColumns,
   defaultSort: "name",
   searchable: ["name", "slug", "productionUrl"],
   relations: projectRelations,
@@ -139,11 +267,7 @@ export const sectionApiConfig = {
   },
   resource: "sections",
   table: section,
-  columns: {
-    id: section.id,
-    name: section.name,
-    description: section.description,
-  },
+  columns: sectionColumns,
   defaultSort: "name",
   searchable: ["name", "description"],
   relations: sectionRelations,
@@ -160,15 +284,7 @@ export const boardApiConfig = {
   },
   resource: "boards",
   table: boardTerm,
-  columns: {
-    id: boardTerm.id,
-    name: boardTerm.name,
-    startsAt: boardTerm.startsAt,
-    endsAt: boardTerm.endsAt,
-    description: boardTerm.description,
-    createdAt: boardTerm.createdAt,
-    updatedAt: boardTerm.updatedAt,
-  },
+  columns: boardTermColumns,
   defaultSort: "name",
   searchable: ["name", "description"],
   relations: boardTermRelations,

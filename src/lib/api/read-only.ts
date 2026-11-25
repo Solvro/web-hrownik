@@ -5,18 +5,24 @@ import { NextResponse } from "next/server";
 
 import { db } from "@/db";
 import { authenticateApiKey } from "@/lib/api/authenticate";
-
-interface RelationSpec {
-  [name: string]: RelationSpec | undefined;
-}
+import type { RelationNode } from "@/lib/api/resources";
 
 interface QueryConfiguration {
-  columns?: Record<string, boolean>;
+  columns: Record<string, true>;
   where?: SQL;
   orderBy?: SQL[];
   limit?: number;
   offset?: number;
-  with?: Record<string, true | { with: Record<string, unknown> }>;
+  with?: Record<string, SelectedRelation>;
+}
+
+interface RequestedTree {
+  [name: string]: RequestedTree;
+}
+
+interface SelectedRelation {
+  columns: Record<string, true>;
+  with?: Record<string, SelectedRelation>;
 }
 
 interface EndpointConfig {
@@ -29,15 +35,8 @@ interface EndpointConfig {
   columns: Partial<Record<string, Column>>;
   defaultSort: string;
   searchable?: string[];
-  relations?: RelationSpec;
+  relations?: Record<string, RelationNode>;
 }
-
-// Keys that would reach Object.prototype through plain-object property access.
-const FORBIDDEN_RELATION_KEYS = new Set([
-  "__proto__",
-  "constructor",
-  "prototype",
-]);
 
 const MAX_PAGE_SIZE = 100;
 const DEFAULT_PAGE_SIZE = 50;
@@ -189,55 +188,73 @@ function parseFilters(
   return filters;
 }
 
+function selectColumns(columns: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.keys(columns).map((key) => [key, true as const]),
+  );
+}
+
 function buildRelations(
   searchParameters: URLSearchParams,
   config: EndpointConfig,
 ) {
   const include = searchParameters.get("include")?.trim();
-  if (
-    include === undefined ||
-    include.length === 0 ||
-    config.relations === undefined
-  ) {
-    return;
+  if (include === undefined || include.length === 0) {
+    return {};
   }
 
-  // Null-prototype objects: a request-controlled key like `__proto__` must
-  // never resolve to (and let us write onto) Object.prototype.
-  const requestedTree: RelationSpec = Object.create(null) as RelationSpec;
+  // Null-prototype nodes: a request-controlled key like `__proto__` is an
+  // ordinary key here and never reaches Object.prototype.
+  const requestedTree: RequestedTree = Object.create(null) as RequestedTree;
   for (const path of include.split(",")) {
     const parts = path.trim().split(".").filter(Boolean).slice(0, 5);
-    if (parts.some((part) => FORBIDDEN_RELATION_KEYS.has(part))) {
-      continue;
-    }
     let current = requestedTree;
     for (const part of parts) {
-      current[part] ??= Object.create(null) as RelationSpec;
+      current[part] ??= Object.create(null) as RequestedTree;
       current = current[part];
     }
   }
 
-  return buildAllowedRelations(requestedTree, config.relations);
+  const unknown: string[] = [];
+  const withRelations = buildAllowedRelations(
+    requestedTree,
+    config.relations ?? {},
+    "",
+    unknown,
+  );
+  if (unknown.length > 0) {
+    return badRequest(`Unknown include: ${unknown.join(", ")}.`);
+  }
+
+  return { with: withRelations };
 }
 
-function buildAllowedRelations(requested: RelationSpec, allowed: RelationSpec) {
-  const result: Record<string, true | { with: Record<string, unknown> }> = {};
+function buildAllowedRelations(
+  requested: RequestedTree,
+  allowed: Record<string, RelationNode>,
+  prefix: string,
+  unknown: string[],
+) {
+  const result: Record<string, SelectedRelation> = {};
 
   for (const [name, nestedRequested] of Object.entries(requested)) {
-    // Own properties only: inherited keys like `constructor` must not pass.
-    const nestedAllowed = Object.hasOwn(allowed, name)
-      ? allowed[name]
-      : undefined;
-    if (nestedAllowed === undefined) {
+    // Own properties only: inherited keys like `constructor` are unknown.
+    if (!Object.hasOwn(allowed, name)) {
+      unknown.push(`${prefix}${name}`);
       continue;
     }
 
-    if (nestedRequested === undefined) {
-      continue;
-    }
-
-    const nested = buildAllowedRelations(nestedRequested, nestedAllowed);
-    result[name] = Object.keys(nested).length > 0 ? { with: nested } : true;
+    const node = allowed[name];
+    const nested = buildAllowedRelations(
+      nestedRequested,
+      node.with,
+      `${prefix}${name}.`,
+      unknown,
+    );
+    result[name] = {
+      columns: selectColumns(node.columns),
+      ...(Object.keys(nested).length > 0 ? { with: nested } : {}),
+    };
   }
 
   return result;
@@ -265,7 +282,10 @@ export async function listReadOnly(request: Request, config: EndpointConfig) {
   const { page, pageSize, offset } = parsePagination(searchParameters);
   const filters = parseFilters(searchParameters, config);
   const orderBy = parseSort(searchParameters, config);
-  const withRelations = buildRelations(searchParameters, config);
+  const relations = buildRelations(searchParameters, config);
+  if (relations instanceof NextResponse) {
+    return relations;
+  }
   const where = getWhere(filters);
 
   if (orderBy.length === 0) {
@@ -278,7 +298,8 @@ export async function listReadOnly(request: Request, config: EndpointConfig) {
       orderBy,
       limit: pageSize,
       offset,
-      ...(withRelations === undefined ? {} : { with: withRelations }),
+      columns: selectColumns(config.columns),
+      ...relations,
     }),
     db.select({ value: count() }).from(config.table).where(where),
   ]);
@@ -307,7 +328,10 @@ export async function getReadOnly(
   }
 
   const searchParameters = new URL(request.url).searchParams;
-  const withRelations = buildRelations(searchParameters, config);
+  const relations = buildRelations(searchParameters, config);
+  if (relations instanceof NextResponse) {
+    return relations;
+  }
   const idColumn = config.columns.id;
   if (idColumn === undefined) {
     return NextResponse.json(
@@ -318,7 +342,8 @@ export async function getReadOnly(
 
   const item = await config.query.findFirst({
     where: eq(idColumn, id),
-    ...(withRelations === undefined ? {} : { with: withRelations }),
+    columns: selectColumns(config.columns),
+    ...relations,
   });
 
   if (item === undefined) {
