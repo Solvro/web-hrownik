@@ -39,7 +39,9 @@ export function SectionForm({
     defaultValues: defaultValues ?? { name: "", description: "" },
   });
   useUnsavedChangesWarning(
-    form.formState.isDirty && !form.formState.isSubmitting,
+    form.formState.isDirty &&
+      !form.formState.isSubmitting &&
+      !form.formState.isSubmitSuccessful,
   );
 
   async function onSubmit(values: SectionFormValues) {

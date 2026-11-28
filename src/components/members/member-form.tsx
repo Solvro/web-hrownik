@@ -99,7 +99,9 @@ export function MemberForm({
     defaultValues,
   });
   useUnsavedChangesWarning(
-    form.formState.isDirty && !form.formState.isSubmitting,
+    form.formState.isDirty &&
+      !form.formState.isSubmitting &&
+      !form.formState.isSubmitSuccessful,
   );
   const emailFields = useFieldArray({ control: form.control, name: "emails" });
   const roleFields = useFieldArray({

@@ -83,7 +83,9 @@ export function ProjectForm({
     },
   });
   useUnsavedChangesWarning(
-    form.formState.isDirty && !form.formState.isSubmitting,
+    form.formState.isDirty &&
+      !form.formState.isSubmitting &&
+      !form.formState.isSubmitSuccessful,
   );
   const projectRoles = useFieldArray({
     control: form.control,
