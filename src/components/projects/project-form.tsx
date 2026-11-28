@@ -82,8 +82,11 @@ export function ProjectForm({
       projectRoles: [],
     },
   });
-  useUnsavedChangesWarning(
-    form.formState.isDirty && !form.formState.isSubmitting,
+  // Saving ends in a server-side redirect(), so the guard is released first
+  // and stays off until a failed save re-arms it.
+  const [saving, setSaving] = useState(false);
+  const { release } = useUnsavedChangesWarning(
+    form.formState.isDirty && !saving,
   );
   const projectRoles = useFieldArray({
     control: form.control,
@@ -100,6 +103,8 @@ export function ProjectForm({
 
   async function onSubmit(values: ProjectFormValues) {
     setSubmitError(null);
+    await release();
+    setSaving(true);
     try {
       if (mode === "create") {
         await createProject(values);
@@ -116,6 +121,7 @@ export function ProjectForm({
       ) {
         throw error;
       }
+      setSaving(false);
       setSubmitError(
         error instanceof Error ? error.message : "Coś poszło nie tak.",
       );
