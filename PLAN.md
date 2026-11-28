@@ -356,9 +356,8 @@ Fazy 5–7 (Discord, GitHub, Dysk Google) realizują issue [#11](https://github.
 ### Zasady (z issue #11)
 
 - **Baza HRownika jest źródłem prawdy** o tym, kto powinien mieć jaki dostęp. Z danych członka (status, sekcje, role, zespoły, projekty) liczony jest **stan oczekiwany**, a ze skanu platform — **stan faktyczny**.
-- **Nic nie jest korygowane automatycznie.** Każda różnica to **rozbieżność** z opisem stanu oczekiwanego i faktycznego oraz z **sugerowanymi akcjami** do kliknięcia. Wybór zawsze należy do użytkownika.
-- Dotyczy to też zdarzeń cyklu życia członka (utworzenie, zmiana statusu, zmiana ról/zespołów): po zmianie HRownik od razu pokazuje wynikające z niej sugerowane akcje, ale ich nie wykonuje sam.
-- **Wyjątek: usunięcie członka.** Po usunięciu nie byłoby już rekordu, z którego da się policzyć stan, więc odebranie dostępów jest wykonywane **razem z usunięciem**, w tym samym potwierdzeniu (patrz niżej).
+- **Skan tylko wykrywa rozbieżności.** Każda rozbieżność pokazuje stan oczekiwany, stan faktyczny i sugerowane akcje. Zmiana dostępu wymaga potwierdzenia przez uprawnioną osobę.
+- Potwierdzenie może być częścią operacji w HRowniku. Discord korzysta z podglądu i domyślnie zaznaczonego pola przed zapisem, zgodnie z Fazą 5. Usunięcie członka również pokazuje wybór dostępów do odebrania.
 - **Inwentarz kont spoza HRownika**: skan każdej platformy zbiera wszystkie konta (członkowie serwera Discord, członkowie i zaproszenia organizacji GitHub, członkowie zespołów, uprawnienia na dysku), a konta niepowiązane z żadnym członkiem są osobną kategorią rozbieżności.
 
 ### Stan obecny (punkt wyjścia)
@@ -413,7 +412,7 @@ access_event             -- log wykonanych akcji (audyt)
   result ('ok','error'), detail, triggered_by_member_id, created_at
 ```
 
-- Migracja: niepuste `github_team_slug` / `discord_role_id` z `team` i `role_definition` → `access_rule`, potem usunięcie kolumn; `member.discord_id` / `member.github_username` → `external_account` (`disposition: 'linked'`, `link_source: 'matched'` po weryfikacji u dostawcy); `github_external_contributor` → `external_account` z `disposition: 'ignored'`, `ignore_reason: 'zewnętrzny kontrybutor'`.
+- Migracja: niepuste `github_team_slug` / `discord_role_id` z `team` i `role_definition` → kandydaci na `access_rule`, weryfikowani dla danej platformy przed wycofaniem kolumn; `member.github_username` → `external_account` po weryfikacji u dostawcy; `member.discord_id` → kandydat na powiązanie według Fazy 5; `github_external_contributor` → `external_account` z `disposition: 'ignored'`, `ignore_reason: 'zewnętrzny kontrybutor'`.
 - `member.github_username` zostaje jako pole profilu i do atrybucji aktywności (Faza 2); `member.discord_id` zostaje usunięte na rzecz `external_account`.
 
 ### Rozbieżności (`src/lib/access/discrepancies.ts`)
@@ -443,34 +442,33 @@ access_event             -- log wykonanych akcji (audyt)
 ### Usuwanie członka (`deleteMember`)
 
 - Dialog „Usuń członka" ładuje z `external_membership` wszystkie faktyczne dostępy powiązanych kont i pokazuje je jako zaznaczone akcje: „usuń z organizacji GitHub", „usuń z serwera Discord", „usuń z dysku współdzielonego", „usuń z zespołów …" — każdą można odznaczyć.
-- Akcja serwera najpierw wykonuje zaznaczone usunięcia (z `subject_snapshot` w `access_event`), potem usuwa członka. Jeśli któreś usunięcie się nie powiedzie, dialog pokazuje błąd i pyta, czy mimo to usunąć członka.
+- Potwierdzenie określa, które dostępy odebrać. Wynik każdej operacji widnieje w audycie z `subject_snapshot`. Szczegóły obsługi błędów Discorda opisuje Faza 5.
 - Konta, z których nie usunięto dostępu, zostają w `external_account` z `member_id = null`, `disposition: 'unmatched'` — więc trafiają do rozbieżności `unknown_account`, zamiast zniknąć z pola widzenia.
 
 ### Cykl życia członka → sugerowane akcje
 
 Domyślne reguły (seed), zgodne z tabelą z issue #11:
 
-| Platforma   | utworzenie członka                                  | usunięcie członka                            | status → nieaktywny     | status → aktywny               | status → inny niż aktywny         |
-| ----------- | --------------------------------------------------- | -------------------------------------------- | ----------------------- | ------------------------------ | --------------------------------- |
-| GitHub      | dodanie do organizacji Solvro                       | usunięcie z organizacji (w dialogu usuwania) | usunięcie z organizacji | dodanie do zespołu „KN Solvro" | usunięcie z zespołu „KN Solvro"   |
-| Discord     | zaproszenie na serwer                               | usunięcie z serwera (w dialogu usuwania)     | usunięcie z serwera     | —                              | honorowy: rola „Członek honorowy" |
-| Dysk Google | dodanie konta studenckiego do dysku współdzielonego | usunięcie z dysku (w dialogu usuwania)       | usunięcie z dysku       | —                              | —                                 |
+| Platforma   | utworzenie członka                                  | usunięcie członka                             | status → nieaktywny                           | status → aktywny                                   | status → inny niż aktywny                       |
+| ----------- | --------------------------------------------------- | --------------------------------------------- | --------------------------------------------- | -------------------------------------------------- | ----------------------------------------------- |
+| GitHub      | dodanie do organizacji Solvro                       | usunięcie z organizacji (w dialogu usuwania)  | usunięcie z organizacji                       | dodanie do zespołu „KN Solvro"                     | usunięcie z zespołu „KN Solvro"                 |
+| Discord     | zaproszenie dla uprawnionego członka                | usunięcie z serwera z uwzględnieniem wyjątków | usunięcie z serwera z uwzględnieniem wyjątków | zaproszenie, jeśli brakuje członkostwa na serwerze | wyliczenie ról z mapowań i uprawnień do serwera |
+| Dysk Google | dodanie konta studenckiego do dysku współdzielonego | usunięcie z dysku (w dialogu usuwania)        | usunięcie z dysku                             | —                                                  | —                                               |
 
-Odpowiadające reguły: `member_status ≠ inactive` → `github_org`, `discord_guild`, `drive` (dysk współdzielony koła); `member_status = active` → `github_team` „KN Solvro"; `member_status = honorary` → `discord_role` „Członek honorowy".
+Odpowiadające reguły: `member_status ≠ inactive` → `github_org`, `drive` (dysk współdzielony koła); `member_status = active` → `github_team` „KN Solvro". Dostęp Discorda i konfigurację ról określa Faza 5.
 
 - Po każdej akcji zmieniającej stan oczekiwany (`createMember`, `updateMember` ze zmianą statusu, `assignRole`, `endRoleAssignment`, `addTeamMember`, `assignProjectMemberToTeam`, `updateTeamMemberDetails`, `removeTeamMember`, `deleteTeam`, zmiany `access_rule`, import z Fazy 4) akcja zwraca `suggestedAccessActions` dla dotkniętych członków.
-- UI: przy zmianie statusu i tworzeniu członka — dialog „Sugerowane zmiany dostępów" z zaznaczonymi akcjami i przyciskami „Wykonaj zaznaczone" / „Później"; przy drobnych zmianach (zespoły, role) — toast „2 sugerowane zmiany dostępów" z przyciskiem otwierającym ten sam panel w `Sheet`. „Później" niczego nie gubi — rozbieżności zostają widoczne na profilu i w ustawieniach.
-- Checkboxy „wyślij zaproszenie GitHub/Discord" w formularzu nowego członka (i w imporcie z Fazy 4) to wcześniejsza zgoda na te sugerowane akcje — wykonywane od razu po utworzeniu.
+- UI: sugerowane zmiany po operacji pozostają widoczne na profilu i w ustawieniach. Discord pokazuje zmiany wynikające z danej operacji również przed zapisem, zgodnie z Fazą 5.
 
 ### Uprawnienia
 
 - Nowy zasób w `src/lib/permissions/catalog.ts`: `integrations` — `read` (rozbieżności, inwentarz, log) i `write` (reguły, wykonywanie akcji, skan, powiązywanie/ignorowanie kont). Grupa „Zarząd" dostaje oba w seedzie.
-- Liderzy projektu (`canManageProject`) widzą rozbieżności i wykonują akcje dotyczące **swoich** zespołów/projektu; nie zarządzają organizacją, serwerem ani dyskiem koła.
-- Każdy członek widzi własne dostępy i może połączyć własne konta.
+- Liderzy projektu (`canManageProject`) widzą rozbieżności dotyczące własnego projektu. Zmiany ról Discorda wymagają jawnego delegowania roli temu projektowi według Fazy 5.
+- Każdy członek widzi własne dostępy. W MVP Discorda powiązania kont obsługuje zarząd.
 
 ### Wspólne UI (`src/components/access/`)
 
-- **Nawigacja ustawień**: grupa „Integracje" → `/settings/discord`, `/settings/github` (rozszerzenie istniejącej strony), `/settings/google-drive`, każda z tymi samymi zakładkami (`Tabs`):
+- **Nawigacja ustawień**: grupa „Integracje" → `/settings/discord`, `/settings/github` (rozszerzenie istniejącej strony), `/settings/google-drive`. Sekcje korzystają ze wspólnych komponentów, a układ sekcji Discord opisuje Faza 5:
   1. **Przegląd** — `IntegrationHealthCard` (konfiguracja, poprawność poświadczeń, konkretne brakujące uprawnienia), ostatni skan + „Skanuj teraz", liczniki rozbieżności per typ,
   2. **Rozbieżności** — `DiscrepancyTable` z filtrami (typ, osoba, cel), zaznaczaniem wielu wierszy i akcją zbiorczą „Wykonaj sugerowane"; każdy wiersz: osoba, stan oczekiwany vs faktyczny, powód („status: nieaktywny od 2026-03"), przyciski sugerowanych akcji,
   3. **Konta spoza HRownika** — `ExternalAccountsTable` (inwentarz `unknown_account` + `ignored`), z propozycjami dopasowań, „Powiąż z członkiem…" (combobox członków), „Ignoruj" (z powodem), „Usuń z platformy" (z potwierdzeniem),
@@ -480,48 +478,67 @@ Odpowiadające reguły: `member_status ≠ inactive` → `github_org`, `discord_
 - **Pickery celu** (`TargetCombobox`): lista ról / zespołów / dysków z API platformy (`listTargets`, cache Next.js z tagiem), wyszukiwanie, „Utwórz nowy…" tam, gdzie API pozwala. Żadnego wklejania ID.
 - **Profil członka** — karta „Dostępy" (`MemberAccessCard`): per platforma powiązane konto (✓ połączone / wpisane ręcznie / brak) i lista celów z badge (`Ma dostęp`, `Zaproszony`, `Brakuje`, `Nadmiarowy`, `Wyjątek`) oraz powodem; sugerowane akcje inline; link do historii.
 - **Lista członków** — filtr „Rozbieżności w dostępach" i ikona ostrzeżenia w wierszu; **pulpit** (`/`) — kafelek z liczbą otwartych rozbieżności dla osób z `integrations:read`.
-- **Pierwsze logowanie nowego członka** — checklista „Dokończ onboarding": połącz Discord, połącz GitHub i zaakceptuj zaproszenie do organizacji, sprawdź adres studencki do Dysku.
+- **Pierwsze logowanie nowego członka** — checklista „Dokończ onboarding": dołącz do Discorda z zaproszenia, połącz GitHub i zaakceptuj zaproszenie do organizacji, sprawdź adres studencki do Dysku.
 
 ### Łączenie kont
 
-- better-auth `socialProviders` (`discord`, `github`; `google` opcjonalnie) z `disableSignUp: true` (tylko do łączenia, nie do logowania) + `account.accountLinking: { enabled: true, allowDifferentEmails: true }`; po stronie klienta `authClient.linkSocial({ provider, scopes })`.
-- Hook better-auth na utworzenie `account` → `external_account` (`disposition: 'linked'`, `link_source: 'oauth'`) i skan zakresu tej osoby.
+- Powiązanie konta integracji i logowanie do HRownika mają osobne uprawnienia oraz kryteria akceptacji. Samodzielne powiązanie i wymiana konta Discord pozostają poza MVP.
 - Zarząd może powiązać konto ręcznie (z inwentarza albo wpisując handle, weryfikowany u platformy).
 
 ## Faza 5 — Discord: serwer, role i rozbieżności
 
-Zakres issue #11 dla Discorda (zaproszenie na serwer, usunięcie z serwera, rola „Członek honorowy") połączony z pełnym zarządzaniem rolami. Razem z tą fazą powstaje wspólny fundament opisany wyżej.
+Faza realizuje [#213](https://github.com/Solvro/web-hrownik/issues/213) w ramach [#11](https://github.com/Solvro/web-hrownik/issues/11). Rola członka honorowego z [#216](https://github.com/Solvro/web-hrownik/issues/216) jest pierwszym przypadkiem akceptacyjnym. Ta faza określa docelowe potwierdzanie zaproszeń i ról Discorda opisanych w [koncepcji](FEATURES.md).
 
-### Konfiguracja
+### Źródło prawdy i obliczanie zmian
 
-- Env: istniejące `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_INVITE_CHANNEL_ID` + `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET` (OAuth tej samej aplikacji co bot), `CRON_SECRET`.
-- Bot: `Manage Roles`, `Kick Members`, `Create Instant Invite`, opcjonalnie `Manage Nicknames`; intencja `GUILD_MEMBERS` (lista członków serwera do skanu). Rola bota musi być **wyżej** niż zarządzane role — `getHealth()` sprawdza to (`GET /guilds/{guild}/roles` + rola bota) i wypisuje role, którymi bot nie może zarządzać.
+- **HRownik rozstrzyga o członkostwie, funkcjach i przypisaniach. Członkostwo na serwerze Discord i mapowane role odzwierciedlają stan oczekiwany wynikający z HRownika.** Ręczna zmiana na Discordzie może utworzyć rozbieżność. Zmienia wyłącznie odczytany stan Discorda.
+- Status `active` ustala zarząd lub inna osoba z uprawnieniem do zmiany statusu. Brak aktywnego członkostwa w zespole projektowym przy statusie `active` pokazujemy w HRowniku jako informację o niespełnieniu nieformalnego oczekiwania. Informacja nie wpływa na status, uprawnienia do Discorda ani listę sugerowanych akcji.
+- Dla każdego objętego zmianą członka serwer liczy pełny stan oczekiwany przed i po operacji. Uwzględnia status, wszystkie obowiązujące funkcje, sekcje, projekty, zespoły i wyjątki. Jeżeli kilka mapowań daje tę samą rolę, wystarczy jeden nadal obowiązujący powód, żeby zachować rolę. Odejście z ToPWR Frontend może odebrać rolę zespołu, ale pozostawia rolę ToPWR, jeśli członek nadal działa w innym zespole projektu.
+- Podgląd operacji w HRowniku obejmuje zmiany wynikające z tej operacji. Wcześniejsze, niezwiązane rozbieżności są dostępne do osobnego przeglądu. Po stronie serwera ten sam mechanizm liczy rozbieżności po zmianie statusu, przypisania, mapowania lub po upływie daty obowiązywania.
 
-### Konta i inwentarz
+### Potwierdzanie operacji i rozbieżności
 
-- „Połącz Discord" (OAuth `identify` + `guilds.join`) → `external_account` ze snowflake.
-- Skan: `GET /guilds/{guild}/members?limit=1000` (paginacja po `after`) → wszystkie konta serwera + ich role w `external_membership` (`discord_guild` + każda `discord_role`). Boty automatycznie `ignored` (`ignore_reason: 'bot'`).
-- Migracja obecnych `member.discord_id` (usernames): dopasowanie do kont z inwentarza po nazwie (`match.ts`) → propozycje do zatwierdzenia w zakładce „Konta spoza HRownika".
+- Utworzenie, edycja statusu, usunięcie członka, zmiana funkcji, sekcji, projektu lub zespołu oraz import i edycja zbiorcza pokazują wynikający z operacji diff przed zatwierdzeniem. Widać konto, serwer, role dodawane i odbierane oraz operacje zaproszenia i usunięcia z serwera. Operacje wymagające dołączenia do serwera lub powiązania konta mają widoczny warunek wstępny.
+- Pole „Zastosuj zmiany także na Discordzie” jest domyślnie zaznaczone przy dostępnych, autoryzowanych operacjach. Zatwierdzenie obejmuje pokazany diff. Odznaczenie zapisuje zmianę w HRowniku, a rozbieżność pozostaje widoczna. Import i edycja zbiorcza pokazują wynik dla każdej osoby przed potwierdzeniem.
+- Ostrzeżenia o braku członkostwa na serwerze lub różnicach w rolach są widoczne na liście i profilu członka, według wzorca ostrzeżenia o błędnym koncie GitHub. Szczegóły pokazują stan zaobserwowany, stan oczekiwany, powody i dokładny diff.
+- Skan cykliczny i ręczny wyłącznie odświeża stan faktyczny i wykrywa rozbieżności. Skan nie wysyła zaproszeń, nie zmienia ról i nie usuwa z serwera. Zastosowanie diffu ponownie sprawdza uprawnienia wykonującego, link konta, aktualny stan oczekiwany i faktyczny. Gdy zmieni się zakres operacji lub konto docelowe, użytkownik zatwierdza nowy diff.
+- Wynik każdej operacji trafia do audytu. Niepowodzenie na Discordzie pozostawia zmianę członkostwa w HRowniku i daje widoczny wynik do ponowienia. Przy usuwaniu członka zachowujemy dane potrzebne do ponowienia wcześniej zatwierdzonego sprzątania, także po usunięciu rekordu.
 
-### Serwer (issue #11)
+### Serwer i delegowanie
 
-- `missing_access` na `discord_guild` (nowy członek): akcje „Dodaj na serwer" (gdy konto połączone z `guilds.join`: `PUT /guilds/{guild}/members/{user}` z `access_token` i od razu właściwymi rolami) albo „Wygeneruj link zaproszenia" (`createOnboardingInvite`, jednorazowy, pokazany do skopiowania i w checkliście onboardingu).
-- `extra_access` na `discord_guild` (nieaktywny / usuwany): „Usuń z serwera" (`DELETE /guilds/{guild}/members/{user}`).
+- Poza wyjątkami jedynie członkowie o statusie `new`, `active` lub `honorary` są oczekiwani na serwerze. Dostęp dla nieaktywnych i kont spoza HRownika podlega przeglądowi z sugestią usunięcia. Brak dopasowania konta jest osobnym stanem do wyjaśnienia. Reaktywacja osoby nieobecnej na serwerze sugeruje zaproszenie.
+- Boty są wyłączone z usuwania przez synchronizację. Lista wyjątków przechowuje ID konta i powód, np. konto opiekuna koła, dr. Sygi. Wyjątek chroni członkostwo na serwerze. Sam wpis nie daje roli z mapowania.
+- Zarząd otrzymuje odrębne uprawnienie do konfiguracji mapowań, delegowania i listy wyjątków. Powiązanie i zmiana konta oraz usuwanie z serwera wymagają odpowiedniego uprawnienia zarządu.
+- Lider projektu może wykonać zmianę wyłącznie dla roli Discorda jawnie delegowanej temu projektowi, zarówno w akcji HRownika, jak i przy korekcie rozbieżności. Serwer sprawdza projekt, delegowanie roli i uprawnienia wykonującego. Role współdzielone między projektami oraz role organizacyjne rozlicza zarząd. Zmiana mapowania lub delegowania wymaga uprawnienia do konfiguracji.
 
-### Role
+### Sekcja Discord w ustawieniach
 
-- Cele `discord_role`: rola „Członek honorowy" (issue #11) oraz reguły dla sekcji (rola sekcji), ról (np. przewodniczący, role zarządowe z aktywnej kadencji → „Zarząd"), zespołów projektowych, opcjonalnie statusu `active` → „Członek".
-- „Utwórz nową rolę" w pickerze → `POST /guilds/{guild}/roles` z nazwą podpowiedzianą z obiektu (np. „ToPWR · frontend").
-- Akcje: „Nadaj rolę" / „Odbierz rolę" — istniejące `addGuildMemberRole` / `removeGuildMemberRole`.
-- Opcjonalnie: rozbieżność `nickname_mismatch` (nick na serwerze ≠ `full_name`) z akcją „Ustaw nick" (`PATCH /guilds/{guild}/members/{user}`), włączana przełącznikiem na `/settings/discord`.
-- Limity: `discordRequest` respektuje `429` + `retry_after`.
+- `/settings/discord` jest osobną sekcją nawigacji obok GitHuba. Strona przeglądu prowadzi do listy kont bez przypisania, macierzy mapowań ról, listy wyjątków, rozbieżności i historii operacji. Przegląd pokazuje stan konfiguracji oraz czas ostatniego pełnego skanu.
+- Widok „Konta bez przypisania” działa jak wykrywanie rozbieżności w sekcji GitHub. Pokazuje **wszystkie konta obecne na serwerze bez powiązania z członkiem HRownika**, również boty i konta objęte wyjątkiem, z odpowiednim oznaczeniem. Zarząd może powiązać konto z członkiem, dodać je do wyjątków lub obejrzeć i zatwierdzić usunięcie konta, jeśli kwalifikuje się do usunięcia. Powiązanie usuwa konto z tej listy po aktualizacji stanu. Lista wyjątków pokazuje chronione konta i powody wpisów.
 
-### Pliki
+- Macierz pokazuje aktualną listę ról Discorda i tabelę skonfigurowanych mapowań. Mapowanie wskazuje istniejącą rolę po ID oraz status, funkcję organizacyjną, sekcję, projekt albo zespół projektu. Dotyczy to również statusu `honorary`. Pobranie listy odświeża nazwy, sygnalizuje usunięte role i pokazuje, którymi rolami bot może zarządzać. Uprawnienia przypisane roli na Discordzie nie wpływają na oczekiwane przypisanie w HRowniku. Role poza zakresem mapowań nie uczestniczą w korekcie ról.
 
-- `src/lib/integrations/discord.ts` (rozszerzony: `listGuildMembers`, `listGuildRoles`, `createGuildRole`, `addGuildMember`, `removeGuildMember`, `setGuildMemberNickname`, `getBotHealth`),
-- `src/lib/access/**`, `src/db/schema/access.ts`, `src/actions/access.ts` (`saveAccessRule`, `deleteAccessRule`, `applyAccessActions`, `runAccessScanAction`, `linkExternalAccount`, `ignoreExternalAccount`, `setAccessException`),
-- `src/components/access/**`, `src/app/(app)/settings/discord/page.tsx`, `src/app/api/v1/cron/access-scan/route.ts`,
-- `src/lib/team-sync.ts` (`grantTeamAccess` / `revokeTeamAccess`) usunięte; ich wywołania w `projects.ts` i `members.ts` zastąpione zwracaniem `suggestedAccessActions`.
+### Powiązania kont obsługiwane przez zarząd
+
+- Powiązanie zapisuje ID Discorda jako ciąg cyfr, z unikalnością po stronie konta i członka. Przy dodawaniu i importowaniu można wpisać nazwę. Serwer wyszukuje dokładną nazwę użytkownika w inwentarzu serwera Discord i pokazuje wynik do potwierdzenia przez uprawnioną osobę. Dopasowanie po prefiksie lub pseudonimie daje kandydatów do ręcznego sprawdzenia. Brak wyniku zachowuje rekord członka i widoczny stan braku powiązania. Surową wartość z migracji przechowujemy jako wskazówkę.
+- Przy wymianie konta zarząd widzi diff starego i nowego konta, w tym usunięcie starego konta z serwera, o ile jest obecne i nie jest chronione wyjątkiem, oraz role lub zaproszenie dla nowego konta. Zatwierdzenie obejmuje pokazane operacje, których wyniki widać oddzielnie. Samodzielna edycja powiązania, w tym przez aktualne pole profilu, jest wyłączona również po stronie serwera. Samodzielne powiązanie, OAuth oraz bezpośrednie dołączanie przez `guilds.join` pozostają poza MVP.
+
+### Wdrożenie i kryteria PR
+
+Konfiguracja wykorzystuje `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_INVITE_CHANNEL_ID` i `CRON_SECRET`. Próby zapisu używają odrębnego serwera testowego. Tworzenie ról i synchronizacja nicków pozostają rozszerzeniami.
+
+1. **Inwentarz, tożsamość i konfiguracja.** Skan paginuje członków po `after` i publikuje tylko pełną migawkę. Błąd częściowego skanu zachowuje ostatnią kompletną migawkę z informacją o jej wieku. Lista zawiera wszystkie niepowiązane konta. Boty i wyjątki są oznaczone, a powiązane konto znika z listy. Testy obejmują zmianę nazwy roli, usunięcie roli, kolizję powiązań, import bez dopasowania i odmowę samodzielnej edycji powiązania. Kontrola konfiguracji rozróżnia uprawnienia do skanu, zaproszeń, ról i usuwania osób.
+2. **Diff, wykonanie i #216.** Testy obejmują już istniejącego członka honorowego, wejście i wyjście ze statusu, domyślnie zaznaczoną opcję i jej odznaczenie, kilka powodów jednej roli, ręczną zmianę na Discordzie, nieaktualny podgląd, częściowy błąd i odmowę dla lidera bez delegowania. Obsługa `429` respektuje `retry_after`. Ponowienie dotyczy tylko nadal zasadnych operacji.
+3. **Cykl członkostwa i wymiana konta przez zarząd.** Testy obejmują reaktywację, zaproszenie, usunięcie członka z częściowym błędem, wyjątki, projekty i zespoły, edycję zbiorczą oraz nieudaną i udaną wymianę konta. Członek `active` bez zespołu nadal kwalifikuje się do dostępu na serwerze, a informacja o braku zespołu nie generuje akcji. Wywołania bezpośredniej synchronizacji Discorda w `src/lib/team-sync.ts` przechodzą na potwierdzany przepływ. Ścieżka zespołów GitHuba działa do wdrożenia jej odpowiednika z Fazy 6.
+
+### Decyzje otwarte przed wdrożeniem
+
+- **Mapowania projektów i sekcji.** Ustalić, czy projektową rolę Discorda daje bezpośrednie przypisanie, dowolny aktywny zespół lub obie ścieżki oraz które przypisania kwalifikują do roli sekcji. Uwzględnić daty przypisań i cykl projektu. Faza 10 przyjmuje, że zakończony projekt przestaje dawać dostęp. Są to reguły ról Discorda, niezależne od ustalanego przez człowieka statusu członka.
+- **Usunięcie mapowania i wyjątki.** Wybrać, czy wycofanie mapowania prowadzi do osobno zatwierdzanego sprzątania, czy zostawia aktualnych posiadaczy. Ustalić, czy wprowadzić odrębne wyjątki dla ról i czy mają termin oraz powód.
+- **Zaproszenia i zamiana konta przez zarząd.** Ustalić ważność i ponawianie zaproszeń, obsługę ponownego dołączenia po usunięciu i kolejność operacji przy wymianie konta, w tym stan po błędzie częściowym. Zaproszenie jest krokiem oczekującym na obserwację właściwego konta.
+- **Granica potwierdzenia.** Ustalić, czy usunięcie z serwera jest osobnym domyślnie zaznaczonym polem, jak zatwierdza się operacje masowe i jak pokazać wynik obejmujący jednocześnie role delegowane i zmiany wymagające udziału zarządu. Brak zgody przy zapisie pozostawia rozbieżność. Utworzenie trwałego wyjątku wymaga osobnej decyzji.
+- **Odporność i wdrożenie.** Ustalić maksymalny wiek danych dla zapisu, harmonogram skanu, zapobieganie konfliktom skanu z akcją, limity paczek, trwałość potwierdzonej operacji po awarii i zasady ponowienia. Przed włączeniem zapisu przejrzeć pierwszą migawkę, mapowania, listę wyjątków, nierozwiązane konta i hierarchię bota na serwerze testowym.
+- **Prywatność i historia.** Ustalić szczegółową widoczność niepowiązanych kont, danych audytu, powodów spoza projektu i historycznych identyfikatorów oraz dostęp z API po migracji `member.discord_id`. Kody zaproszeń wymagają ograniczonego dostępu i pozostają poza audytem.
 
 ## Faza 6 — GitHub: organizacja, zespoły i rozbieżności
 
