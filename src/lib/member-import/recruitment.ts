@@ -302,9 +302,11 @@ function buildRecruitmentPreview({
     const rowNumber = table.firstRowNumber + dataRowIndex;
     const read = (field: RecruitmentImportField) => {
       const columnIndex = mapping[field];
-      return columnIndex === undefined
-        ? ""
-        : (cells[columnIndex] ?? "").replaceAll(/\s+/g, " ").trim();
+      const value = columnIndex === undefined ? "" : (cells[columnIndex] ?? "");
+      // The exact alias lookups need the cell text as read from the export.
+      return field === "studyField" || field === "sections"
+        ? value
+        : value.replaceAll(/\s+/g, " ").trim();
     };
     const warnings: string[] = [];
 
@@ -378,7 +380,7 @@ function buildRecruitmentPreview({
         : matchFieldOfStudy(
             rawField,
             {
-              department: department.value,
+              department,
               studiesType: year?.studiesType ?? null,
             },
             university.fieldsOfStudy,
