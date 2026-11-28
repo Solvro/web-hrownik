@@ -35,6 +35,8 @@ export const env = createEnv({
     DISCORD_GUILD_ID: z.string().trim().min(1).optional(),
     // Channel the bot creates onboarding invite links for.
     DISCORD_INVITE_CHANNEL_ID: z.string().trim().min(1).optional(),
+    // Role granted on Discord when a member's status becomes "honorary".
+    DISCORD_HONORARY_ROLE_ID: z.string().trim().min(1).optional(),
 
     TOPWR_API_BASE_URL: z.url().default("https://api.topwr.solvro.pl"),
   },
@@ -59,6 +61,7 @@ export const env = createEnv({
     DISCORD_BOT_TOKEN: process.env.DISCORD_BOT_TOKEN,
     DISCORD_GUILD_ID: process.env.DISCORD_GUILD_ID,
     DISCORD_INVITE_CHANNEL_ID: process.env.DISCORD_INVITE_CHANNEL_ID,
+    DISCORD_HONORARY_ROLE_ID: process.env.DISCORD_HONORARY_ROLE_ID,
     TOPWR_API_BASE_URL: process.env.TOPWR_API_BASE_URL,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
   },

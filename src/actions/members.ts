@@ -9,7 +9,12 @@ import { member, memberEmail } from "@/db/schema/members";
 import { teamMember } from "@/db/schema/projects";
 import { roleAssignment, roleDefinition } from "@/db/schema/roles";
 import { section } from "@/db/schema/sections";
+import { env } from "@/env";
 import { getCurrentMember } from "@/lib/current-member";
+import {
+  addGuildMemberRole,
+  removeGuildMemberRole,
+} from "@/lib/integrations/discord";
 import { reattributeActivityForMember } from "@/lib/integrations/github-activity";
 import { appendMemberHrNote, setMemberHrNote } from "@/lib/member-hr-notes";
 import type { MemberImportSheetType } from "@/lib/member-import";
@@ -65,6 +70,7 @@ export async function createMember(input: MemberFormValues) {
     .returning();
 
   await setMemberHrNote(created.id, emptyToNull(values.hrNotes));
+  await syncHonoraryDiscordRole(null, created);
 
   if (values.emails.length > 0) {
     await db.insert(memberEmail).values(
@@ -174,6 +180,11 @@ export async function updateMember(
       throw new Error("Członek nie może być swoim własnym rodzicem.");
     }
 
+    const previous = await db.query.member.findFirst({
+      where: eq(member.id, memberId),
+      columns: { status: true, discordId: true },
+    });
+
     // fullName, status, bio, HR notes, emails and roles are board-only;
     // everything else (socials + study data) is self-editable per FEATURES.md.
     await db
@@ -231,6 +242,12 @@ export async function updateMember(
         updatedAt: new Date(),
       })
       .where(eq(member.id, memberId));
+
+    const current = await db.query.member.findFirst({
+      where: eq(member.id, memberId),
+      columns: { status: true, discordId: true },
+    });
+    await syncHonoraryDiscordRole(previous ?? null, current ?? null);
 
     if (isFullAccess && values.hrNotes !== undefined) {
       await setMemberHrNote(memberId, emptyToNull(values.hrNotes));
@@ -338,6 +355,50 @@ export async function updateMember(
       error,
     );
     throw error;
+  }
+}
+
+interface HonoraryState {
+  status: MemberStatus;
+  discordId: string | null;
+}
+
+// Keeps the honorary Discord role in line with who is currently honorary:
+// covers status changes, a discordId being added/changed/cleared, and new
+// members. Best-effort, like team-sync: a Discord failure must not undo the
+// change in the database.
+async function syncHonoraryDiscordRole(
+  before: HonoraryState | null,
+  after: HonoraryState | null,
+) {
+  const roleId = env.DISCORD_HONORARY_ROLE_ID;
+  if (roleId === undefined) {
+    return;
+  }
+  const holder = (state: HonoraryState | null) =>
+    state?.status === "honorary" && state.discordId !== null
+      ? state.discordId
+      : null;
+  const previousHolder = holder(before);
+  const nextHolder = holder(after);
+  if (previousHolder === nextHolder) {
+    return;
+  }
+  for (const [discordId, change] of [
+    [previousHolder, removeGuildMemberRole],
+    [nextHolder, addGuildMemberRole],
+  ] as const) {
+    if (discordId === null) {
+      continue;
+    }
+    try {
+      await change(discordId, roleId);
+    } catch (error) {
+      console.error(
+        `Failed to sync honorary Discord role for ${discordId}:`,
+        error,
+      );
+    }
   }
 }
 
@@ -666,6 +727,7 @@ export async function commitMemberImport(
         .returning();
 
       await setMemberHrNote(created.id, hrNotes);
+      await syncHonoraryDiscordRole(null, created);
 
       if (email !== null) {
         await db
