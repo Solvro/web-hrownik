@@ -7,6 +7,7 @@ export interface DepartmentOption {
 }
 
 export interface FieldOfStudyOption {
+  id: string;
   value: string;
   name: string;
   department: string;
@@ -40,30 +41,55 @@ export function matchDepartment(
  */
 const fieldOfStudySimilarityThreshold = 0.85;
 
+// WIT's published admissions codes and the corresponding ToPWR W4 IDs.
+// https://wit.pwr.edu.pl/kandydaci/studia-i-stopnia
+// https://wit.pwr.edu.pl/kandydaci/studia-ii-stopnia
+const witStudyProgramIds = new Map<
+  string,
+  Partial<Record<StudiesType, string>>
+>([
+  ["CBE", { "1DEGREE": "26", "2DEGREE": "35" }],
+  ["ISA", { "1DEGREE": "27", "2DEGREE": "36" }],
+  ["INA", { "1DEGREE": "28", "2DEGREE": "37" }],
+  ["INK", {}], // Listed by WIT, awaiting a ToPWR entry.
+  ["IST", { "1DEGREE": "29", "2DEGREE": "38" }],
+  ["ITE", { "1DEGREE": "31", "2DEGREE": "40" }],
+  ["INS", { "1DEGREE": "32", "2DEGREE": "42" }],
+  ["SZT", { "1DEGREE": "138", "2DEGREE": "43" }],
+  ["TIN", { "1DEGREE": "33", "2DEGREE": "44" }],
+  ["TEL", { "1DEGREE": "34", "2DEGREE": "45" }],
+  ["TAI", { "2DEGREE": "46" }],
+]);
+
 /**
- * Field of study within the matched department (and studies cycle, when the
- * year was recognised): exact normalized name first, then the single most
- * similar name above the threshold — which absorbs case, typos and "w języku
- * angielskim" spelling variants, but not abbreviations like "IST". Anything
- * ambiguous or too far off is left for the board to pick.
+ * Match WIT codes literally and resolve them by ToPWR ID within the study
+ * cycle. Full program names use normalized and fuzzy matching.
  */
 export function matchFieldOfStudy(
   raw: string,
   {
     department,
     studiesType,
-  }: { department: string; studiesType: StudiesType | null },
+  }: { department: DepartmentOption; studiesType: StudiesType | null },
   fieldsOfStudy: FieldOfStudyOption[],
 ): FieldOfStudyOption | null {
+  const candidates = fieldsOfStudy.filter(
+    (field) =>
+      field.department === department.value &&
+      (studiesType === null || field.studiesType === studiesType),
+  );
+
+  const ids =
+    department.code === "W4" ? witStudyProgramIds.get(raw) : undefined;
+  if (ids !== undefined) {
+    const id = studiesType === null ? undefined : ids[studiesType];
+    return candidates.find((field) => field.id === id) ?? null;
+  }
+
   const target = fieldOfStudyKey(raw);
   if (target === "") {
     return null;
   }
-  const candidates = fieldsOfStudy.filter(
-    (field) =>
-      field.department === department &&
-      (studiesType === null || field.studiesType === studiesType),
-  );
 
   const exact = candidates.filter(
     (field) => fieldOfStudyKey(field.name) === target,
@@ -135,12 +161,30 @@ const sectionAliasGroups = [
   ["promotion", "promocja", "marketing"],
 ];
 
+const exactSectionAliases = new Map([
+  ["Project management", "Management"],
+  ["Project Management", "Management"],
+]);
+
 /** An existing section by (aliased) name; the import never creates sections. */
 export function matchSection<Section extends { name: string }>(
   raw: string,
   sections: Section[],
 ): Section | null {
   const key = sectionKey(raw);
+  const exact = sections.find((section) => sectionKey(section.name) === key);
+  if (exact !== undefined) {
+    return exact;
+  }
+
+  const aliasTarget = exactSectionAliases.get(raw);
+  const aliasedSection = sections.find(
+    (section) => section.name === aliasTarget,
+  );
+  if (aliasedSection !== undefined) {
+    return aliasedSection;
+  }
+
   const group = sectionAliasGroups
     .map((aliases) => aliases.map((alias) => sectionKey(alias)))
     .find((aliases) => aliases.includes(key)) ?? [key];

@@ -37,7 +37,7 @@ export async function resetMembersAndSections(
     "DevOps",
     "Mobile",
     "UI/UX",
-    "Project Management",
+    "Management",
     "Promocja",
   ],
 ): Promise<Record<string, string>> {

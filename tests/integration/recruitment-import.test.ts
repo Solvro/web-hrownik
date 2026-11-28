@@ -159,7 +159,7 @@ describe("analyzing an Eventownik export", () => {
       studyField: "Informatyka stosowana w j. angielskim (II stopień, W4)",
       githubUsername: "",
       discordId: "",
-      sectionIds: [sectionIds["Project Management"]],
+      sectionIds: [sectionIds.Management],
       warnings: [
         "Nie rozpoznano konta GitHub: „https://share.example.com/ewa”",
         "Nie rozpoznano konta Discord: „https://discord.gg/abcDEF”",

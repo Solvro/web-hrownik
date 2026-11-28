@@ -40,13 +40,13 @@ const passions = eventownikHeaders[9];
 
 export const eventownikParticipants: Participant[] = [
   {
-    // Row 2 — the happy path.
+    // Row 2 — the happy path, with a WIT program code.
     participantUuid: "0b6f6c1e-1a2b-4c3d-8e9f-000000000001",
     email: "100001@student.pwr.edu.pl",
     Imię: "Anna",
     Nazwisko: "Testowa",
     Indeks: "100001",
-    Kierunek: "Informatyka Stosowana",
+    Kierunek: "IST",
     Wydział: "W4",
     "Rok i stopień": "2 rok, I stopień",
     [competences]: "TypeScript, NestJS, PostgreSQL; trochę Dockera.",
@@ -131,7 +131,7 @@ export const eventownikParticipants: Participant[] = [
     Facebook: "https://www.facebook.com/ewa.magisterska.example",
     GitHub: "https://share.example.com/ewa",
     Discord: "https://discord.gg/abcDEF",
-    "Sekcja ostateczna": "Project Management; Robotyka",
+    "Sekcja ostateczna": "Project management; Robotyka",
   },
   {
     // Row 7 — a typo in the field of study, fourth year.
