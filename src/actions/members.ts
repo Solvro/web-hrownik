@@ -9,7 +9,12 @@ import { member, memberEmail } from "@/db/schema/members";
 import { teamMember } from "@/db/schema/projects";
 import { roleAssignment, roleDefinition } from "@/db/schema/roles";
 import { section } from "@/db/schema/sections";
+import { env } from "@/env";
 import { getCurrentMember } from "@/lib/current-member";
+import {
+  addGuildMemberRole,
+  removeGuildMemberRole,
+} from "@/lib/integrations/discord";
 import { reattributeActivityForMember } from "@/lib/integrations/github-activity";
 import { appendMemberHrNote, setMemberHrNote } from "@/lib/member-hr-notes";
 import type { MemberImportSheetType } from "@/lib/member-import";
@@ -174,6 +179,11 @@ export async function updateMember(
       throw new Error("Członek nie może być swoim własnym rodzicem.");
     }
 
+    const previous = await db.query.member.findFirst({
+      where: eq(member.id, memberId),
+      columns: { status: true },
+    });
+
     // fullName, status, bio, HR notes, emails and roles are board-only;
     // everything else (socials + study data) is self-editable per FEATURES.md.
     await db
@@ -231,6 +241,21 @@ export async function updateMember(
         updatedAt: new Date(),
       })
       .where(eq(member.id, memberId));
+
+    if (
+      isFullAccess &&
+      values.status === "honorary" &&
+      previous?.status !== "honorary"
+    ) {
+      await setHonoraryDiscordRole(memberId, true);
+    } else if (
+      isFullAccess &&
+      values.status !== undefined &&
+      values.status !== "honorary" &&
+      previous?.status === "honorary"
+    ) {
+      await setHonoraryDiscordRole(memberId, false);
+    }
 
     if (isFullAccess && values.hrNotes !== undefined) {
       await setMemberHrNote(memberId, emptyToNull(values.hrNotes));
@@ -338,6 +363,32 @@ export async function updateMember(
       error,
     );
     throw error;
+  }
+}
+
+// Best-effort, like team-sync: a Discord failure must not undo the status change.
+async function setHonoraryDiscordRole(memberId: string, grant: boolean) {
+  const roleId = env.DISCORD_HONORARY_ROLE_ID;
+  if (roleId === undefined) {
+    return;
+  }
+  const row = await db.query.member.findFirst({
+    where: eq(member.id, memberId),
+    columns: { discordId: true },
+  });
+  if (row?.discordId === null || row?.discordId === undefined) {
+    return;
+  }
+  try {
+    await (grant ? addGuildMemberRole : removeGuildMemberRole)(
+      row.discordId,
+      roleId,
+    );
+  } catch (error) {
+    console.error(
+      `Failed to ${grant ? "grant" : "revoke"} honorary Discord role for ${row.discordId}:`,
+      error,
+    );
   }
 }
 
