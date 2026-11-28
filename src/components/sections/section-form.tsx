@@ -38,18 +38,22 @@ export function SectionForm({
     resolver: zodResolver(sectionFormSchema),
     defaultValues: defaultValues ?? { name: "", description: "" },
   });
-  useUnsavedChangesWarning(
-    form.formState.isDirty &&
-      !form.formState.isSubmitting &&
-      !form.formState.isSubmitSuccessful,
+  // Saving ends in a server-side redirect(), so the guard is released first
+  // and stays off until a failed save re-arms it.
+  const [saving, setSaving] = useState(false);
+  const { release } = useUnsavedChangesWarning(
+    form.formState.isDirty && !saving,
   );
 
   async function onSubmit(values: SectionFormValues) {
     setSubmitError(null);
+    await release();
+    setSaving(true);
     try {
       if (mode === "create") {
         await createSection(values);
         form.reset();
+        setSaving(false);
         onCreated?.();
       } else if (sectionId !== undefined) {
         await updateSection(sectionId, values);
@@ -64,6 +68,7 @@ export function SectionForm({
       ) {
         throw error;
       }
+      setSaving(false);
       setSubmitError(
         error instanceof Error ? error.message : "Coś poszło nie tak.",
       );

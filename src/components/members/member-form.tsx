@@ -98,11 +98,7 @@ export function MemberForm({
     resolver: zodResolver(memberFormSchema),
     defaultValues,
   });
-  useUnsavedChangesWarning(
-    form.formState.isDirty &&
-      !form.formState.isSubmitting &&
-      !form.formState.isSubmitSuccessful,
-  );
+  const { release } = useUnsavedChangesWarning(form.formState.isDirty);
   const emailFields = useFieldArray({ control: form.control, name: "emails" });
   const roleFields = useFieldArray({
     control: form.control,
@@ -142,11 +138,13 @@ export function MemberForm({
       if (mode === "create") {
         const result = await createMember(values);
         const query = result.query === "" ? "" : `?${result.query}`;
+        await release();
         startTransition(() => {
           router.push(`/members/${result.id}${query}`);
         });
       } else if (memberId !== undefined) {
         await updateMember(memberId, values);
+        await release();
         setSubmitSuccess(true);
         await new Promise((r) => setTimeout(r, 800));
         startTransition(() => {
