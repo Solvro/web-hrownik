@@ -70,6 +70,7 @@ export async function createMember(input: MemberFormValues) {
     .returning();
 
   await setMemberHrNote(created.id, emptyToNull(values.hrNotes));
+  await syncHonoraryDiscordRole(null, created);
 
   if (values.emails.length > 0) {
     await db.insert(memberEmail).values(
@@ -181,7 +182,7 @@ export async function updateMember(
 
     const previous = await db.query.member.findFirst({
       where: eq(member.id, memberId),
-      columns: { status: true },
+      columns: { status: true, discordId: true },
     });
 
     // fullName, status, bio, HR notes, emails and roles are board-only;
@@ -242,20 +243,11 @@ export async function updateMember(
       })
       .where(eq(member.id, memberId));
 
-    if (
-      isFullAccess &&
-      values.status === "honorary" &&
-      previous?.status !== "honorary"
-    ) {
-      await setHonoraryDiscordRole(memberId, true);
-    } else if (
-      isFullAccess &&
-      values.status !== undefined &&
-      values.status !== "honorary" &&
-      previous?.status === "honorary"
-    ) {
-      await setHonoraryDiscordRole(memberId, false);
-    }
+    const current = await db.query.member.findFirst({
+      where: eq(member.id, memberId),
+      columns: { status: true, discordId: true },
+    });
+    await syncHonoraryDiscordRole(previous ?? null, current ?? null);
 
     if (isFullAccess && values.hrNotes !== undefined) {
       await setMemberHrNote(memberId, emptyToNull(values.hrNotes));
@@ -366,29 +358,47 @@ export async function updateMember(
   }
 }
 
-// Best-effort, like team-sync: a Discord failure must not undo the status change.
-async function setHonoraryDiscordRole(memberId: string, grant: boolean) {
+interface HonoraryState {
+  status: MemberStatus;
+  discordId: string | null;
+}
+
+// Keeps the honorary Discord role in line with who is currently honorary:
+// covers status changes, a discordId being added/changed/cleared, and new
+// members. Best-effort, like team-sync: a Discord failure must not undo the
+// change in the database.
+async function syncHonoraryDiscordRole(
+  before: HonoraryState | null,
+  after: HonoraryState | null,
+) {
   const roleId = env.DISCORD_HONORARY_ROLE_ID;
   if (roleId === undefined) {
     return;
   }
-  const row = await db.query.member.findFirst({
-    where: eq(member.id, memberId),
-    columns: { discordId: true },
-  });
-  if (row?.discordId === null || row?.discordId === undefined) {
+  const holder = (state: HonoraryState | null) =>
+    state?.status === "honorary" && state.discordId !== null
+      ? state.discordId
+      : null;
+  const previousHolder = holder(before);
+  const nextHolder = holder(after);
+  if (previousHolder === nextHolder) {
     return;
   }
-  try {
-    await (grant ? addGuildMemberRole : removeGuildMemberRole)(
-      row.discordId,
-      roleId,
-    );
-  } catch (error) {
-    console.error(
-      `Failed to ${grant ? "grant" : "revoke"} honorary Discord role for ${row.discordId}:`,
-      error,
-    );
+  for (const [discordId, change] of [
+    [previousHolder, removeGuildMemberRole],
+    [nextHolder, addGuildMemberRole],
+  ] as const) {
+    if (discordId === null) {
+      continue;
+    }
+    try {
+      await change(discordId, roleId);
+    } catch (error) {
+      console.error(
+        `Failed to sync honorary Discord role for ${discordId}:`,
+        error,
+      );
+    }
   }
 }
 
@@ -717,6 +727,7 @@ export async function commitMemberImport(
         .returning();
 
       await setMemberHrNote(created.id, hrNotes);
+      await syncHonoraryDiscordRole(null, created);
 
       if (email !== null) {
         await db
