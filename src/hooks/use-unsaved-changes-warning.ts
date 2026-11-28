@@ -102,6 +102,10 @@ export function useUnsavedChangesWarning(enabled: boolean) {
       }
       const delta = navigationIndex();
       const distance = delta === undefined ? undefined : guardIndex - delta;
+      // Already on the guard entry (e.g. our own traversal landed): nothing to ask.
+      if (distance === 0) {
+        return;
+      }
       // One step back from the guard lands on our own URL; anything else is a
       // multi-entry jump (e.g. history menu) and we are already at the target.
       const jumped =
