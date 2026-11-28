@@ -26,6 +26,7 @@ export function useUnsavedChangesWarning(enabled: boolean) {
     let guardIndex = 0;
     // Set when we trigger a traversal ourselves, so its popstate is not re-prompted.
     let ignorePop = false;
+    let ignoreNav = false;
     const url = window.location.href;
 
     function navigationIndex() {
@@ -55,6 +56,43 @@ export function useUnsavedChangesWarning(enabled: boolean) {
         );
         history.back();
       });
+    }
+
+    // Primary guard for history traversals where the Navigation API exists: the
+    // router unmounts the form before popstate reaches us on cross-route jumps,
+    // but a navigate event can still be cancelled.
+    function handleNavigate(event: NavigateEvent) {
+      if (event.navigationType !== "traverse") {
+        return;
+      }
+      if (ignoreNav) {
+        ignoreNav = false;
+        return;
+      }
+      if (!event.cancelable) {
+        return;
+      }
+      const target = event.destination.index;
+      if (target === guardIndex) {
+        return;
+      }
+      event.preventDefault();
+      // eslint-disable-next-line no-alert
+      if (!window.confirm(message)) {
+        return;
+      }
+      removeListeners();
+      guarded = false;
+      // One step back lands on the form's own URL; skip past it.
+      const destination =
+        target === guardIndex - 1 && guardIndex >= 2 ? target - 1 : target;
+      const nav = event.target as Navigation;
+      setTimeout(() => {
+        const entry = nav.entries().at(destination);
+        if (entry !== undefined) {
+          void nav.traverseTo(entry.key).finished?.catch(() => null);
+        }
+      }, 0);
     }
 
     function handleBeforeUnload(event: BeforeUnloadEvent) {
@@ -95,7 +133,7 @@ export function useUnsavedChangesWarning(enabled: boolean) {
       }
     }
 
-    function handlePopState() {
+    function handlePopState(event: PopStateEvent) {
       if (ignorePop) {
         ignorePop = false;
         return;
@@ -117,7 +155,11 @@ export function useUnsavedChangesWarning(enabled: boolean) {
           removeListeners();
           guarded = false;
         } else {
+          // Hide the jump from the Next.js router, which would otherwise unmount
+          // the form before we get to restore the guard entry.
+          event.stopImmediatePropagation();
           ignorePop = true;
+          ignoreNav = true;
           if (distance === undefined) {
             history.forward();
           } else {
@@ -138,7 +180,10 @@ export function useUnsavedChangesWarning(enabled: boolean) {
     function removeListeners() {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("click", handleClick, true);
-      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("popstate", handlePopState, true);
+      if ("navigation" in window) {
+        window.navigation.removeEventListener("navigate", handleNavigate);
+      }
     }
 
     history.pushState(null, "", window.location.href);
@@ -146,7 +191,12 @@ export function useUnsavedChangesWarning(enabled: boolean) {
     releaseRef.current = leave;
     window.addEventListener("beforeunload", handleBeforeUnload);
     document.addEventListener("click", handleClick, true);
-    window.addEventListener("popstate", handlePopState);
+    // Capture phase: must run before the Next.js router's own popstate handler,
+    // which synchronously unmounts the form on cross-route traversals.
+    window.addEventListener("popstate", handlePopState, true);
+    if ("navigation" in window) {
+      window.navigation.addEventListener("navigate", handleNavigate);
+    }
     return () => {
       removeListeners();
       releaseRef.current = noRelease;
